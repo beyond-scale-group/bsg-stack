@@ -1,0 +1,42 @@
+name: Discord Notification
+
+on:
+  workflow_call:
+    inputs:
+      title:
+        description: "Notification title"
+        required: true
+        type: string
+      description:
+        description: "Notification message"
+        required: true
+        type: string
+      color:
+        description: "Embed color (hex)"
+        required: false
+        type: string
+        default: "0x5865F2"
+      runs_on:
+        description: "Runner to use"
+        required: false
+        type: string
+        default: "ubuntu-latest"
+    secrets:
+      discord_webhook_url:
+        description: "Discord webhook URL"
+        required: true
+
+jobs:
+  notify:
+    name: Send Discord notification
+    runs-on: ${{ inputs.runs_on }}
+
+    steps:
+      - name: Send notification
+        uses: sarisia/actions-status-discord@v1.15.1
+        with:
+          webhook: ${{ secrets.discord_webhook_url }}
+          title: ${{ inputs.title }}
+          description: ${{ inputs.description }}
+          color: ${{ inputs.color }}
+          nodetail: true

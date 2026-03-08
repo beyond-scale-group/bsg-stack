@@ -1,0 +1,74 @@
+name: React Vite Test
+
+on:
+  workflow_call:
+    inputs:
+      node_version:
+        description: "Node.js version"
+        required: false
+        type: string
+        default: "22"
+      working_directory:
+        description: "Working directory"
+        required: false
+        type: string
+        default: "."
+      build_cmd:
+        description: "Build command"
+        required: false
+        type: string
+        default: "npm run build"
+      lint_cmd:
+        description: "Lint command"
+        required: false
+        type: string
+        default: "npm run lint"
+      test_cmd:
+        description: "Test command (empty to skip)"
+        required: false
+        type: string
+        default: ""
+      runs_on:
+        description: "Runner to use"
+        required: false
+        type: string
+        default: "ubuntu-latest"
+      timeout:
+        description: "Job timeout in minutes"
+        required: false
+        type: number
+        default: 10
+
+jobs:
+  build-and-lint:
+    name: Build & Lint
+    runs-on: ${{ inputs.runs_on }}
+    timeout-minutes: ${{ inputs.timeout }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ inputs.node_version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: npm
+          cache-dependency-path: ${{ inputs.working_directory }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        if: ${{ inputs.lint_cmd != '' }}
+        run: ${{ inputs.lint_cmd }}
+
+      - name: Build
+        run: ${{ inputs.build_cmd }}
+
+      - name: Test
+        if: ${{ inputs.test_cmd != '' }}
+        run: ${{ inputs.test_cmd }}

@@ -1,0 +1,54 @@
+name: Cobertura Coverage Report
+
+on:
+  workflow_call:
+    inputs:
+      report_path:
+        description: "Path to Cobertura XML report"
+        required: false
+        type: string
+        default: "coverage.xml"
+      min_coverage:
+        description: "Minimum coverage threshold (%)"
+        required: false
+        type: number
+        default: 0
+      diff_branch:
+        description: "Branch to diff coverage against"
+        required: false
+        type: string
+        default: "main"
+      runs_on:
+        description: "Runner to use"
+        required: false
+        type: string
+        default: "ubuntu-latest"
+      report_artifact:
+        description: "Artifact name to download"
+        required: false
+        type: string
+        default: "scala-coverage-report"
+
+jobs:
+  coverage:
+    name: Coverage Report
+    runs-on: ${{ inputs.runs_on }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.report_artifact }}
+
+      - name: Publish coverage report
+        uses: insightsengineering/coverage-action@v2
+        with:
+          path: ${{ inputs.report_path }}
+          threshold: ${{ inputs.min_coverage }}
+          diff-branch: ${{ inputs.diff_branch }}
+          publish: true
+          diff-storage: _xml_coverage_reports
+          togglable-report: true

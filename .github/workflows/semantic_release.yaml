@@ -1,0 +1,56 @@
+name: Semantic Release
+
+on:
+  workflow_call:
+    inputs:
+      semantic_version:
+        description: "semantic-release version"
+        required: false
+        type: string
+        default: "24.1.2"
+      extra_plugins:
+        description: "Extra plugins (space-separated)"
+        required: false
+        type: string
+        default: ""
+      runs_on:
+        description: "Runner to use"
+        required: false
+        type: string
+        default: "ubuntu-latest"
+      working_directory:
+        description: "Working directory"
+        required: false
+        type: string
+        default: "."
+    secrets:
+      token:
+        description: "GitHub token with push and release permissions"
+        required: true
+
+jobs:
+  release:
+    name: Semantic Release
+    runs-on: ${{ inputs.runs_on }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Semantic Release
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          semantic_version: ${{ inputs.semantic_version }}
+          extra_plugins: |
+            @semantic-release/changelog
+            @semantic-release/git
+            ${{ inputs.extra_plugins }}
+          working_directory: ${{ inputs.working_directory }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.token }}

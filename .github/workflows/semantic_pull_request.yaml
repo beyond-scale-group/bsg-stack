@@ -1,0 +1,36 @@
+name: Semantic Pull Request
+
+on:
+  workflow_call:
+    inputs:
+      types:
+        description: "Allowed commit types (comma-separated)"
+        required: false
+        type: string
+        default: "feat, fix, chore, docs, refactor, test, ci, perf, build"
+      scopes:
+        description: "Allowed scopes (comma-separated)"
+        required: false
+        type: string
+        default: ""
+      runs_on:
+        description: "Runner to use"
+        required: false
+        type: string
+        default: "ubuntu-latest"
+
+jobs:
+  validate:
+    name: Validate PR title
+    runs-on: ${{ inputs.runs_on }}
+    steps:
+      - name: Semantic PR check
+        uses: amannn/action-semantic-pull-request@v5.5.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: ${{ inputs.types }}
+          scopes: ${{ inputs.scopes }}
+          validateSingleCommit: false
+          ignoreLabels: "ignore-semantic-pull-request"
+          wip: false

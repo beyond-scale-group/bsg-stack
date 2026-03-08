@@ -1,0 +1,58 @@
+name: Clever Cloud Deploy
+
+on:
+  workflow_call:
+    inputs:
+      app_id:
+        description: "Clever Cloud application ID"
+        required: true
+        type: string
+      branch:
+        description: "Git branch to deploy"
+        required: false
+        type: string
+        default: "main"
+      runs_on:
+        description: "Runner to use"
+        required: false
+        type: string
+        default: "ubuntu-latest"
+      timeout:
+        description: "Job timeout in minutes"
+        required: false
+        type: number
+        default: 20
+    secrets:
+      clever_token:
+        description: "Clever Cloud API token"
+        required: true
+      clever_secret:
+        description: "Clever Cloud API secret"
+        required: true
+
+jobs:
+  deploy:
+    name: Deploy to Clever Cloud
+    runs-on: ${{ inputs.runs_on }}
+    timeout-minutes: ${{ inputs.timeout }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Clever Cloud CLI
+        run: npm install -g clever-tools
+
+      - name: Link application
+        run: clever link ${{ inputs.app_id }}
+        env:
+          CLEVER_TOKEN: ${{ secrets.clever_token }}
+          CLEVER_SECRET: ${{ secrets.clever_secret }}
+
+      - name: Deploy
+        run: clever deploy --branch ${{ inputs.branch }} --force
+        env:
+          CLEVER_TOKEN: ${{ secrets.clever_token }}
+          CLEVER_SECRET: ${{ secrets.clever_secret }}

@@ -1,0 +1,102 @@
+name: Scala Test
+
+on:
+  workflow_call:
+    inputs:
+      jdk:
+        description: "JDK version"
+        required: false
+        type: string
+        default: "21"
+      sbt_cmd:
+        description: "sbt command to run"
+        required: false
+        type: string
+        default: "compile test"
+      coverage:
+        description: "Enable coverage reporting"
+        required: false
+        type: boolean
+        default: true
+      report_artifact:
+        description: "Artifact name for coverage report"
+        required: false
+        type: string
+        default: "scala-coverage-report"
+      runs_on:
+        description: "Runner to use"
+        required: false
+        type: string
+        default: "ubuntu-latest"
+      working_directory:
+        description: "Working directory"
+        required: false
+        type: string
+        default: "."
+      timeout:
+        description: "Job timeout in minutes"
+        required: false
+        type: number
+        default: 15
+      java_distribution:
+        description: "Java distribution"
+        required: false
+        type: string
+        default: "temurin"
+
+jobs:
+  test:
+    name: Scala compile & test
+    runs-on: ${{ inputs.runs_on }}
+    timeout-minutes: ${{ inputs.timeout }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: jarvis
+          POSTGRES_USER: jarvis
+          POSTGRES_PASSWORD: jarvis
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jarvis"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK ${{ inputs.jdk }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ inputs.java_distribution }}
+          java-version: ${{ inputs.jdk }}
+          cache: sbt
+
+      - name: Setup sbt
+        uses: sbt/setup-sbt@v1
+
+      - name: Run tests
+        if: ${{ !inputs.coverage }}
+        run: sbt "${{ inputs.sbt_cmd }}"
+
+      - name: Run tests with coverage
+        if: ${{ inputs.coverage }}
+        run: |
+          sbt "coverage; ${{ inputs.sbt_cmd }}; coverageAggregate"
+
+      - name: Upload coverage report
+        if: ${{ inputs.coverage && always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.report_artifact }}
+          path: |
+            ${{ inputs.working_directory }}/**/target/scala-*/scoverage-report/
+            ${{ inputs.working_directory }}/**/target/scala-*/coverage-report/
+          retention-days: 7
