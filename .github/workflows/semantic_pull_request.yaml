@@ -3,13 +3,8 @@ name: Semantic Pull Request
 on:
   workflow_call:
     inputs:
-      types:
-        description: "Allowed commit types (comma-separated)"
-        required: false
-        type: string
-        default: "feat,fix,chore,docs,refactor,test,ci,perf,build"
       scopes:
-        description: "Allowed scopes (comma-separated)"
+        description: "Allowed scopes (newline-separated)"
         required: false
         type: string
         default: ""
@@ -29,7 +24,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          types: ${{ inputs.types }}
+          types: |
+            feat
+            fix
+            chore
+            docs
+            refactor
+            test
+            ci
+            perf
+            build
           scopes: ${{ inputs.scopes }}
           validateSingleCommit: false
           ignoreLabels: "ignore-semantic-pull-request"
