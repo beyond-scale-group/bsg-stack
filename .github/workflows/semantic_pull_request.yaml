@@ -7,7 +7,7 @@ on:
         description: "Allowed commit types (comma-separated)"
         required: false
         type: string
-        default: "feat, fix, chore, docs, refactor, test, ci, perf, build"
+        default: "feat,fix,chore,docs,refactor,test,ci,perf,build"
       scopes:
         description: "Allowed scopes (comma-separated)"
         required: false
