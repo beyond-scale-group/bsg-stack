@@ -1,0 +1,80 @@
+name: Create Release Branch
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Tag to create the release branch from (e.g. v1.2.0)"
+        required: true
+        type: string
+      dry_run:
+        description: "If true, only print what would happen"
+        required: false
+        type: boolean
+        default: false
+      cleanup_rc:
+        description: "Delete older release candidate branches"
+        required: false
+        type: boolean
+        default: true
+      runs_on:
+        description: "Runner to use"
+        required: false
+        type: string
+        default: "ubuntu-latest"
+
+jobs:
+  release:
+    name: Create release branch
+    runs-on: ${{ inputs.runs_on }}
+    env:
+      DRY_RUN: ${{ inputs.dry_run }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Cleanup old RC branches
+        if: inputs.cleanup_rc
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release="${{ inputs.tag }}"
+          release_no_v="${release#[vV]}"
+
+          if [[ ! "$release_no_v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Skip cleanup: tag looks like a pre-release ($release)"
+            exit 0
+          fi
+
+          while IFS= read -r ref; do
+            branch="${ref#refs/heads/}"
+            if [[ "$branch" =~ ^release/v?([0-9]+\.[0-9]+\.[0-9]+)-rc\.[0-9]+$ ]]; then
+              branch_ver="${BASH_REMATCH[1]}"
+              if [[ "$(printf '%s\n%s\n' "$branch_ver" "$release_no_v" | sort -V | head -n1)" == "$branch_ver" ]]; then
+                if [[ "${{ env.DRY_RUN }}" == "true" ]]; then
+                  echo "[DRY RUN] Would delete origin/$branch"
+                else
+                  echo "Deleting origin/$branch"
+                  git push origin --delete "$branch"
+                fi
+              else
+                echo "Keeping origin/$branch (newer than $release_no_v)"
+              fi
+            fi
+          done < <(git ls-remote --heads origin "release/*-rc.*" | awk '{print $2}')
+
+      - name: Create and push release branch
+        run: |
+          BRANCH="release/${{ inputs.tag }}"
+          if [[ "${{ env.DRY_RUN }}" == "true" ]]; then
+            echo "[DRY RUN] Would create and push branch $BRANCH"
+          else
+            git switch -c "$BRANCH"
+            git push origin "$BRANCH" --set-upstream
+            echo "Created branch $BRANCH"
+          fi
+        shell: bash
