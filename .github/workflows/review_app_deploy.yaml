@@ -1,0 +1,291 @@
+name: Review App Deploy
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        description: "App identifier"
+        required: true
+        type: string
+      terraform_dir:
+        description: "Path to Terraform config"
+        required: true
+        type: string
+      deploy_path:
+        description: "Path to deploy (monorepo subfolder)"
+        required: true
+        type: string
+      state_prefix:
+        description: "Terraform state prefix"
+        required: true
+        type: string
+      organization_id:
+        description: "Clever Cloud organization ID"
+        required: true
+        type: string
+      backend_url_var:
+        description: "Env var name for backend URL (optional)"
+        required: false
+        type: string
+        default: ""
+      backend_check_path:
+        description: "Path to check for backend changes (for URL isolation)"
+        required: false
+        type: string
+        default: ""
+      staging_backend_url:
+        description: "Staging backend URL (fallback when backend unchanged)"
+        required: false
+        type: string
+        default: ""
+      pr_number:
+        description: "PR number"
+        required: true
+        type: string
+      head_sha:
+        description: "Commit SHA to deploy"
+        required: true
+        type: string
+      head_ref:
+        description: "Branch name"
+        required: false
+        type: string
+        default: ""
+      base_ref:
+        description: "Base branch"
+        required: false
+        type: string
+        default: "staging"
+      action:
+        description: "deploy or cleanup"
+        required: false
+        type: string
+        default: "deploy"
+      s3_cleanup_prefix:
+        description: "S3 prefix for cleanup, {pr} replaced by PR number"
+        required: false
+        type: string
+        default: ""
+      tf_var_postgresql_addon_id:
+        description: "PostgreSQL addon ID"
+        required: false
+        type: string
+        default: ""
+      tf_var_cellar_addon_id:
+        description: "Cellar addon ID"
+        required: false
+        type: string
+        default: ""
+      tf_var_s3_bucket:
+        description: "S3 bucket name"
+        required: false
+        type: string
+        default: ""
+      runs_on:
+        description: "Runner to use"
+        required: false
+        type: string
+        default: "ubuntu-latest"
+      timeout:
+        description: "Job timeout in minutes"
+        required: false
+        type: number
+        default: 30
+    secrets:
+      clever_token:
+        required: true
+      clever_secret:
+        required: true
+      s3_access_key:
+        required: true
+      s3_secret_key:
+        required: true
+      anthropic_api_key:
+        required: false
+      mistral_api_key:
+        required: false
+
+jobs:
+  deploy:
+    runs-on: ${{ inputs.runs_on }}
+    timeout-minutes: ${{ inputs.timeout }}
+    permissions:
+      contents: read
+      pull-requests: write
+
+    env:
+      TF_WORKSPACE: ${{ inputs.state_prefix }}-pr-${{ inputs.pr_number }}
+      TF_VAR_pr_number: ${{ inputs.pr_number }}
+      TF_VAR_organization_id: ${{ inputs.organization_id }}
+      TF_VAR_postgresql_addon_id: ${{ inputs.tf_var_postgresql_addon_id }}
+      TF_VAR_cellar_addon_id: ${{ inputs.tf_var_cellar_addon_id }}
+      TF_VAR_s3_bucket: ${{ inputs.tf_var_s3_bucket }}
+      CC_OAUTH_TOKEN: ${{ secrets.clever_token }}
+      CC_OAUTH_SECRET: ${{ secrets.clever_secret }}
+      CC_ORGANISATION: ${{ inputs.organization_id }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.s3_access_key }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.s3_secret_key }}
+      TF_VAR_anthropic_api_key: ${{ secrets.anthropic_api_key }}
+      TF_VAR_mistral_api_key: ${{ secrets.mistral_api_key }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.head_sha }}
+          fetch-depth: 0
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.9"
+          terraform_wrapper: true
+
+      - name: Check if review app state exists in S3
+        if: inputs.action == 'cleanup'
+        id: check_state
+        run: |
+          STATE_KEY="review-apps/${{ inputs.state_prefix }}/pr-${{ inputs.pr_number }}/terraform.tfstate"
+          if aws s3 ls "s3://terraform/${STATE_KEY}" \
+            --endpoint-url "https://cellar-c2.services.clever-cloud.com" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Terraform Init
+        if: inputs.action == 'deploy' || (inputs.action == 'cleanup' && steps.check_state.outputs.exists == 'true')
+        working-directory: ${{ inputs.terraform_dir }}
+        run: |
+          terraform init \
+            -backend-config="key=review-apps/${{ inputs.state_prefix }}/pr-${{ inputs.pr_number }}/terraform.tfstate"
+
+      - name: Check Backend URL (for isolation)
+        if: inputs.action == 'deploy' && inputs.backend_url_var != ''
+        id: backend_check
+        run: |
+          if [ -n "${{ inputs.backend_check_path }}" ]; then
+            BACKEND_CHANGED=$(git diff --name-only origin/${{ inputs.base_ref }}...HEAD | grep -c "${{ inputs.backend_check_path }}" || echo "0")
+          else
+            BACKEND_CHANGED=0
+          fi
+
+          if [ "$BACKEND_CHANGED" -gt 0 ]; then
+            BACKEND_URL="https://${{ inputs.state_prefix }}-pr-${{ inputs.pr_number }}.cleverapps.io"
+            echo "backend_url=${BACKEND_URL}" >> "$GITHUB_OUTPUT"
+            echo "isolation=pr" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend_url=${{ inputs.staging_backend_url }}" >> "$GITHUB_OUTPUT"
+            echo "isolation=staging" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Terraform Plan
+        if: inputs.action == 'deploy'
+        working-directory: ${{ inputs.terraform_dir }}
+        run: |
+          PLAN_ARGS=""
+          if [ -n "${{ inputs.backend_url_var }}" ] && [ -n "${{ steps.backend_check.outputs.backend_url }}" ]; then
+            PLAN_ARGS="${PLAN_ARGS} -var=backend_url=${{ steps.backend_check.outputs.backend_url }}"
+          fi
+          terraform plan ${PLAN_ARGS} -out=tfplan
+
+      - name: Terraform Apply
+        if: inputs.action == 'deploy'
+        working-directory: ${{ inputs.terraform_dir }}
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get App ID
+        if: inputs.action == 'deploy'
+        id: app_id
+        working-directory: ${{ inputs.terraform_dir }}
+        run: |
+          APP_ID=$(terraform output -raw app_id)
+          APP_URL=$(terraform output -raw app_url)
+          echo "id=${APP_ID}" >> "$GITHUB_OUTPUT"
+          echo "url=${APP_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy Code
+        if: inputs.action == 'deploy'
+        uses: 47ng/actions-clever-cloud@v2.1.0
+        with:
+          appID: ${{ steps.app_id.outputs.id }}
+          force: true
+          timeout: 1800
+          deployPath: ${{ inputs.deploy_path }}
+          logFile: deploy.log
+        env:
+          CLEVER_TOKEN: ${{ secrets.clever_token }}
+          CLEVER_SECRET: ${{ secrets.clever_secret }}
+
+      - name: Check deployment status
+        if: inputs.action == 'deploy'
+        run: |
+          if [ -f deploy.log ]; then
+            if grep -q "Deployment failed\|Failed to connect to GET /health" deploy.log; then
+              echo "::error::Deployment failed"
+              cat deploy.log
+              exit 1
+            fi
+          fi
+
+      - name: Find existing comment
+        if: inputs.action == 'deploy'
+        uses: peter-evans/find-comment@v3
+        id: find_comment
+        with:
+          issue-number: ${{ inputs.pr_number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: 'Review App Deployed: ${{ inputs.app_name }}'
+
+      - name: Comment PR with App URL
+        if: inputs.action == 'deploy'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ inputs.pr_number }}
+          comment-id: ${{ steps.find_comment.outputs.comment-id }}
+          body: |
+            **Review App Deployed: ${{ inputs.app_name }}**
+
+            **URL:** ${{ steps.app_id.outputs.url }}
+            **PR:** #${{ inputs.pr_number }}
+            **Branch:** `${{ inputs.head_ref }}`
+            ${{ steps.backend_check.outputs.backend_url && format('**Backend:** {0} ({1})', steps.backend_check.outputs.backend_url, steps.backend_check.outputs.isolation) || '' }}
+
+            _Updated: ${{ inputs.head_sha }}_
+            _Resources will be automatically cleaned up when this PR is closed._
+          edit-mode: replace
+
+      - name: Terraform Destroy
+        if: inputs.action == 'cleanup' && steps.check_state.outputs.exists == 'true'
+        working-directory: ${{ inputs.terraform_dir }}
+        run: terraform destroy -auto-approve
+
+      - name: Cleanup Terraform Workspace
+        if: inputs.action == 'cleanup' && steps.check_state.outputs.exists == 'true'
+        working-directory: ${{ inputs.terraform_dir }}
+        continue-on-error: true
+        run: |
+          unset TF_WORKSPACE
+          terraform workspace select default
+          terraform workspace delete ${{ inputs.state_prefix }}-pr-${{ inputs.pr_number }} || true
+
+      - name: Cleanup S3 Files
+        if: inputs.action == 'cleanup' && inputs.tf_var_s3_bucket != '' && inputs.s3_cleanup_prefix != '' && steps.check_state.outputs.exists == 'true'
+        continue-on-error: true
+        run: |
+          S3_PREFIX=$(echo "${{ inputs.s3_cleanup_prefix }}" | sed "s/{pr}/${{ inputs.pr_number }}/g")
+          aws s3 rm "s3://${{ inputs.tf_var_s3_bucket }}/${S3_PREFIX}" \
+            --recursive \
+            --endpoint-url "https://cellar-c2.services.clever-cloud.com"
+
+      - name: Comment PR on Cleanup
+        if: inputs.action == 'cleanup' && steps.check_state.outputs.exists == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: ${{ inputs.pr_number }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `**Review App Cleaned Up: ${{ inputs.app_name }}**\n\nAll resources for PR #${{ inputs.pr_number }} have been destroyed.`
+            });
