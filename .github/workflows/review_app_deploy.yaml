@@ -81,6 +81,11 @@ on:
         required: false
         type: string
         default: ""
+      tf_var_backend_url_internal:
+        description: "Scala backend URL for server-side calls"
+        required: false
+        type: string
+        default: ""
       runs_on:
         description: "Runner to use"
         required: false
@@ -103,6 +108,8 @@ on:
       anthropic_api_key:
         required: false
       mistral_api_key:
+        required: false
+      backend_api_key:
         required: false
 
 jobs:
@@ -127,6 +134,8 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.s3_secret_key }}
       TF_VAR_anthropic_api_key: ${{ secrets.anthropic_api_key }}
       TF_VAR_mistral_api_key: ${{ secrets.mistral_api_key }}
+      TF_VAR_backend_url_internal: ${{ inputs.tf_var_backend_url_internal }}
+      TF_VAR_backend_api_key: ${{ secrets.backend_api_key }}
 
     steps:
       - name: Checkout
