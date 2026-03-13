@@ -125,9 +125,6 @@ jobs:
     if: inputs.action == 'deploy' && inputs.wait_for_checks
     runs-on: ${{ inputs.runs_on }}
     timeout-minutes: ${{ inputs.checks_timeout }}
-    permissions:
-      checks: read
-      pull-requests: read
     steps:
       - name: Wait for PR checks to pass
         uses: actions/github-script@v7
