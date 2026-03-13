@@ -81,6 +81,21 @@ on:
         required: false
         type: string
         default: ""
+      wait_for_checks:
+        description: "Wait for PR checks to pass before deploying"
+        required: false
+        type: boolean
+        default: false
+      checks_timeout:
+        description: "Max minutes to wait for checks"
+        required: false
+        type: number
+        default: 20
+      checks_poll_interval:
+        description: "Seconds between check polls"
+        required: false
+        type: number
+        default: 30
       runs_on:
         description: "Runner to use"
         required: false
@@ -106,7 +121,81 @@ on:
         required: false
 
 jobs:
+  wait-for-checks:
+    if: inputs.action == 'deploy' && inputs.wait_for_checks
+    runs-on: ${{ inputs.runs_on }}
+    timeout-minutes: ${{ inputs.checks_timeout }}
+    permissions:
+      checks: read
+      pull-requests: read
+    steps:
+      - name: Wait for PR checks to pass
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = parseInt('${{ inputs.pr_number }}');
+            const pollInterval = parseInt('${{ inputs.checks_poll_interval }}') * 1000;
+            const ownRunId = context.runId;
+
+            console.log(`Waiting for checks on PR #${prNumber} (poll every ${pollInterval/1000}s)...`);
+
+            while (true) {
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+              });
+
+              const { data: checkRuns } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: pr.head.sha,
+                per_page: 100,
+              });
+
+              // Filter out our own workflow's check runs
+              const otherChecks = checkRuns.check_runs.filter(cr => {
+                return !cr.name.startsWith('wait-for-checks') &&
+                       !cr.name.startsWith('deploy') &&
+                       !cr.name.startsWith('cleanup') &&
+                       !cr.name.startsWith('check');
+              });
+
+              if (otherChecks.length === 0) {
+                console.log('No other checks found yet, waiting...');
+                await new Promise(r => setTimeout(r, pollInterval));
+                continue;
+              }
+
+              const pending = otherChecks.filter(cr => cr.status !== 'completed');
+              const failed = otherChecks.filter(cr =>
+                cr.status === 'completed' && !['success', 'skipped', 'neutral'].includes(cr.conclusion)
+              );
+              const passed = otherChecks.filter(cr =>
+                cr.status === 'completed' && ['success', 'skipped', 'neutral'].includes(cr.conclusion)
+              );
+
+              console.log(`Checks: ${passed.length} passed, ${pending.length} pending, ${failed.length} failed (total: ${otherChecks.length})`);
+
+              if (failed.length > 0) {
+                const failedNames = failed.map(cr => `  - ${cr.name}: ${cr.conclusion}`).join('\n');
+                core.setFailed(`Some checks failed:\n${failedNames}\nDeploy cancelled.`);
+                return;
+              }
+
+              if (pending.length === 0) {
+                console.log('All checks passed! Proceeding to deploy.');
+                return;
+              }
+
+              const pendingNames = pending.map(cr => `  - ${cr.name}`).join('\n');
+              console.log(`Still waiting for:\n${pendingNames}`);
+              await new Promise(r => setTimeout(r, pollInterval));
+            }
+
   deploy:
+    needs: [wait-for-checks]
+    if: always() && (needs.wait-for-checks.result == 'success' || needs.wait-for-checks.result == 'skipped')
     runs-on: ${{ inputs.runs_on }}
     timeout-minutes: ${{ inputs.timeout }}
     permissions:
