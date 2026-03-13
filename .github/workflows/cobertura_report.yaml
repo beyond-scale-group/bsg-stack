@@ -29,6 +29,11 @@ on:
         type: string
         default: "scala-coverage-report"
 
+permissions:
+  contents: write
+  checks: write
+  pull-requests: write
+
 jobs:
   coverage:
     name: Coverage Report
@@ -52,3 +57,4 @@ jobs:
           publish: true
           diff-storage: _xml_coverage_reports
           togglable-report: true
+          token: ${{ github.token }}
