@@ -154,7 +154,10 @@ jobs:
         if: inputs.action == 'cleanup'
         id: check_state
         run: |
-          STATE_KEY="review-apps/${{ inputs.state_prefix }}/pr-${{ inputs.pr_number }}/terraform.tfstate"
+          # Terraform workspaces store state under env:/{workspace}/key
+          WORKSPACE="${{ inputs.state_prefix }}-pr-${{ inputs.pr_number }}"
+          STATE_KEY="env:/${WORKSPACE}/review-apps/${{ inputs.state_prefix }}/pr-${{ inputs.pr_number }}/terraform.tfstate"
+          echo "Checking for state at: s3://terraform/${STATE_KEY}"
           if aws s3 ls "s3://terraform/${STATE_KEY}" \
             --endpoint-url "https://cellar-c2.services.clever-cloud.com" > /dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
