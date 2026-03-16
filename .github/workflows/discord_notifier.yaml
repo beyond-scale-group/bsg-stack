@@ -1,3 +1,4 @@
+---
 name: Discord Notification
 
 on:
@@ -23,8 +24,11 @@ on:
         default: "ubuntu-latest"
     secrets:
       discord_webhook_url:
-        description: "Discord webhook URL"
+        description: "Discord webhook URL (git-flow-logs)"
         required: true
+      discord_webhook_working_events:
+        description: "Discord webhook URL (working_events)"
+        required: false
 
 jobs:
   notify:
@@ -32,7 +36,7 @@ jobs:
     runs-on: ${{ inputs.runs_on }}
 
     steps:
-      - name: Send notification
+      - name: Notify git-flow-logs
         uses: sarisia/actions-status-discord@v1.15.1
         with:
           webhook: ${{ secrets.discord_webhook_url }}
@@ -40,3 +44,12 @@ jobs:
           description: ${{ inputs.description }}
           color: ${{ inputs.color }}
           nodetail: true
+
+      - name: Notify working_events
+        if: ${{ secrets.discord_webhook_working_events != '' }}
+        uses: sarisia/actions-status-discord@v1.15.1
+        with:
+          webhook: ${{ secrets.discord_webhook_working_events }}
+          title: ${{ inputs.title }}
+          description: ${{ inputs.description }}
+          color: ${{ inputs.color }}
