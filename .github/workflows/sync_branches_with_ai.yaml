@@ -131,7 +131,7 @@ jobs:
           PR_URL=$(gh pr create \
             --base ${{ inputs.to }} \
             --head "$BRANCH" \
-            --title "Sync ${{ inputs.from }} to ${{ inputs.to }}" \
+            --title "chore(ci): sync ${{ inputs.from }} to ${{ inputs.to }}" \
             --body "Auto-sync: ${{ steps.check.outputs.behind_count }} commits from \`${{ inputs.from }}\` to \`${{ inputs.to }}\`. Clean merge, no conflicts." \
             --label "sync")
           echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
@@ -155,7 +155,7 @@ jobs:
           PR_URL=$(gh pr create \
             --base ${{ inputs.to }} \
             --head "$BRANCH" \
-            --title "Sync ${{ inputs.from }} to ${{ inputs.to }} (AI-resolved)" \
+            --title "chore(ci): sync ${{ inputs.from }} to ${{ inputs.to }} (AI-resolved)" \
             --body-file "$BODY_FILE" \
             --label "sync")
           echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
@@ -181,7 +181,7 @@ jobs:
           PR_URL=$(gh pr create \
             --base ${{ inputs.to }} \
             --head "$BRANCH" \
-            --title "Sync ${{ inputs.from }} to ${{ inputs.to }} (manual resolution needed)" \
+            --title "chore(ci): sync ${{ inputs.from }} to ${{ inputs.to }} (manual resolution needed)" \
             --body-file "$BODY_FILE" \
             --label "sync")
           echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
