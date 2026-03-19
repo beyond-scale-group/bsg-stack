@@ -96,8 +96,9 @@ jobs:
           else
             echo "status=conflict" >> $GITHUB_OUTPUT
             git diff --name-only --diff-filter=U > /tmp/unmerged_files.txt
+            git status --porcelain | grep -E '^(DU|UD|UU|AA|DD) ' > /tmp/conflict_status.txt 2>/dev/null || true
             echo "Conflicted files:"
-            cat /tmp/unmerged_files.txt
+            cat /tmp/conflict_status.txt
           fi
 
       - name: Resolve conflicts with AI
