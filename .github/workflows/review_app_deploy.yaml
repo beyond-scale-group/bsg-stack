@@ -111,6 +111,8 @@ on:
         required: false
       backend_api_key:
         required: false
+      google_api_key:
+        required: false
 
 jobs:
   deploy:
@@ -136,6 +138,7 @@ jobs:
       TF_VAR_mistral_api_key: ${{ secrets.mistral_api_key }}
       TF_VAR_backend_url_internal: ${{ inputs.tf_var_backend_url_internal }}
       TF_VAR_backend_api_key: ${{ secrets.backend_api_key }}
+      TF_VAR_google_api_key: ${{ secrets.google_api_key }}
 
     steps:
       - name: Checkout
