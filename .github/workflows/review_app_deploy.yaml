@@ -239,8 +239,13 @@ jobs:
         if: inputs.action == 'deploy'
         run: |
           if [ -f deploy.log ]; then
-            if grep -q "Deployment failed\|Failed to connect to GET /health" deploy.log; then
+            if grep -q "Deployment failed" deploy.log; then
               echo "::error::Deployment failed"
+              cat deploy.log
+              exit 1
+            fi
+            if grep -q "Failed to connect to GET /health" deploy.log && ! grep -q "Application start successful" deploy.log; then
+              echo "::error::Deployment failed (health check never passed)"
               cat deploy.log
               exit 1
             fi
