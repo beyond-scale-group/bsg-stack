@@ -85,11 +85,15 @@ jobs:
       - name: Run tests
         if: ${{ !inputs.coverage }}
         run: sbt "${{ inputs.sbt_cmd }}"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Run tests with coverage
         if: ${{ inputs.coverage }}
         run: |
           sbt "coverage; ${{ inputs.sbt_cmd }}; coverageAggregate"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Upload coverage report
         if: ${{ inputs.coverage && always() }}
