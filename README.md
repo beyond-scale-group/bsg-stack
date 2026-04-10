@@ -64,6 +64,15 @@ Shareable Renovate presets in `renovate/`:
 - `scala_config.json` — sbt projects (automerge patch/minor, manual major)
 - `react_config.json` — npm projects (automerge patch/minor, manual major)
 
+## Claude Code Skills
+
+Shared [Claude Code](https://claude.com/claude-code) slash commands and
+skills live under `claude-skills/`. To install them, ask your Claude Code
+agent to follow [`claude-skills/INSTALL.md`](claude-skills/INSTALL.md) —
+Claude will fetch the file, discover the available commands, and write
+them into your `~/.claude/` directory. Re-ask any time to pull updates.
+No clone, no script, no cron.
+
 ## Versioning
 
 This repo uses [semantic-release](https://github.com/semantic-release/semantic-release).
