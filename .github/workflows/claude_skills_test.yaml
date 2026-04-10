@@ -1,0 +1,21 @@
+name: claude-skills test
+
+on:
+  pull_request:
+    paths:
+      - 'claude-skills/**'
+      - '.github/workflows/claude_skills_test.yaml'
+  push:
+    branches: [main]
+    paths:
+      - 'claude-skills/**'
+      - '.github/workflows/claude_skills_test.yaml'
+
+jobs:
+  test:
+    name: Validate shared skills catalog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run unit tests
+        run: python3 claude-skills/tests/test_skills.py
