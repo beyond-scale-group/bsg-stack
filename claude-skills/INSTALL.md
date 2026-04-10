@@ -42,6 +42,36 @@ No git clone, no script to run, no cron to set up.
 |------|-------------|
 | `po-manager` | Product owner / project manager orchestrator subagent. Delegated to for status reports, milestone progress, sprint health, stale ticket detection, standup summaries. Uses the `po-report` skill for reporting and `daily-standup` for meeting parsing. Reporting only — does not implement features. |
 
+## How it works under the hood
+
+The whole install flow boils down to: **drop one Python script in
+`~/.claude/scripts/` and run it once.**
+
+That script — `update-bsg-skills.py` — does everything else:
+
+- Discovers and installs every command, skill, and subagent from this
+  repo into `~/.claude/commands/`, `~/.claude/skills/`, and
+  `~/.claude/agents/`.
+- Self-registers a `SessionStart` hook in `~/.claude/settings.json` so
+  every new Claude Code session re-runs it in the background. After the
+  first install, you never have to think about updates again.
+- Maintains a manifest at
+  `~/.claude/scripts/.bsg-skills-manifest.json` listing every file it
+  owns. **It will never overwrite a file it does not own**, so if you
+  already have your own `~/.claude/commands/babysit.md` (or another
+  shared-skills system writes there), the BSG updater leaves it alone
+  and logs a SKIP. To adopt a BSG version of a file you already have,
+  delete your local copy and re-run.
+- Removes files locally when they are removed upstream — but only files
+  in the manifest, so unrelated files in the same directories are
+  never touched.
+- Logs to `~/.claude/logs/update-bsg-skills.log` (rotated at 256 KiB).
+- Swallows network errors (exits 0) so a flaky connection never blocks
+  a Claude Code session from starting.
+
+Re-running the install flow is just a way to reset to a known-good
+script if the local copy got corrupted or deleted.
+
 ## Adding a new command, skill, or agent to the catalog
 
 1. Drop the file in the right place inside this repo:
@@ -99,93 +129,72 @@ and replace `~/.claude/commands/<name>.md` with `~/.claude/agents/<name>.md`.
 ## Instructions for the Claude Code agent
 
 **You — the Claude Code agent reading this file — are installing the BSG
-shared Claude Code commands, skills, and subagents into the current
-user's local `~/.claude/` directory. Follow these steps exactly. Use
-your `WebFetch`, `Write`, and `Bash` tools.**
+shared Claude Code skills system for the current user. Your job is
+deliberately tiny: drop one script on disk and run it. The script does
+everything else (discovers commands, skills, and subagents, installs
+them, registers a self-updating hook, manages a manifest to avoid
+clobbering files it does not own).**
 
-### 1. Discover available commands
+### 1. Fetch the updater script
 
-Fetch this GitHub API endpoint:
-
-```
-https://api.github.com/repos/beyond-scale-group/bsg-workflows/contents/claude-skills/commands?ref=main
-```
-
-It returns a JSON array. For each entry where `"type": "file"` and `name`
-ends with `.md`, note the `name` and the `download_url`.
-
-### 2. Install each command
-
-For each command discovered in step 1:
-
-1. Fetch its raw content from the `download_url`.
-2. Write it to `~/.claude/commands/<name>` (resolve `~` to the actual
-   home directory). Create `~/.claude/commands/` first if it does not
-   exist.
-3. **Always overwrite** any existing file at that path — the remote is
-   the source of truth, and the local file is a cached copy.
-
-### 3. Discover and install skills
-
-Fetch:
+Fetch the raw content from:
 
 ```
-https://api.github.com/repos/beyond-scale-group/bsg-workflows/contents/claude-skills/skills?ref=main
+https://raw.githubusercontent.com/beyond-scale-group/bsg-workflows/main/claude-skills/scripts/update-bsg-skills.py
 ```
 
-If the response is `404`, there are no skills yet — skip to step 4.
+### 2. Install it
 
-Otherwise, for each entry with `"type": "dir"`:
+1. Create `~/.claude/scripts/` if it does not exist (resolve `~` to the
+   actual home directory).
+2. Write the fetched content to
+   `~/.claude/scripts/update-bsg-skills.py`. Always overwrite — the
+   remote is the source of truth.
+3. `chmod +x` the file.
 
-1. Fetch that entry's `url` (also a GitHub API URL) to list the files
-   inside the skill directory.
-2. For each file, fetch its `download_url` and write it to
-   `~/.claude/skills/<skill-name>/<file-name>`. Create directories as
-   needed. Recurse into subdirectories the same way.
-3. After writing, `chmod +x` any file under `scripts/` so the skill can
-   execute its own helpers without the user fixing permissions.
+### 3. Run it once
 
-### 4. Discover and install subagents
-
-Fetch:
+Run the script in the foreground so you can capture and show its output
+to the user:
 
 ```
-https://api.github.com/repos/beyond-scale-group/bsg-workflows/contents/claude-skills/agents?ref=main
+python3 ~/.claude/scripts/update-bsg-skills.py
 ```
 
-If the response is `404`, there are no agents yet — skip to step 5.
+On its first run, the script will:
 
-Otherwise, for each entry where `"type": "file"` and `name` ends with
-`.md`:
+- Self-register a `SessionStart` hook in `~/.claude/settings.json`
+  (idempotent — safe to re-run).
+- Discover and install every command, skill, and subagent from this
+  repo into `~/.claude/commands/`, `~/.claude/skills/`, and
+  `~/.claude/agents/`, writing a manifest at
+  `~/.claude/scripts/.bsg-skills-manifest.json` so it can avoid
+  clobbering files it does not own on later runs.
+- Log everything to `~/.claude/logs/update-bsg-skills.log`.
 
-1. Fetch its raw content from the `download_url`.
-2. Write it to `~/.claude/agents/<name>` (resolve `~` to the actual home
-   directory). Create `~/.claude/agents/` first if it does not exist.
-3. **Always overwrite** any existing file at that path — same rule as
-   commands.
+The script always exits 0, even on network failure, so do not treat a
+zero exit as success on its own — read the log instead.
 
-Subagents installed this way are user-scope and become available across
-all the developer's projects. They are loaded at session start, so the
-developer must restart Claude Code to pick up newly-installed agents.
+### 4. Report to the user
 
-### 5. Report to the user
-
-Print a short summary listing every command, skill, and subagent that
-was installed or updated, with the count, and remind the user that they
-can re-run the same install flow any time to pull updates. If any
-subagents were installed or changed, also remind the user to restart
-Claude Code so the new definitions are loaded.
+Show a short summary based on the script's output: how many commands,
+skills, and subagents were installed or updated, any files that were
+SKIPPED because they already existed and were not in the BSG manifest,
+and a reminder that future Claude Code sessions will auto-update via
+the SessionStart hook. If any subagents were installed or changed, also
+remind the user to restart Claude Code so the new definitions are
+loaded.
 
 ### Constraints
 
 - Do **not** clone the repo. Use HTTPS fetches only.
-- Do **not** touch any file outside `~/.claude/commands/`,
-  `~/.claude/skills/`, and `~/.claude/agents/`.
-- Do **not** ask the user to confirm before overwriting — files installed
-  by this flow are cached copies of the remote source of truth. If a
-  developer wants a customized variant of a command, they should fork it
-  under a different name (e.g. `babysit-custom.md`) so this install flow
-  leaves it alone.
-- If the GitHub API returns a rate-limit error (HTTP 403 with
-  `X-RateLimit-Remaining: 0`), report it to the user and stop — do not
-  retry in a loop.
+- Do **not** touch any file outside
+  `~/.claude/scripts/update-bsg-skills.py`. Everything else (commands,
+  skills, agents, manifest, settings.json hook) is the script's
+  responsibility.
+- Do **not** edit `~/.claude/settings.json` yourself — the script
+  handles it idempotently.
+- Do **not** ask the user to confirm before overwriting the script — it
+  is a cached copy of the remote source of truth.
+- If the GitHub raw URL returns an HTTP error, report it to the user
+  and stop — do not retry in a loop.
