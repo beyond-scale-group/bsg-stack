@@ -1,8 +1,8 @@
 # BSG Claude Skills — Install Guide
 
 This file is the entry point for installing the **BSG shared Claude Code
-skills** (slash commands + full skills) into a developer's local
-`~/.claude/` directory.
+skills** (slash commands, full skills, and subagents) into a developer's
+local `~/.claude/` directory.
 
 It is written to be read **by [Claude Code](https://claude.com/claude-code)
 itself**: a developer points their Claude session at this file, Claude
@@ -17,10 +17,10 @@ In any Claude Code session, ask:
 > Install the BSG Claude skills by following
 > https://raw.githubusercontent.com/beyond-scale-group/bsg-workflows/main/claude-skills/INSTALL.md
 
-Claude will fetch this file, discover the commands and skills listed
-below, and install them under `~/.claude/`. **To pick up updates later,
-just ask the same thing again** — Claude will overwrite the local copies
-with the latest version from `main`.
+Claude will fetch this file, discover the commands, skills, and agents
+listed below, and install them under `~/.claude/`. **To pick up updates
+later, just ask the same thing again** — Claude will overwrite the local
+copies with the latest version from `main`.
 
 No git clone, no script to run, no cron to set up.
 
@@ -32,14 +32,23 @@ No git clone, no script to run, no cron to set up.
 
 ## Available skills
 
-_None yet._
+| Name | Description |
+|------|-------------|
+| `po-report` | Product owner reporting for the current GitHub repo. Aggregates issues, milestones, stale tickets, PRs into a dated markdown report under `.claude/reports/`. Heavy lifting in bash scripts (zero LLM cost), narration in the skill. |
 
-## Adding a new command or skill to the catalog
+## Available agents
+
+| Name | Description |
+|------|-------------|
+| `po-manager` | Product owner / project manager orchestrator subagent. Delegated to for status reports, milestone progress, sprint health, stale ticket detection, standup summaries. Uses the `po-report` skill for reporting and `daily-standup` for meeting parsing. Reporting only — does not implement features. |
+
+## Adding a new command, skill, or agent to the catalog
 
 1. Drop the file in the right place inside this repo:
    - Slash command → `claude-skills/commands/<name>.md`
    - Full skill → `claude-skills/skills/<name>/SKILL.md` (plus any extra
      resources in the same directory)
+   - Subagent → `claude-skills/agents/<name>.md`
 2. **Add the standard "How to improve this skill" footer** (see below) so
    that anyone using the cached copy in `~/.claude/` knows to PR back
    here instead of editing locally.
@@ -78,16 +87,21 @@ Bug reports and ideas without a fix → open an issue on the same repo.
 
 For files under `claude-skills/skills/<name>/SKILL.md`, replace
 `commands/<name>.md` with `skills/<name>/SKILL.md` everywhere in the
-footer.
+footer. **Only `SKILL.md` needs the footer** — supporting files like
+`references/*.md` and `scripts/*.sh` inside a skill directory do not.
+
+For files under `claude-skills/agents/<name>.md`, replace
+`commands/<name>.md` with `agents/<name>.md` everywhere in the footer,
+and replace `~/.claude/commands/<name>.md` with `~/.claude/agents/<name>.md`.
 
 ---
 
 ## Instructions for the Claude Code agent
 
 **You — the Claude Code agent reading this file — are installing the BSG
-shared Claude Code commands and skills into the current user's local
-`~/.claude/` directory. Follow these steps exactly. Use your `WebFetch`,
-`Write`, and `Bash` tools.**
+shared Claude Code commands, skills, and subagents into the current
+user's local `~/.claude/` directory. Follow these steps exactly. Use
+your `WebFetch`, `Write`, and `Bash` tools.**
 
 ### 1. Discover available commands
 
@@ -128,18 +142,45 @@ Otherwise, for each entry with `"type": "dir"`:
 2. For each file, fetch its `download_url` and write it to
    `~/.claude/skills/<skill-name>/<file-name>`. Create directories as
    needed. Recurse into subdirectories the same way.
+3. After writing, `chmod +x` any file under `scripts/` so the skill can
+   execute its own helpers without the user fixing permissions.
 
-### 4. Report to the user
+### 4. Discover and install subagents
 
-Print a short summary listing every command and skill that was installed
-or updated, with the count, and remind the user that they can re-run the
-same install flow any time to pull updates.
+Fetch:
+
+```
+https://api.github.com/repos/beyond-scale-group/bsg-workflows/contents/claude-skills/agents?ref=main
+```
+
+If the response is `404`, there are no agents yet — skip to step 5.
+
+Otherwise, for each entry where `"type": "file"` and `name` ends with
+`.md`:
+
+1. Fetch its raw content from the `download_url`.
+2. Write it to `~/.claude/agents/<name>` (resolve `~` to the actual home
+   directory). Create `~/.claude/agents/` first if it does not exist.
+3. **Always overwrite** any existing file at that path — same rule as
+   commands.
+
+Subagents installed this way are user-scope and become available across
+all the developer's projects. They are loaded at session start, so the
+developer must restart Claude Code to pick up newly-installed agents.
+
+### 5. Report to the user
+
+Print a short summary listing every command, skill, and subagent that
+was installed or updated, with the count, and remind the user that they
+can re-run the same install flow any time to pull updates. If any
+subagents were installed or changed, also remind the user to restart
+Claude Code so the new definitions are loaded.
 
 ### Constraints
 
 - Do **not** clone the repo. Use HTTPS fetches only.
-- Do **not** touch any file outside `~/.claude/commands/` and
-  `~/.claude/skills/`.
+- Do **not** touch any file outside `~/.claude/commands/`,
+  `~/.claude/skills/`, and `~/.claude/agents/`.
 - Do **not** ask the user to confirm before overwriting — files installed
   by this flow are cached copies of the remote source of truth. If a
   developer wants a customized variant of a command, they should fork it
