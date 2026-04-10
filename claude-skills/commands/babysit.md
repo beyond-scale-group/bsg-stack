@@ -77,3 +77,21 @@ When evaluating whether a PR can be merged, apply these criteria strictly:
 **Reporting format** when evaluating mergeability:
 - List PRs in three buckets: `READY` (all hard criteria met), `NEEDS ACTION` (which criterion is missing), `BLOCKED` (why and by what)
 - Never merge without explicit user instruction unless the user pre-authorized autonomous merging for the scope
+
+---
+
+## How to improve this skill
+
+This file is a cached copy of `claude-skills/commands/babysit.md` in
+[beyond-scale-group/bsg-workflows](https://github.com/beyond-scale-group/bsg-workflows).
+That repo is the single source of truth — `~/.claude/commands/babysit.md` is
+overwritten every time the BSG install flow runs.
+
+If the user asks you to improve, fix, or extend this skill, do **not** edit
+the local file. Instead:
+
+1. `gh repo clone beyond-scale-group/bsg-workflows` (or work in an existing clone)
+2. Edit `claude-skills/commands/babysit.md` on a feature branch
+3. Open a pull request against `main`
+
+Bug reports and ideas without a fix → open an issue on the same repo.

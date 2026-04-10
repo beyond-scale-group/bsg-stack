@@ -40,11 +40,45 @@ _None yet._
    - Slash command → `claude-skills/commands/<name>.md`
    - Full skill → `claude-skills/skills/<name>/SKILL.md` (plus any extra
      resources in the same directory)
-2. Add a row to the relevant table above.
-3. Open a PR.
+2. **Add the standard "How to improve this skill" footer** (see below) so
+   that anyone using the cached copy in `~/.claude/` knows to PR back
+   here instead of editing locally.
+3. Add a row to the relevant table above.
+4. Open a PR.
 
 Once merged on `main`, every developer who re-runs the install command
 gets the new skill.
+
+### Required footer for every shared skill
+
+Append this block (verbatim, with `<name>` replaced) at the very bottom of
+each new command or skill file. The leading `---` separates it from the
+skill's behavioral content so the agent treats it as out-of-band metadata
+rather than part of its role:
+
+````markdown
+---
+
+## How to improve this skill
+
+This file is a cached copy of `claude-skills/commands/<name>.md` in
+[beyond-scale-group/bsg-workflows](https://github.com/beyond-scale-group/bsg-workflows).
+That repo is the single source of truth — `~/.claude/commands/<name>.md` is
+overwritten every time the BSG install flow runs.
+
+If the user asks you to improve, fix, or extend this skill, do **not** edit
+the local file. Instead:
+
+1. `gh repo clone beyond-scale-group/bsg-workflows` (or work in an existing clone)
+2. Edit `claude-skills/commands/<name>.md` on a feature branch
+3. Open a pull request against `main`
+
+Bug reports and ideas without a fix → open an issue on the same repo.
+````
+
+For files under `claude-skills/skills/<name>/SKILL.md`, replace
+`commands/<name>.md` with `skills/<name>/SKILL.md` everywhere in the
+footer.
 
 ---
 
