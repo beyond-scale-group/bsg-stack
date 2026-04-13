@@ -1,8 +1,8 @@
 # bsg-workflows
 
-Reusable GitHub Actions workflows for BSG projects.
+Reusable GitHub Actions workflows for Beyond Scale Group projects.
 
-## Available Workflows
+## Workflows
 
 ### Build & Test
 
@@ -24,22 +24,36 @@ Reusable GitHub Actions workflows for BSG projects.
 |----------|-------------|
 | `semantic_release.yaml` | Automated semantic versioning + changelog |
 | `semantic_pull_request.yaml` | Enforce conventional commit PR titles |
+| `create_release_branch.yaml` | Create release branches from tags, clean up old RCs |
 
 ### Deployment
 
 | Workflow | Description |
 |----------|-------------|
 | `clever_cloud_deploy.yaml` | Deploy to Clever Cloud PaaS |
+| `docker_build_and_push.yaml` | Build multi-platform Docker images, push to registry |
+| `review_app_deploy.yaml` | Terraform-based review apps for PRs on Clever Cloud |
 
 ### Automation
 
 | Workflow | Description |
 |----------|-------------|
-| `sync_branches.yaml` | Sync branches (e.g. main → staging) |
+| `sync_branches.yaml` | Sync branches (e.g. main -> staging) |
+| `sync_branches_with_ai.yaml` | Sync branches with AI-powered conflict resolution |
+| `github_pull_request.yaml` | Create PRs with auto-merge and auto-approval |
 | `pr_auto_add_project.yaml` | Auto-add PRs to GitHub Projects |
 | `discord_notifier.yaml` | Send Discord notifications |
 
-## Usage
+### Maintenance
+
+| Workflow | Description |
+|----------|-------------|
+| `cleanup_artifacts.yaml` | Delete old GitHub Actions artifacts |
+
+For detailed inputs, secrets, and usage examples for each workflow, see
+**[docs/workflows.md](docs/workflows.md)**.
+
+## Quick Start
 
 Reference workflows from your repo:
 
@@ -68,10 +82,9 @@ Shareable Renovate presets in `renovate/`:
 
 Shared [Claude Code](https://claude.com/claude-code) slash commands and
 skills live under `claude-skills/`. To install them, ask your Claude Code
-agent to follow [`claude-skills/INSTALL.md`](claude-skills/INSTALL.md) —
+agent to follow [`claude-skills/INSTALL.md`](claude-skills/INSTALL.md) --
 Claude will fetch the file, discover the available commands, and write
 them into your `~/.claude/` directory. Re-ask any time to pull updates.
-No clone, no script, no cron.
 
 ## Versioning
 
