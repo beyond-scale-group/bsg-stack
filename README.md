@@ -79,9 +79,6 @@ Shareable dependency management presets in [`renovate/`](renovate/) — see
 - `scala.json` — sbt projects (automerge patch/minor, manual major)
 - `react.json` — npm projects (automerge patch/minor, manual major)
 
-> The old paths `scala_config.json` / `react_config.json` remain as
-> compatibility stubs and will be removed in `v2`.
-
 ### Claude Code Skills
 
 Shared [Claude Code](https://claude.com/claude-code) slash commands,

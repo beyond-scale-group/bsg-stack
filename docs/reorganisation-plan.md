@@ -216,9 +216,9 @@ All via `git mv` so history follows. `.github/workflows/` (flat — GitHub const
 
 **Goal:** remove the Phase 2 stub files now that nothing references them.
 
-- [ ] **5.1** Delete `renovate/scala_config.json`, `renovate/react_config.json` stubs.
-- [ ] **5.2** Remove deprecation notices from docs.
-- [ ] **5.3** Tag as `v2.x.y`.
+- [x] **5.1** Delete `renovate/scala_config.json`, `renovate/react_config.json` stubs.
+- [x] **5.2** Remove deprecation notices from docs.
+- [x] **5.3** Tag as `v2.x.y`.
 
 ---
 
@@ -251,4 +251,8 @@ All via `git mv` so history follows. `.github/workflows/` (flat — GitHub const
 - [x] `stack.yaml` added (Phase 1.4).
 - [x] Root `README.md` cross-links updated (Phase 1.5).
 - [ ] `stack.yaml` CI lint (Phase 1.7) — deferred.
-- [ ] Phase 0 (GitHub repo rename) pending.
+- [x] Phase 0 (GitHub repo rename) — done, see #23 comment 1.
+- [x] Phase 2 (Renovate preset rename) — shipped in #24.
+- [x] Phase 3 (workflow renames + `v2` cut) — shipped in #25, tagged `v2.0.0`.
+- [x] Phase 4 (portfolio sweep) — `jarvis#42` merged; `expert-flow.ai#1305` shipped.
+- [x] Phase 5 (delete compat stubs) — this PR.

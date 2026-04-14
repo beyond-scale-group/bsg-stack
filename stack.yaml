@@ -26,10 +26,6 @@ components:
     presets:
       - scala
       - react
-    # Compatibility stubs kept for one release cycle; removed in v2.
-    deprecated_presets:
-      - scala_config
-      - react_config
 
   claude-skills:
     path: claude-skills

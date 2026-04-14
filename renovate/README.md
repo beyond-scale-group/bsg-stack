@@ -11,8 +11,6 @@ consistent across acquisitions without copy-pasting config into every repo.
 | `scala.json` | sbt / Scala projects | Automerges patch + minor, holds majors, splits sbt minor/patch updates. Hourly PR limit: 2. |
 | `react.json` | npm / React projects | Automerges patch + minor, holds majors, splits npm minor/patch updates. Hourly PR limit: 5. |
 
-> **Deprecation:** `scala_config.json` and `react_config.json` remain as compatibility stubs that re-extend the new names. They will be removed in **`v2`**. Migrate callers to the new paths at your convenience.
-
 Common defaults in both presets:
 
 - `baseBranches: ["main"]`
