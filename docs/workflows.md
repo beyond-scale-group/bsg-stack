@@ -6,7 +6,7 @@ Complete reference for all reusable GitHub Actions workflows in this repository.
 
 ## Build & Test
 
-### `scala_test.yaml`
+### `test-scala.yaml`
 
 Compiles and runs Scala tests with optional code coverage reporting (scoverage).
 
@@ -26,7 +26,7 @@ Compiles and runs Scala tests with optional code coverage reporting (scoverage).
 ```yaml
 jobs:
   test:
-    uses: beyond-scale-group/bsg-stack/.github/workflows/scala_test.yaml@v1
+    uses: beyond-scale-group/bsg-stack/.github/workflows/test-scala.yaml@v2
     with:
       jdk: "21"
       working_directory: apps/backend/my-app
@@ -34,7 +34,7 @@ jobs:
 
 ---
 
-### `react_vite_test.yaml`
+### `test-react-vite.yaml`
 
 Builds and lints a React/Vite project with optional testing.
 
@@ -53,7 +53,7 @@ Builds and lints a React/Vite project with optional testing.
 ```yaml
 jobs:
   test:
-    uses: beyond-scale-group/bsg-stack/.github/workflows/react_vite_test.yaml@v1
+    uses: beyond-scale-group/bsg-stack/.github/workflows/test-react-vite.yaml@v2
     with:
       node_version: "22"
       working_directory: apps/frontend
@@ -63,7 +63,7 @@ jobs:
 
 ## Coverage & Reports
 
-### `cobertura_report.yaml`
+### `report-cobertura.yaml`
 
 Publishes Cobertura XML coverage reports with diff analysis against a base branch.
 
@@ -79,7 +79,7 @@ Publishes Cobertura XML coverage reports with diff analysis against a base branc
 
 ---
 
-### `junit_report.yaml`
+### `report-junit.yaml`
 
 Publishes JUnit XML test reports as GitHub check annotations.
 
@@ -96,7 +96,7 @@ Publishes JUnit XML test reports as GitHub check annotations.
 
 ## Release & Versioning
 
-### `semantic_release.yaml`
+### `release-semantic.yaml`
 
 Automated semantic versioning and changelog generation from commit history.
 
@@ -112,7 +112,7 @@ Automated semantic versioning and changelog generation from commit history.
 
 ---
 
-### `semantic_pull_request.yaml`
+### `release-pr-lint.yaml`
 
 Validates that PR titles follow conventional commit message conventions.
 
@@ -125,7 +125,7 @@ Validates that PR titles follow conventional commit message conventions.
 
 ---
 
-### `create_release_branch.yaml`
+### `release-branch-create.yaml`
 
 Creates release branches from tags and cleans up older release candidate branches.
 
@@ -142,7 +142,7 @@ Creates release branches from tags and cleans up older release candidate branche
 
 ## Deployment
 
-### `clever_cloud_deploy.yaml`
+### `deploy-clever-cloud.yaml`
 
 Deploys an application to Clever Cloud with branch guards and optional self-hosted runner detection.
 
@@ -164,7 +164,7 @@ Deploys an application to Clever Cloud with branch guards and optional self-host
 
 ---
 
-### `docker_build_and_push.yaml`
+### `deploy-docker.yaml`
 
 Builds multi-platform Docker images and pushes to a container registry (defaults to GHCR).
 
@@ -184,7 +184,7 @@ Builds multi-platform Docker images and pushes to a container registry (defaults
 
 ---
 
-### `review_app_deploy.yaml`
+### `deploy-review-app.yaml`
 
 Deploys temporary review apps for PRs using Terraform and Clever Cloud, with optional AI conflict resolution.
 
@@ -221,7 +221,7 @@ Deploys temporary review apps for PRs using Terraform and Clever Cloud, with opt
 
 ## Automation
 
-### `sync_branches.yaml`
+### `auto-sync-branches.yaml`
 
 Merges a source branch into a target branch automatically.
 
@@ -235,7 +235,7 @@ Merges a source branch into a target branch automatically.
 
 ---
 
-### `sync_branches_with_ai.yaml`
+### `auto-sync-branches-ai.yaml`
 
 Syncs branches with AI-powered merge conflict resolution and optional PR creation.
 
@@ -254,7 +254,7 @@ Syncs branches with AI-powered merge conflict resolution and optional PR creatio
 
 ---
 
-### `github_pull_request.yaml`
+### `auto-pr-create.yaml`
 
 Creates a pull request between branches with optional auto-merge and auto-approval via GitHub App authentication.
 
@@ -275,7 +275,7 @@ Creates a pull request between branches with optional auto-merge and auto-approv
 
 ---
 
-### `pr_auto_add_project.yaml`
+### `auto-pr-add-project.yaml`
 
 Automatically adds pull requests to a GitHub Project board.
 
@@ -288,7 +288,7 @@ Automatically adds pull requests to a GitHub Project board.
 
 ---
 
-### `discord_notifier.yaml`
+### `auto-notify-discord.yaml`
 
 Sends notifications to a Discord channel via webhook.
 
@@ -306,7 +306,7 @@ Sends notifications to a Discord channel via webhook.
 
 ## Maintenance
 
-### `cleanup_artifacts.yaml`
+### `maint-cleanup-artifacts.yaml`
 
 Deletes old GitHub Actions artifacts based on age and optional name pattern matching.
 
