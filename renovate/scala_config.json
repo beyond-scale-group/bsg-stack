@@ -1,27 +1,5 @@
 {
-  "baseBranches": ["main"],
-  "platformAutomerge": true,
-  "prHourlyLimit": 2,
-  "prConcurrentLimit": 3,
-  "rebaseWhen": "auto",
-  "packageRules": [
-    {
-      "matchUpdateTypes": ["patch"],
-      "groupName": "all patch updates",
-      "groupSlug": "all-patch",
-      "automerge": true
-    },
-    {
-      "matchUpdateTypes": ["minor"],
-      "automerge": true
-    },
-    {
-      "matchUpdateTypes": ["major"],
-      "automerge": false
-    },
-    {
-      "matchDatasources": ["sbt"],
-      "separateMinorPatch": true
-    }
-  ]
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "DEPRECATED — use `renovate/scala` instead. Kept as a compatibility stub; will be removed in v2.",
+  "extends": ["github>beyond-scale-group/bsg-stack//renovate/scala"]
 }

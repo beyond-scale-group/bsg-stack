@@ -24,6 +24,10 @@ components:
     install: "Reference via `extends` in renovate.json — see INSTALL.md §2."
     docs: docs/renovate.md
     presets:
+      - scala
+      - react
+    # Compatibility stubs kept for one release cycle; removed in v2.
+    deprecated_presets:
       - scala_config
       - react_config
 
