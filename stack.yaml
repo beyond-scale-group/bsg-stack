@@ -9,7 +9,7 @@
 # - components:    what the stack currently ships, and where each piece lives
 ---
 version: 1
-stack_version: v1
+stack_version: v2
 
 components:
   workflows:

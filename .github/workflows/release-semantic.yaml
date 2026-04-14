@@ -51,6 +51,7 @@ jobs:
           git remote set-url origin "https://x-access-token:${{ secrets.token }}@github.com/${{ github.repository }}.git"
 
       - name: Semantic Release
+        id: semantic
         uses: cycjimmy/semantic-release-action@v4
         with:
           semantic_version: ${{ inputs.semantic_version }}
@@ -61,3 +62,17 @@ jobs:
           working_directory: ${{ inputs.working_directory }}
         env:
           GITHUB_TOKEN: ${{ secrets.token }}
+
+      # Keep a moving major-version tag (e.g. `v2`) pointing at the
+      # latest release of that major. Callers pin to `@v2` to follow
+      # the major without manual bumps; older majors stay frozen.
+      - name: Update major-version moving tag
+        if: steps.semantic.outputs.new_release_published == 'true'
+        env:
+          NEW_TAG: ${{ steps.semantic.outputs.new_release_git_tag }}
+          MAJOR: v${{ steps.semantic.outputs.new_release_major_version }}
+        run: |
+          set -euo pipefail
+          echo "Moving tag $MAJOR → $NEW_TAG"
+          git tag -f "$MAJOR" "$NEW_TAG"
+          git push origin "$MAJOR" --force

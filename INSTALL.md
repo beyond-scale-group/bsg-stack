@@ -28,21 +28,22 @@ portfolio via `uses:`:
 # .github/workflows/ci.yaml in your repo
 jobs:
   test:
-    uses: beyond-scale-group/bsg-stack/.github/workflows/scala_test.yaml@v1
+    uses: beyond-scale-group/bsg-stack/.github/workflows/test-scala.yaml@v2
     with:
       jdk: "21"
       working_directory: apps/backend/my-scala-app
 
   semantic-pr:
-    uses: beyond-scale-group/bsg-stack/.github/workflows/semantic_pull_request.yaml@v1
+    uses: beyond-scale-group/bsg-stack/.github/workflows/release-pr-lint.yaml@v2
     with:
       scopes: "backend, frontend, ci, docs"
 ```
 
 Pin with a tag:
 
-- `@v1` — latest major (recommended for most callers).
-- `@v1.2.3` — exact version (for reproducibility-sensitive pipelines).
+- `@v2` — latest major (recommended for most callers).
+- `@v2.0.0` — exact version (for reproducibility-sensitive pipelines).
+- `@v1` — frozen on the pre-rename filenames; use only if you can't migrate yet. See [`docs/migration-v2.md`](docs/migration-v2.md) for the old→new mapping.
 - `@main` — bleeding edge (not recommended outside this repo).
 
 The full reference for every workflow — inputs, secrets, examples — lives

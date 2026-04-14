@@ -4,12 +4,12 @@ on:
   pull_request:
     paths:
       - 'claude-skills/**'
-      - '.github/workflows/claude_skills_test.yaml'
+      - '.github/workflows/ci-claude-skills-test.yaml'
   push:
     branches: [main]
     paths:
       - 'claude-skills/**'
-      - '.github/workflows/claude_skills_test.yaml'
+      - '.github/workflows/ci-claude-skills-test.yaml'
 
 jobs:
   test:

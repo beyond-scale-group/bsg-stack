@@ -26,47 +26,47 @@ Reusable workflows, ready to plug into any repo in the portfolio.
 
 | Workflow | Description | Stack |
 |----------|-------------|-------|
-| `scala_test.yaml` | Compile, test, coverage (scoverage) | Scala 3 / sbt |
-| `react_vite_test.yaml` | Build, lint, test | React / Vite / TypeScript |
+| `test-scala.yaml` | Compile, test, coverage (scoverage) | Scala 3 / sbt |
+| `test-react-vite.yaml` | Build, lint, test | React / Vite / TypeScript |
 
 #### Coverage & Reports
 
 | Workflow | Description |
 |----------|-------------|
-| `cobertura_report.yaml` | Publish Cobertura coverage on PR |
-| `junit_report.yaml` | Publish JUnit test results on PR checks |
+| `report-cobertura.yaml` | Publish Cobertura coverage on PR |
+| `report-junit.yaml` | Publish JUnit test results on PR checks |
 
 #### Release & Versioning
 
 | Workflow | Description |
 |----------|-------------|
-| `semantic_release.yaml` | Automated semantic versioning + changelog |
-| `semantic_pull_request.yaml` | Enforce conventional commit PR titles |
-| `create_release_branch.yaml` | Create release branches from tags, clean up old RCs |
+| `release-semantic.yaml` | Automated semantic versioning + changelog |
+| `release-pr-lint.yaml` | Enforce conventional commit PR titles |
+| `release-branch-create.yaml` | Create release branches from tags, clean up old RCs |
 
 #### Deployment
 
 | Workflow | Description |
 |----------|-------------|
-| `clever_cloud_deploy.yaml` | Deploy to Clever Cloud PaaS |
-| `docker_build_and_push.yaml` | Build multi-platform Docker images, push to registry |
-| `review_app_deploy.yaml` | Terraform-based review apps for PRs on Clever Cloud |
+| `deploy-clever-cloud.yaml` | Deploy to Clever Cloud PaaS |
+| `deploy-docker.yaml` | Build multi-platform Docker images, push to registry |
+| `deploy-review-app.yaml` | Terraform-based review apps for PRs on Clever Cloud |
 
 #### Automation
 
 | Workflow | Description |
 |----------|-------------|
-| `sync_branches.yaml` | Sync branches (e.g. main -> staging) |
-| `sync_branches_with_ai.yaml` | Sync branches with AI-powered conflict resolution |
-| `github_pull_request.yaml` | Create PRs with auto-merge and auto-approval |
-| `pr_auto_add_project.yaml` | Auto-add PRs to GitHub Projects |
-| `discord_notifier.yaml` | Send Discord notifications |
+| `auto-sync-branches.yaml` | Sync branches (e.g. main -> staging) |
+| `auto-sync-branches-ai.yaml` | Sync branches with AI-powered conflict resolution |
+| `auto-pr-create.yaml` | Create PRs with auto-merge and auto-approval |
+| `auto-pr-add-project.yaml` | Auto-add PRs to GitHub Projects |
+| `auto-notify-discord.yaml` | Send Discord notifications |
 
 #### Maintenance
 
 | Workflow | Description |
 |----------|-------------|
-| `cleanup_artifacts.yaml` | Delete old GitHub Actions artifacts |
+| `maint-cleanup-artifacts.yaml` | Delete old GitHub Actions artifacts |
 
 For detailed inputs, secrets, and usage examples for each workflow, see
 **[docs/workflows.md](docs/workflows.md)**.
@@ -89,6 +89,10 @@ the Claude-driven installer and current catalog.
 
 ---
 
+> **Upgrading from `@v1`?** All workflow files were renamed in `v2`. See
+> [`docs/migration-v2.md`](docs/migration-v2.md) for the old→new table
+> and a copy-paste `sed` recipe.
+
 ## Quick Start
 
 See [`INSTALL.md`](INSTALL.md) for the install guide covering every
@@ -98,13 +102,13 @@ any repo in the group:
 ```yaml
 jobs:
   test:
-    uses: beyond-scale-group/bsg-stack/.github/workflows/scala_test.yaml@v1
+    uses: beyond-scale-group/bsg-stack/.github/workflows/test-scala.yaml@v2
     with:
       jdk: "21"
       working_directory: apps/backend/my-scala-app
 
   semantic-pr:
-    uses: beyond-scale-group/bsg-stack/.github/workflows/semantic_pull_request.yaml@v1
+    uses: beyond-scale-group/bsg-stack/.github/workflows/release-pr-lint.yaml@v2
     with:
       scopes: "backend, frontend, ci, docs"
 ```
@@ -126,4 +130,11 @@ This is the **BSG effect** applied to infrastructure: centralize to accelerate, 
 ## Versioning
 
 This repo uses [semantic-release](https://github.com/semantic-release/semantic-release).
-Reference workflows via tags: `@v1`, `@v1.0.0`, or `@main`.
+Reference workflows via tags:
+
+- `@v2` — current major (new workflow names).
+- `@v1` — frozen on the pre-rename filenames. See [`docs/migration-v2.md`](docs/migration-v2.md) for the old→new mapping.
+- `@v2.0.0` / `@v1.0.3` — exact versions.
+- `@main` — bleeding edge (not recommended outside this repo).
+
+**Migrating from `v1`?** See [`docs/migration-v2.md`](docs/migration-v2.md) for the full rename table and find/replace recipe.
