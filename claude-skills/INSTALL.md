@@ -15,7 +15,7 @@ as the catalog of what's available.
 In any Claude Code session, ask:
 
 > Install the BSG Claude skills by following
-> https://raw.githubusercontent.com/beyond-scale-group/bsg-workflows/main/claude-skills/INSTALL.md
+> https://raw.githubusercontent.com/beyond-scale-group/bsg-stack/main/claude-skills/INSTALL.md
 
 Claude will fetch this file, discover the commands, skills, and agents
 listed below, and install them under `~/.claude/`. **To pick up updates
@@ -101,14 +101,14 @@ rather than part of its role:
 ## How to improve this skill
 
 This file is a cached copy of `claude-skills/commands/<name>.md` in
-[beyond-scale-group/bsg-workflows](https://github.com/beyond-scale-group/bsg-workflows).
+[beyond-scale-group/bsg-stack](https://github.com/beyond-scale-group/bsg-stack).
 That repo is the single source of truth — `~/.claude/commands/<name>.md` is
 overwritten every time the BSG install flow runs.
 
 If the user asks you to improve, fix, or extend this skill, do **not** edit
 the local file. Instead:
 
-1. `gh repo clone beyond-scale-group/bsg-workflows` (or work in an existing clone)
+1. `gh repo clone beyond-scale-group/bsg-stack` (or work in an existing clone)
 2. Edit `claude-skills/commands/<name>.md` on a feature branch
 3. Open a pull request against `main`
 
@@ -140,7 +140,7 @@ clobbering files it does not own).**
 Fetch the raw content from:
 
 ```
-https://raw.githubusercontent.com/beyond-scale-group/bsg-workflows/main/claude-skills/scripts/update-bsg-skills.py
+https://raw.githubusercontent.com/beyond-scale-group/bsg-stack/main/claude-skills/scripts/update-bsg-skills.py
 ```
 
 ### 2. Install it

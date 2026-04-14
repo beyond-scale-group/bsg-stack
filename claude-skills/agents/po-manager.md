@@ -76,14 +76,14 @@ Keep it tight. The user can open the file for the details.
 ## How to improve this skill
 
 This file is a cached copy of `claude-skills/agents/po-manager.md` in
-[beyond-scale-group/bsg-workflows](https://github.com/beyond-scale-group/bsg-workflows).
+[beyond-scale-group/bsg-stack](https://github.com/beyond-scale-group/bsg-stack).
 That repo is the single source of truth — `~/.claude/agents/po-manager.md` is
 overwritten every time the BSG install flow runs.
 
 If the user asks you to improve, fix, or extend this skill, do **not** edit
 the local file. Instead:
 
-1. `gh repo clone beyond-scale-group/bsg-workflows` (or work in an existing clone)
+1. `gh repo clone beyond-scale-group/bsg-stack` (or work in an existing clone)
 2. Edit `claude-skills/agents/po-manager.md` on a feature branch
 3. Open a pull request against `main`
 
