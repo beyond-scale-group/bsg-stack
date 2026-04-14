@@ -11,8 +11,13 @@ Shared Renovate configuration presets for repos in the BSG portfolio.
 
 | Preset | Use for |
 |--------|---------|
-| `github>beyond-scale-group/bsg-stack//renovate/scala_config` | sbt / Scala projects |
-| `github>beyond-scale-group/bsg-stack//renovate/react_config` | npm / React projects |
+| `github>beyond-scale-group/bsg-stack//renovate/scala` | sbt / Scala projects |
+| `github>beyond-scale-group/bsg-stack//renovate/react` | npm / React projects |
 
 Both presets automerge patch and minor updates, hold majors for human
 review, and limit PR concurrency to avoid flooding CI.
+
+> **Deprecation:** the old paths `renovate/scala_config` and
+> `renovate/react_config` still work (they re-extend the new names) but
+> will be removed in **`v2`**. Update your `renovate.json` at your
+> convenience.

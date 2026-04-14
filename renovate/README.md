@@ -8,8 +8,10 @@ consistent across acquisitions without copy-pasting config into every repo.
 
 | File | Use for | Notes |
 |------|---------|-------|
-| `scala_config.json` | sbt / Scala projects | Automerges patch + minor, holds majors, splits sbt minor/patch updates. Hourly PR limit: 2. |
-| `react_config.json` | npm / React projects | Automerges patch + minor, holds majors, splits npm minor/patch updates. Hourly PR limit: 5. |
+| `scala.json` | sbt / Scala projects | Automerges patch + minor, holds majors, splits sbt minor/patch updates. Hourly PR limit: 2. |
+| `react.json` | npm / React projects | Automerges patch + minor, holds majors, splits npm minor/patch updates. Hourly PR limit: 5. |
+
+> **Deprecation:** `scala_config.json` and `react_config.json` remain as compatibility stubs that re-extend the new names. They will be removed in **`v2`**. Migrate callers to the new paths at your convenience.
 
 Common defaults in both presets:
 
@@ -26,12 +28,12 @@ In your repo's `renovate.json`:
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "github>beyond-scale-group/bsg-stack//renovate/scala_config"
+    "github>beyond-scale-group/bsg-stack//renovate/scala"
   ]
 }
 ```
 
-Replace `scala_config` with `react_config` for frontend repos. `extends`
+Replace `scala` with `react` for frontend repos. `extends`
 is merged, not replaced — override any rule inline in your own
 `renovate.json`.
 
@@ -40,7 +42,7 @@ examples.
 
 ## Adding a new preset
 
-1. Create `renovate/<stack>_config.json` in this directory.
+1. Create `renovate/<stack>.json` in this directory.
 2. Keep it minimal — only settings that should apply to every repo of that
    stack type. Repo-specific tuning belongs in the caller's `renovate.json`.
 3. Add a row to the table above.

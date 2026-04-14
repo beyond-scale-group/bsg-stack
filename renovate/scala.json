@@ -1,0 +1,27 @@
+{
+  "baseBranches": ["main"],
+  "platformAutomerge": true,
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 3,
+  "rebaseWhen": "auto",
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["patch"],
+      "groupName": "all patch updates",
+      "groupSlug": "all-patch",
+      "automerge": true
+    },
+    {
+      "matchUpdateTypes": ["minor"],
+      "automerge": true
+    },
+    {
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    },
+    {
+      "matchDatasources": ["sbt"],
+      "separateMinorPatch": true
+    }
+  ]
+}

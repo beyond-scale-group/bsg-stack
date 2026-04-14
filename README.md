@@ -76,8 +76,11 @@ For detailed inputs, secrets, and usage examples for each workflow, see
 Shareable dependency management presets in [`renovate/`](renovate/) — see
 [`renovate/README.md`](renovate/README.md) for details:
 
-- `scala_config.json` — sbt projects (automerge patch/minor, manual major)
-- `react_config.json` — npm projects (automerge patch/minor, manual major)
+- `scala.json` — sbt projects (automerge patch/minor, manual major)
+- `react.json` — npm projects (automerge patch/minor, manual major)
+
+> The old paths `scala_config.json` / `react_config.json` remain as
+> compatibility stubs and will be removed in `v2`.
 
 ### Claude Code Skills
 

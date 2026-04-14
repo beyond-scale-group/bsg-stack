@@ -59,7 +59,7 @@ using Renovate's cross-repo preset syntax:
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "github>beyond-scale-group/bsg-stack//renovate/scala_config"
+    "github>beyond-scale-group/bsg-stack//renovate/scala"
   ]
 }
 ```
@@ -68,12 +68,17 @@ Available presets (pick whichever matches your project):
 
 | Preset | Use for |
 |--------|---------|
-| `github>beyond-scale-group/bsg-stack//renovate/scala_config` | sbt / Scala projects |
-| `github>beyond-scale-group/bsg-stack//renovate/react_config` | npm / React projects |
+| `github>beyond-scale-group/bsg-stack//renovate/scala` | sbt / Scala projects |
+| `github>beyond-scale-group/bsg-stack//renovate/react` | npm / React projects |
 
 Both presets automerge patch and minor updates and hold major updates for
 human review. Override any rule in your own `renovate.json` — `extends` is
 merged, not replaced.
+
+> **Deprecation:** the old paths `renovate/scala_config` and
+> `renovate/react_config` still work (they re-extend the new names) but
+> will be removed in **`v2`**. Update your `renovate.json` at your
+> convenience.
 
 ---
 
