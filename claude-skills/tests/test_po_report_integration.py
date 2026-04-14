@@ -393,6 +393,68 @@ class TestPoReportIntegration(unittest.TestCase):
         missing = next(i for i in data["items"] if i["raw"] == "Add release automation")
         self.assertEqual(missing["status"], "not_started")
 
+    def test_pr_flow_emits_structured_metrics(self) -> None:
+        """pr-flow.sh produces review latency, age buckets, merge-queue, throughput."""
+        out = self._run("pr-flow.sh")
+        data = json.loads(out)
+        for key in ("reviewLatencyHours", "openPrs", "reviewerLoad", "mergeQueue", "throughput"):
+            self.assertIn(key, data)
+        # Latency stats shape.
+        for stat in ("p50", "p90", "max", "sampleSize"):
+            self.assertIn(stat, data["reviewLatencyHours"])
+        # Open-PR age buckets cover the whole range.
+        for bucket in ("le1d", "le7d", "le30d", "gt30d"):
+            self.assertIn(bucket, data["openPrs"]["ageBuckets"])
+            self.assertIsInstance(data["openPrs"]["ageBuckets"][bucket], int)
+        # Throughput keys.
+        self.assertIn("mergedLast30d", data["throughput"])
+        self.assertIn("mergedPerWeek", data["throughput"])
+
+    def test_trends_handles_missing_history_dir(self) -> None:
+        """trends.sh emits a well-formed empty object when there's no history yet."""
+        out = subprocess.run(
+            ["bash", str(SCRIPTS / "trends.sh"), "--dir", "/nonexistent-po-history"],
+            capture_output=True, text=True, timeout=SCRIPT_TIMEOUT_S,
+        )
+        self.assertEqual(out.returncode, 0, out.stderr)
+        data = json.loads(out.stdout)
+        self.assertEqual(data["series"], [])
+        self.assertIsNone(data["velocity"])
+        self.assertIsNone(data["latestChange"])
+
+    def test_trends_derives_velocity_from_two_snapshots(self) -> None:
+        """Given two history files, trends.sh computes velocity from the delta."""
+        hist_dir = self.workdir / "history"
+        hist_dir.mkdir(exist_ok=True)
+        # Two synthetic snapshots 7 days apart; 3 issues closed, 2 PRs merged.
+        for offset, (closed, merged) in enumerate([(0, 0), (3, 2)]):
+            (hist_dir / f"2026-04-{1 + offset * 7:02d}.json").write_text(json.dumps({
+                "generatedAt": f"2026-04-{1 + offset * 7:02d}T00:00:00Z",
+                "issues": (
+                    [{"state": "OPEN"}] * 5
+                    + [{"state": "CLOSED"}] * closed
+                ),
+                "pullRequests": (
+                    [{"state": "OPEN"}] * 2
+                    + [{"state": "MERGED"}] * merged
+                ),
+                "milestones": [],
+            }))
+        out = subprocess.run(
+            ["bash", str(SCRIPTS / "trends.sh"), "--dir", str(hist_dir)],
+            capture_output=True, text=True, timeout=SCRIPT_TIMEOUT_S,
+        )
+        self.assertEqual(out.returncode, 0, out.stderr)
+        data = json.loads(out.stdout)
+        self.assertEqual(len(data["series"]), 2)
+        v = data["velocity"]
+        self.assertIsNotNone(v)
+        self.assertEqual(v["samplePoints"], 2)
+        self.assertEqual(v["spanDays"], 7)
+        # 3 issues closed over 7 days = 3 per week.
+        self.assertAlmostEqual(v["issuesClosedPerWeek"], 3.0, places=1)
+        self.assertAlmostEqual(v["prsMergedPerWeek"], 2.0, places=1)
+
     def test_bootstrap_plan_emits_draft_markdown(self) -> None:
         """bootstrap-plan.sh produces a reviewable draft — no filesystem writes."""
         out = self._run("bootstrap-plan.sh")

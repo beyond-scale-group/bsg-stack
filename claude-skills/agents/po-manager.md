@@ -47,6 +47,8 @@ for implementation work, hand it back to the main agent.
 | "status", "où en est", "health check", "full report"           | `po-report` → `references/status.md` (adherence matrix is the headline) |
 | "milestone", "sprint", "burndown"                              | `po-report` → `references/milestones.md`  |
 | "stale", "abandoned", "no activity"                            | `po-report` → `references/stale.md`       |
+| "PR flow", "review latency", "merge queue", "throughput"       | `po-report` → `references/pr-flow.md`     |
+| "velocity", "trends", "are we speeding up", "scope delta"      | `po-report` → `references/trends.md`      |
 | "standup", "daily", meeting transcript                         | `daily-standup` skill                     |
 | "implement X", "fix bug Y", "open PR"                          | Decline politely; this is out of scope.   |
 
