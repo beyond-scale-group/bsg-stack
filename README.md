@@ -73,24 +73,27 @@ For detailed inputs, secrets, and usage examples for each workflow, see
 
 ### Renovate Configs
 
-Shareable dependency management presets in `renovate/`:
+Shareable dependency management presets in [`renovate/`](renovate/) — see
+[`renovate/README.md`](renovate/README.md) for details:
 
 - `scala_config.json` — sbt projects (automerge patch/minor, manual major)
 - `react_config.json` — npm projects (automerge patch/minor, manual major)
 
 ### Claude Code Skills
 
-Shared [Claude Code](https://claude.com/claude-code) slash commands and
-skills live under `claude-skills/`. To install them, ask your Claude Code
-agent to follow [`claude-skills/INSTALL.md`](claude-skills/INSTALL.md) —
-Claude will fetch the file, discover the available commands, and write
-them into your `~/.claude/` directory. Re-ask any time to pull updates.
+Shared [Claude Code](https://claude.com/claude-code) slash commands,
+skills, and subagents live under [`claude-skills/`](claude-skills/) — see
+[`claude-skills/README.md`](claude-skills/README.md) for the component
+overview and [`claude-skills/INSTALL.md`](claude-skills/INSTALL.md) for
+the Claude-driven installer and current catalog.
 
 ---
 
 ## Quick Start
 
-Reference workflows from any repo in the group:
+See [`INSTALL.md`](INSTALL.md) for the install guide covering every
+component of the stack. For workflows specifically, reference them from
+any repo in the group:
 
 ```yaml
 jobs:

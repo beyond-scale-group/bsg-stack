@@ -243,6 +243,12 @@ All via `git mv` so history follows. `.github/workflows/` (flat — GitHub const
 
 ## Current status
 
-- [x] Root `INSTALL.md` created (Phase 1.6 prerequisite).
+- [x] Root `INSTALL.md` created (Phase 1.6).
 - [x] This plan document saved (`docs/reorganisation-plan.md`).
-- [ ] Phase 0 pending.
+- [x] `renovate/README.md` added (Phase 1.1).
+- [x] `claude-skills/README.md` added (Phase 1.2).
+- [x] `docs/renovate.md` + `docs/claude-skills.md` added (Phase 1.3).
+- [x] `stack.yaml` added (Phase 1.4).
+- [x] Root `README.md` cross-links updated (Phase 1.5).
+- [ ] `stack.yaml` CI lint (Phase 1.7) — deferred.
+- [ ] Phase 0 (GitHub repo rename) pending.
