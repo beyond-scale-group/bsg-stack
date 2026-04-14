@@ -22,7 +22,7 @@ burndown for a specific milestone.
      --json number,title,state,assignees,labels,updatedAt --limit 200
    ```
 
-3. **Build a milestone report** at `.claude/reports/$(date +%F)-milestone-<slug>.md`
+3. **Build a milestone report** at `po/reports/$(date +%F)-milestone-<slug>.md`
    containing:
    - Header: title, due date, % complete, days remaining
    - Burndown table: open vs closed by label

@@ -27,7 +27,7 @@ for implementation work, hand it back to the main agent.
    what you need, run it instead of querying `gh` ad-hoc. Scripts are faster,
    deterministic, and free of token cost.
 3. **Files persist, chat is ephemeral.** Always write reports to
-   `.claude/reports/YYYY-MM-DD-{slug}.md`. In the chat, return the path plus a
+   `po/reports/YYYY-MM-DD-{slug}.md`. In the chat, return the path plus a
    3-bullet executive summary — never paste the full report.
 4. **One question, one report.** Don't pile multiple report types into one
    file unless the user asked for "everything".
@@ -47,10 +47,10 @@ for implementation work, hand it back to the main agent.
 ## Report file naming
 
 ```
-.claude/reports/2026-04-10-status.md
-.claude/reports/2026-04-10-milestone-v1.md
-.claude/reports/2026-04-10-stale.md
-.claude/reports/2026-04-10-standup.md
+po/reports/2026-04-10-status.md
+po/reports/2026-04-10-milestone-v1.md
+po/reports/2026-04-10-stale.md
+po/reports/2026-04-10-standup.md
 ```
 
 Always use `date +%F` for the prefix.
@@ -60,7 +60,7 @@ Always use `date +%F` for the prefix.
 After running the right script(s) and writing the report:
 
 ```
-**Report:** `.claude/reports/2026-04-10-status.md`
+**Report:** `po/reports/2026-04-10-status.md`
 
 - ✅ Healthy: <one fact, e.g. "Milestone v2 at 78%, on track">
 - ⚠️ At risk: <one fact, e.g. "3 stale issues > 30 days, all unassigned">
