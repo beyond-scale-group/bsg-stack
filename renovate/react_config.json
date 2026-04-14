@@ -1,5 +1,0 @@
-{
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "DEPRECATED — use `renovate/react` instead. Kept as a compatibility stub; will be removed in v2.",
-  "extends": ["github>beyond-scale-group/bsg-stack//renovate/react"]
-}

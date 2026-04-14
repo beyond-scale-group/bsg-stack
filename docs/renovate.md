@@ -16,8 +16,3 @@ Shared Renovate configuration presets for repos in the BSG portfolio.
 
 Both presets automerge patch and minor updates, hold majors for human
 review, and limit PR concurrency to avoid flooding CI.
-
-> **Deprecation:** the old paths `renovate/scala_config` and
-> `renovate/react_config` still work (they re-extend the new names) but
-> will be removed in **`v2`**. Update your `renovate.json` at your
-> convenience.

@@ -45,10 +45,10 @@ leaving the flat `.github/workflows/` dir that GitHub mandates.
 | `renovate/scala_config.json` | `renovate/scala.json` |
 | `renovate/react_config.json` | `renovate/react.json` |
 
-Compat stubs at the old paths were added in `v1.(next minor)` and will
-be **removed in `v2`**. If your `renovate.json` currently extends
+Compat stubs at the old paths shipped in `v2.0.0` and were removed in
+`v2.1.0`. If your `renovate.json` currently extends
 `…//renovate/scala_config`, update it to `…//renovate/scala` before
-bumping to `@v2`.
+upgrading past `v2.0.x`.
 
 ---
 

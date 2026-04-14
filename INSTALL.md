@@ -76,11 +76,6 @@ Both presets automerge patch and minor updates and hold major updates for
 human review. Override any rule in your own `renovate.json` — `extends` is
 merged, not replaced.
 
-> **Deprecation:** the old paths `renovate/scala_config` and
-> `renovate/react_config` still work (they re-extend the new names) but
-> will be removed in **`v2`**. Update your `renovate.json` at your
-> convenience.
-
 ---
 
 ## 3. Claude Code skills
