@@ -70,6 +70,7 @@ class TestPoReportIntegration(unittest.TestCase):
 
     tmpdir: "tempfile.TemporaryDirectory | None" = None
     workdir: Path
+    snapshot_path: Path  # collect.sh output cached once per test class
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -95,6 +96,22 @@ class TestPoReportIntegration(unittest.TestCase):
                 cmd, cwd=cls.workdir, check=True, capture_output=True, text=True
             )
 
+        # Collect once per test class so each downstream script reads the
+        # same snapshot via `--snapshot <path>` — one GraphQL fetch total.
+        cls.snapshot_path = cls.workdir / "snapshot.json"
+        result = subprocess.run(
+            ["bash", str(SCRIPTS / "collect.sh")],
+            cwd=cls.workdir,
+            capture_output=True,
+            text=True,
+            timeout=SCRIPT_TIMEOUT_S,
+        )
+        if result.returncode != 0:
+            raise unittest.SkipTest(
+                f"collect.sh failed: {result.stderr}"
+            )
+        cls.snapshot_path.write_text(result.stdout)
+
     @classmethod
     def tearDownClass(cls) -> None:
         if cls.tmpdir is not None:
@@ -102,11 +119,17 @@ class TestPoReportIntegration(unittest.TestCase):
 
     # -- helpers --------------------------------------------------------
 
-    def _run(self, script: str, *args: str) -> str:
+    def _run(self, script: str, *args: str, use_snapshot: bool = True) -> str:
         path = SCRIPTS / script
         self.assertTrue(path.is_file(), f"script not found: {path}")
+        cmd = ["bash", str(path)]
+        # collect.sh produces the snapshot; every other script consumes it
+        # from the cached path to avoid a fresh GraphQL fetch per test.
+        if use_snapshot and script != "collect.sh" and script != "generate-report.sh":
+            cmd.extend(["--snapshot", str(self.snapshot_path)])
+        cmd.extend(args)
         result = subprocess.run(
-            ["bash", str(path), *args],
+            cmd,
             cwd=self.workdir,
             capture_output=True,
             text=True,
@@ -120,6 +143,53 @@ class TestPoReportIntegration(unittest.TestCase):
         return result.stdout
 
     # -- tests ----------------------------------------------------------
+
+    def test_collect_script_emits_valid_snapshot(self) -> None:
+        """The single GraphQL snapshot all other scripts consume."""
+        out = self._run("collect.sh")
+        data = json.loads(out)
+        self.assertEqual(data.get("repo"), TARGET)
+        for key in (
+            "generatedAt",
+            "meta",
+            "issues",
+            "pullRequests",
+            "milestones",
+            "releases",
+        ):
+            self.assertIn(key, data, f"missing top-level key {key!r}")
+        self.assertIsInstance(data["issues"], list)
+        self.assertIsInstance(data["pullRequests"], list)
+        self.assertIsInstance(data["milestones"], list)
+        # Schema sanity on a single issue / PR (if any exist).
+        if data["issues"]:
+            issue = data["issues"][0]
+            for key in (
+                "number",
+                "title",
+                "state",
+                "createdAt",
+                "updatedAt",
+                "assignees",
+                "labels",
+                "lastCommentedAt",
+            ):
+                self.assertIn(key, issue, f"missing issue field {key!r}")
+            self.assertIsInstance(issue["assignees"], list)
+            self.assertIsInstance(issue["labels"], list)
+        if data["pullRequests"]:
+            pr = data["pullRequests"][0]
+            for key in (
+                "number",
+                "state",
+                "isDraft",
+                "reviewDecision",
+                "mergeStateStatus",
+                "statusCheck",
+                "firstReviewAt",
+                "closingIssues",
+            ):
+                self.assertIn(key, pr, f"missing PR field {key!r}")
 
     def test_status_script_emits_valid_json(self) -> None:
         out = self._run("status.sh")
@@ -138,14 +208,22 @@ class TestPoReportIntegration(unittest.TestCase):
         self.assertIn("closed", data["issues"])
         self.assertIsInstance(data["issues"]["open"], int)
         self.assertIsInstance(data["issues"]["closed"], int)
-        self.assertIn("open", data["pullRequests"])
-        self.assertIn("draft", data["pullRequests"])
+        prs = data["pullRequests"]
+        for key in (
+            "open",
+            "draft",
+            "awaitingReview",
+            "failingChecks",
+            "oldestOpenAgeDays",
+            "avgTimeToFirstReviewHours",
+        ):
+            self.assertIn(key, prs, f"missing PR metric {key!r}")
+        # Derived invariants.
+        self.assertLessEqual(prs["draft"], prs["open"])
+        self.assertLessEqual(prs["awaitingReview"], prs["open"])
+        self.assertLessEqual(prs["failingChecks"], prs["open"])
         self.assertIsInstance(data["topLabels"], list)
         self.assertIsInstance(data["byAssignee"], list)
-        # Draft count can never exceed open count.
-        self.assertLessEqual(
-            data["pullRequests"]["draft"], data["pullRequests"]["open"]
-        )
 
     def test_milestone_progress_script_emits_json_array(self) -> None:
         out = self._run("milestone-progress.sh")
@@ -156,18 +234,25 @@ class TestPoReportIntegration(unittest.TestCase):
                 "number",
                 "title",
                 "state",
-                "open_issues",
-                "closed_issues",
+                "openIssues",
+                "closedIssues",
                 "total",
-                "percent_complete",
+                "percentComplete",
+                "daysRemaining",
+                "daysSinceLastClose",
+                "flags",
                 "url",
             ):
                 self.assertIn(key, m, f"missing key {key!r} in milestone {m!r}")
             # Sanity: total should equal open + closed.
-            self.assertEqual(m["total"], m["open_issues"] + m["closed_issues"])
-            # percent_complete is bounded.
-            self.assertGreaterEqual(m["percent_complete"], 0)
-            self.assertLessEqual(m["percent_complete"], 100)
+            self.assertEqual(m["total"], m["openIssues"] + m["closedIssues"])
+            # percentComplete is bounded.
+            self.assertGreaterEqual(m["percentComplete"], 0)
+            self.assertLessEqual(m["percentComplete"], 100)
+            # Every risk flag must be a boolean.
+            for flag in ("overdue", "at_risk", "understaffed", "stalled"):
+                self.assertIn(flag, m["flags"], f"missing flag {flag!r} on {m!r}")
+                self.assertIsInstance(m["flags"][flag], bool)
 
     def test_stale_issues_script_emits_json_array(self) -> None:
         out = self._run("stale-issues.sh", "14")
@@ -180,6 +265,8 @@ class TestPoReportIntegration(unittest.TestCase):
                 "assignees",
                 "labels",
                 "updatedAt",
+                "lastCommentedAt",
+                "lastCommentBy",
                 "daysStale",
                 "url",
             ):
@@ -201,6 +288,14 @@ class TestPoReportIntegration(unittest.TestCase):
             "## Oldest open PR",
         ):
             self.assertIn(header, out, f"missing section header: {header!r}")
+        # New PR flow metrics must appear in the at-a-glance table.
+        for metric in (
+            "PRs awaiting review",
+            "PRs with failing checks",
+            "Oldest open PR (days)",
+            "Avg time to first review",
+        ):
+            self.assertIn(metric, out, f"missing at-a-glance row: {metric!r}")
 
 
 if __name__ == "__main__":
