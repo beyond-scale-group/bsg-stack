@@ -34,7 +34,7 @@ No git clone, no script to run, no cron to set up.
 
 | Name | Description |
 |------|-------------|
-| `po-report` | Product owner reporting for the current GitHub repo. Aggregates issues, milestones, stale tickets, PRs into a dated markdown report under `.claude/reports/`. Heavy lifting in bash scripts (zero LLM cost), narration in the skill. |
+| `po-report` | Product owner reporting for the current GitHub repo. One paginated GraphQL snapshot feeds every report (status, milestone progress with risk flags, stale issues, PR flow) written under `po/reports/` with the raw snapshot committed to `po/history/<date>.json`. Heavy lifting in bash + jq (zero LLM cost), narration in the skill. |
 
 ## Available agents
 

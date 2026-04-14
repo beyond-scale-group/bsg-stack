@@ -20,7 +20,7 @@ without recent activity.
    - **Assigned but stale**: has assignee, stale > N days
    - **Orphaned**: no assignee, any age beyond threshold
 
-3. **Write the report** to `.claude/reports/$(date +%F)-stale.md`.
+3. **Write the report** to `po/reports/$(date +%F)-stale.md`.
 
 4. **In chat**, surface:
    - Total count per bucket

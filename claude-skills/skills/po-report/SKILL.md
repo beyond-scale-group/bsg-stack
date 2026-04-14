@@ -6,7 +6,7 @@ description: >
   "project status", "milestone progress", "rapport produit", "list stale issues",
   "burndown", "what's blocking us", "sprint health", or any request for an
   aggregated view of GitHub issues, milestones, labels, or assignees.
-  Produces a dated markdown report in .claude/reports/ and prints a summary.
+  Produces a dated markdown report in po/reports/ and prints a summary.
 version: 0.1.0
 ---
 
@@ -32,7 +32,7 @@ which itself orchestrates the others.
 ## Hard rules
 
 1. **Never invent numbers.** Always read them from the scripts' JSON output.
-2. **Always write the final report to `.claude/reports/YYYY-MM-DD-{slug}.md`** so
+2. **Always write the final report to `po/reports/YYYY-MM-DD-{slug}.md`** so
    it is dated and version-controllable.
 3. **Run scripts from the repo root.** They use `gh` which auto-detects the repo.
 4. **Do not call `gh issue list` or `gh api` yourself** for aggregation — use
@@ -43,24 +43,43 @@ which itself orchestrates the others.
 
 ## Available scripts
 
-All scripts live in `scripts/` and emit JSON on stdout (except `generate-report.sh`
-which emits markdown). Run them with `bash scripts/<name>.sh [args]`.
+All scripts live in `scripts/` and emit JSON on stdout (except
+`generate-report.sh` which emits markdown). `collect.sh` is the single
+GraphQL fetch; every other script is a pure jq transform of that
+snapshot — pass it with `--snapshot <path>`, pipe it in, or let the
+script auto-collect a fresh one.
 
-| Script                    | Purpose                                                    |
-| ------------------------- | ---------------------------------------------------------- |
-| `status.sh`               | Repo-wide counts: open/closed issues, PRs, by label, etc.  |
-| `milestone-progress.sh`   | For each open milestone: total/closed/open + % complete   |
-| `stale-issues.sh [DAYS]`  | Open issues with no activity for N days (default: 14)     |
-| `generate-report.sh`      | Composes a full markdown report from the above scripts    |
+| Script                    | Purpose                                                                |
+| ------------------------- | ---------------------------------------------------------------------- |
+| `collect.sh`              | One paginated GraphQL fetch → full snapshot JSON (issues, PRs, milestones, releases, repo meta). Every other script consumes this. |
+| `status.sh`               | Repo-wide counts + PR flow metrics (review pending, failing checks, oldest open PR, avg time-to-first-review). |
+| `milestone-progress.sh`   | Per-milestone progress with risk flags (`overdue`, `at_risk`, `understaffed`, `stalled`) computed in jq. |
+| `stale-issues.sh [DAYS]`  | Open issues with no comment activity for N days (default: 14). Uses `lastCommentedAt` so bot label bumps don't reset staleness. |
+| `generate-report.sh`      | Collects once, composes a full markdown report from all the above.     |
+
+**Invocation patterns:**
+
+```bash
+# One-shot: collect + render
+bash scripts/generate-report.sh > po/reports/$(date +%F)-status.md
+
+# Reuse one snapshot across multiple reports
+bash scripts/collect.sh > /tmp/snap.json
+bash scripts/status.sh            --snapshot /tmp/snap.json
+bash scripts/milestone-progress.sh --snapshot /tmp/snap.json
+
+# Target a specific repo without a checkout
+GH_REPO=owner/name bash scripts/collect.sh | jq '.issues | length'
+```
 
 ## Output convention
 
-Reports go to `.claude/reports/`. Filename pattern:
+Reports go to `po/reports/`. Filename pattern:
 
 ```
-.claude/reports/2026-04-10-status.md
-.claude/reports/2026-04-10-milestone-v1.md
-.claude/reports/2026-04-10-stale.md
+po/reports/2026-04-10-status.md
+po/reports/2026-04-10-milestone-v1.md
+po/reports/2026-04-10-stale.md
 ```
 
 Use today's date. After writing, print the file path and a 3-bullet executive
