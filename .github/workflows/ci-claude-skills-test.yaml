@@ -19,3 +19,22 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run unit tests
         run: python3 claude-skills/tests/test_skills.py
+
+  integration:
+    name: po-report integration test (edomata)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Public repos only; read-only API calls. GITHUB_TOKEN is sufficient.
+    permissions:
+      contents: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify required tooling
+        run: |
+          gh --version
+          jq --version
+          git --version
+      - name: Run po-report integration test against beyond-scale-group/edomata
+        run: python3 claude-skills/tests/test_po_report_integration.py
