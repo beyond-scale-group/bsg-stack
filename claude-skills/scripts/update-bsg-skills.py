@@ -3,7 +3,7 @@
 update-bsg-skills.py
 
 Refreshes the cached BSG shared Claude Code commands and skills from
-beyond-scale-group/bsg-workflows@main into the user's ~/.claude/.
+beyond-scale-group/bsg-stack@main into the user's ~/.claude/.
 
 Designed to be invoked by a Claude Code SessionStart hook so every new
 session picks up the latest version automatically. The script also
@@ -30,7 +30,7 @@ Claude Code session from starting. Logs to
 ~/.claude/logs/update-bsg-skills.log (rotated at 256 KiB).
 
 This file is a cached copy of claude-skills/scripts/update-bsg-skills.py
-in beyond-scale-group/bsg-workflows. The repo is the source of truth;
+in beyond-scale-group/bsg-stack. The repo is the source of truth;
 the local copy is overwritten on every run.
 """
 
@@ -44,7 +44,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-REPO = "beyond-scale-group/bsg-workflows"
+REPO = "beyond-scale-group/bsg-stack"
 BRANCH = "main"
 SCRIPT_NAME = "update-bsg-skills.py"
 

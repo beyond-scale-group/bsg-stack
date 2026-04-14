@@ -26,7 +26,7 @@ Compiles and runs Scala tests with optional code coverage reporting (scoverage).
 ```yaml
 jobs:
   test:
-    uses: beyond-scale-group/bsg-workflows/.github/workflows/scala_test.yaml@v1
+    uses: beyond-scale-group/bsg-stack/.github/workflows/scala_test.yaml@v1
     with:
       jdk: "21"
       working_directory: apps/backend/my-app
@@ -53,7 +53,7 @@ Builds and lints a React/Vite project with optional testing.
 ```yaml
 jobs:
   test:
-    uses: beyond-scale-group/bsg-workflows/.github/workflows/react_vite_test.yaml@v1
+    uses: beyond-scale-group/bsg-stack/.github/workflows/react_vite_test.yaml@v1
     with:
       node_version: "22"
       working_directory: apps/frontend
