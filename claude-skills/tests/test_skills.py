@@ -37,6 +37,12 @@ INSTALL_MD = SKILLS_DIR / "INSTALL.md"
 
 FOOTER_HEADER = "## How to improve this skill"
 
+# Frontmatter block at the top of a markdown file, bounded by '---' lines.
+FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+# Top-level YAML-ish key at column 0 (ignores indented continuation lines of
+# folded scalars). Matches `key:` or `key: value`.
+TOP_LEVEL_KEY_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*)\s*:", re.MULTILINE)
+
 # Catches any reference of the form `claude-skills/<...>` inside backticks
 # in a footer block, regardless of whether it's a command, skill, or agent.
 FOOTER_PATH_RE = re.compile(r"`(claude-skills/[A-Za-z0-9_/.-]+\.md)`")
@@ -126,6 +132,76 @@ class TestSharedSkills(unittest.TestCase):
                     f"the footer was copy-pasted from another asset — fix "
                     f"the path in the footer.",
                 )
+
+    # ------------------------------------------------------------- tick action
+
+    def test_every_agent_declares_a_tick_action(self) -> None:
+        """Every agent file must declare a `tick` field in its frontmatter.
+
+        The `tick` action is the BSG-wide convention for periodic agent runs
+        (see CLAUDE.md → "The `tick` convention"). Each agent must document
+        in one place — its frontmatter — what `tick` does for that agent,
+        so users can discover it uniformly across the catalog.
+
+        Silent-by-default semantics and commit behavior are defined in the
+        convention; the per-agent `tick` field describes the concrete work
+        and the conditions under which the agent breaks silence.
+        """
+        agents = list_agents()
+        self.assertGreater(len(agents), 0, "no agents discovered")
+        for path in agents:
+            with self.subTest(agent=path.stem):
+                text = path.read_text()
+                fm_match = FRONTMATTER_RE.match(text)
+                self.assertIsNotNone(
+                    fm_match,
+                    f"{path.relative_to(REPO_ROOT)}: missing or malformed "
+                    f"YAML frontmatter (expected '---\\n...\\n---' at top).",
+                )
+                frontmatter = fm_match.group(1)
+                keys = set(TOP_LEVEL_KEY_RE.findall(frontmatter))
+                self.assertIn(
+                    "tick",
+                    keys,
+                    f"{path.relative_to(REPO_ROOT)}: agent frontmatter is "
+                    f"missing a `tick:` field. Every BSG agent must declare "
+                    f"what its periodic `tick` action does — see CLAUDE.md "
+                    f"→ 'The `tick` convention' and beyond-scale-group/bsg-stack#33. "
+                    f"Found keys: {sorted(keys)}.",
+                )
+                # Guard against an empty `tick:` line — it must describe the
+                # work. Easiest check: the frontmatter must contain at least
+                # one non-empty line after the `tick:` key before the next
+                # top-level key or end of frontmatter.
+                tick_body = self._extract_tick_body(frontmatter)
+                self.assertTrue(
+                    tick_body.strip(),
+                    f"{path.relative_to(REPO_ROOT)}: `tick:` field is empty. "
+                    f"Describe what this agent's periodic tick does.",
+                )
+
+    @staticmethod
+    def _extract_tick_body(frontmatter: str) -> str:
+        """Return the value of the `tick:` key (inline or folded block)."""
+        # Find the `tick:` line and everything up to the next top-level key.
+        lines = frontmatter.splitlines()
+        body: list[str] = []
+        in_tick = False
+        for line in lines:
+            if not in_tick:
+                m = re.match(r"^tick\s*:\s*(.*)$", line)
+                if m:
+                    in_tick = True
+                    inline = m.group(1).strip()
+                    # Strip the YAML folded-scalar indicator if present.
+                    if inline and inline not in (">", "|", ">-", "|-"):
+                        body.append(inline)
+                continue
+            # A new top-level key ends the tick block.
+            if re.match(r"^[A-Za-z_][A-Za-z0-9_-]*\s*:", line):
+                break
+            body.append(line)
+        return "\n".join(body)
 
     # ----------------------------------------------------------- catalog sync
 

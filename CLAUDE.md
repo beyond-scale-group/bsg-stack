@@ -38,6 +38,33 @@ target repo at a stable path (e.g. `po/`) — git history is the trend store.
 
 Escalating to CI automation requires explicit approval.
 
+### The `tick` convention (periodic agent runs)
+
+Agents that produce reports or check state should expose a `tick` action — a
+single conventional verb across the catalog for "do your periodic job now."
+
+```
+@po-manager tick
+@github-compliance tick
+```
+
+Semantics every `tick` must follow:
+
+- **Idempotent and silent by default.** Write the dated output to the repo
+  (`po/reports/YYYY-MM-DD-*.md`, `compliance/reports/...`), commit it, and
+  return a short summary only if something needs human attention (risk flag,
+  drift crossing a threshold, new blocker). No news = no chat noise.
+- **No CI cron.** `tick` is still human-initiated per the on-demand principle
+  above. Scheduled execution goes through Claude Code's own `/schedule` or
+  `/loop` (which the user sets up explicitly on their machine) — not through
+  GitHub Actions, Renovate, or any org-level scheduler.
+- **Repo-scoped.** `tick` runs inside one repo's working directory and touches
+  only that repo. Multi-repo sweeps are out of scope for `tick`.
+
+Implementation tracked in beyond-scale-group/bsg-stack#33. Until that
+lands, agents document `tick` as a planned alias in their frontmatter but
+route to existing verbs (e.g. `po-manager tick` → full status report).
+
 ### BSG-managed settings in `~/.claude/settings.json`
 
 `claude-skills/settings.json` is merged by the BSG updater into each
