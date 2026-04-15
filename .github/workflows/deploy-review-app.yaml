@@ -113,6 +113,8 @@ on:
         required: false
       google_api_key:
         required: false
+      resend_api_key:
+        required: false
       jwt_secret:
         required: false
 
@@ -141,6 +143,7 @@ jobs:
       TF_VAR_backend_url_internal: ${{ inputs.tf_var_backend_url_internal }}
       TF_VAR_backend_api_key: ${{ secrets.backend_api_key }}
       TF_VAR_google_api_key: ${{ secrets.google_api_key }}
+      TF_VAR_resend_api_key: ${{ secrets.resend_api_key }}
       TF_VAR_jwt_secret: ${{ secrets.jwt_secret }}
 
     steps:
