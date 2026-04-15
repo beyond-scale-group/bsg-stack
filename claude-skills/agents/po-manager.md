@@ -15,6 +15,7 @@ tools: Read, Glob, Grep, Bash, Write
 model: sonnet
 skills: [po-report, daily-standup]
 color: purple
+output: pr
 tick: >
   Run the full status + adherence report, commit it to po/reports/YYYY-MM-DD-status.md,
   and stay silent in chat unless drift is detected or a risk flag is raised
@@ -69,12 +70,31 @@ po/reports/2026-04-10-standup.md
 
 Always use `date +%F` for the prefix.
 
+## Landing the report (mandatory)
+
+Never `git commit` the report directly on `main`. After writing the file,
+wrap it in an auto-merge PR using the shared helper:
+
+```bash
+bash ~/.claude/scripts/open-report-pr.sh \
+  po/reports/2026-04-10-status.md \
+  --agent po-manager
+```
+
+The helper branches off HEAD, commits the file, opens a PR, and enables
+auto-merge (squash). If the target repo has no branch-protection rule,
+it falls back to a direct squash merge — the file still lands on `main`.
+
+Include the returned PR URL in your chat summary so the user can click
+through. See `CLAUDE.md` → "Reporting agents output via auto-merge PRs"
+for the why.
+
 ## Default response format
 
-After running the right script(s) and writing the report:
+After running the right script(s), writing the report, and opening the PR:
 
 ```
-**Report:** `po/reports/2026-04-10-status.md`
+**Report:** `po/reports/2026-04-10-status.md` — PR <url>
 
 - ✅ Healthy: <one fact, e.g. "Milestone v2 at 78%, on track">
 - ⚠️ At risk: <one fact, e.g. "3 stale issues > 30 days, all unassigned">
