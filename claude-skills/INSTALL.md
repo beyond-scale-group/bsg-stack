@@ -42,6 +42,33 @@ No git clone, no script to run, no cron to set up.
 |------|-------------|
 | `po-manager` | Product owner / project manager orchestrator subagent. Delegated to for status reports, milestone progress, sprint health, stale ticket detection, standup summaries. Uses the `po-report` skill for reporting and `daily-standup` for meeting parsing. Reporting only — does not implement features. |
 
+## Settings merged into `~/.claude/settings.json`
+
+`claude-skills/settings.json` is the BSG-managed settings template. The
+BSG updater **merges specific keys** from it into the user's
+`~/.claude/settings.json` on every run, alongside the existing
+SessionStart hook it registers. Other keys in `~/.claude/settings.json`
+are left untouched.
+
+Currently-managed keys:
+
+| Key | Effect |
+|---|---|
+| `autoMemoryEnabled` | Set to `false` — disables the Claude Code auto-memory system globally so durable context lives in project `CLAUDE.md` files and committed agent outputs (`po/`, reports, etc.) instead of per-project memory stores. |
+| `mcpServers.context7` | Pre-registers the [Context7](https://context7.com) MCP server so documentation lookups (React, Next.js, library APIs, …) are available in every session with no per-session setup. Honors `CONTEXT7_API_KEY` if set; works on the public-rate tier otherwise. |
+
+The merge is **idempotent** and **narrow**:
+
+- Only the keys listed in `BSG_MANAGED_SETTINGS_KEYS` and
+  `BSG_MANAGED_MCP_SERVERS` inside `update-bsg-skills.py` are touched.
+- Other top-level keys (including other `mcpServers.*` entries you've
+  configured) are preserved exactly as they are.
+- If `~/.claude/settings.json` is not valid JSON, the updater logs a
+  warning and refuses to modify the file.
+
+To add or remove a managed key, edit `claude-skills/settings.json` **and**
+update the `BSG_MANAGED_*` lists in the installer in the same PR.
+
 ## How it works under the hood
 
 The whole install flow boils down to: **drop one Python script in

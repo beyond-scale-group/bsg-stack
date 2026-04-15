@@ -21,9 +21,14 @@ Conflict avoidance:
   - Files removed upstream are removed locally on the next run, but
     only if they are in the manifest, so unrelated files in the same
     directories are never touched.
-  - The settings.json merge is idempotent: it appends a SessionStart
-    entry only if no existing entry already references this script. It
-    refuses to touch the file if it is not valid JSON.
+  - The settings.json merge is idempotent on two fronts:
+      * The SessionStart hook is appended only if no existing entry
+        already references this script.
+      * BSG-managed keys from claude-skills/settings.json
+        (currently: autoMemoryEnabled, mcpServers.context7) are
+        overwritten to the upstream value; all other keys in
+        ~/.claude/settings.json are left untouched.
+    Refuses to touch the file if it is not valid JSON.
 
 Network errors are swallowed (exit 0) so the updater never blocks a
 Claude Code session from starting. Logs to
@@ -47,6 +52,15 @@ from pathlib import Path
 REPO = "beyond-scale-group/bsg-stack"
 BRANCH = "main"
 SCRIPT_NAME = "update-bsg-skills.py"
+
+# Top-level settings keys the BSG updater merges from
+# claude-skills/settings.json into ~/.claude/settings.json on every run.
+# Keys not listed here are left completely alone, so user-owned settings
+# coexist with BSG-managed ones.
+BSG_MANAGED_SETTINGS_KEYS = ["autoMemoryEnabled"]
+# Sub-keys under `mcpServers` that the updater owns. Other MCP servers the
+# user has configured are preserved.
+BSG_MANAGED_MCP_SERVERS = ["context7"]
 
 CLAUDE_DIR = Path(os.environ.get("CLAUDE_CONFIG_DIR", str(Path.home() / ".claude")))
 COMMANDS_DIR = CLAUDE_DIR / "commands"
@@ -300,12 +314,85 @@ def register_session_hook() -> None:
     log(f"  registered SessionStart hook in {SETTINGS_FILE}")
 
 
+# ---------- BSG-managed settings merge ----------
+
+def fetch_template_settings() -> dict | None:
+    """Download the BSG settings template (claude-skills/settings.json)."""
+    meta = http_get(f"{API_BASE}/claude-skills/settings.json?ref={BRANCH}")
+    if not isinstance(meta, dict):
+        return None
+    url = meta.get("download_url")
+    if not url:
+        return None
+    raw = http_get(url, raw=True)
+    if raw is None:
+        return None
+    try:
+        data = json.loads(raw.decode("utf-8"))
+    except json.JSONDecodeError:
+        log("  BSG settings template is not valid JSON")
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def merge_bsg_settings() -> None:
+    """
+    Merge BSG-managed keys from claude-skills/settings.json into
+    ~/.claude/settings.json. Only the keys listed in
+    BSG_MANAGED_SETTINGS_KEYS and BSG_MANAGED_MCP_SERVERS are touched;
+    every other user-owned setting is preserved untouched.
+
+    Idempotent: re-running with no upstream changes is a no-op.
+    """
+    template = fetch_template_settings()
+    if template is None:
+        log("  could not fetch BSG settings template, skipping merge")
+        return
+
+    if SETTINGS_FILE.exists():
+        try:
+            settings = json.loads(SETTINGS_FILE.read_text())
+        except json.JSONDecodeError:
+            log(f"  {SETTINGS_FILE} is not valid JSON, refusing to merge")
+            return
+    else:
+        settings = {}
+    if not isinstance(settings, dict):
+        log(f"  {SETTINGS_FILE} is not a JSON object, refusing to merge")
+        return
+
+    changed = False
+
+    for key in BSG_MANAGED_SETTINGS_KEYS:
+        if key in template and settings.get(key) != template[key]:
+            settings[key] = template[key]
+            changed = True
+
+    t_servers = template.get("mcpServers")
+    if isinstance(t_servers, dict):
+        servers = settings.setdefault("mcpServers", {})
+        if isinstance(servers, dict):
+            for name in BSG_MANAGED_MCP_SERVERS:
+                if name in t_servers and servers.get(name) != t_servers[name]:
+                    servers[name] = t_servers[name]
+                    changed = True
+
+    if not changed:
+        return
+
+    tmp = SETTINGS_FILE.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(settings, indent=2) + "\n")
+    tmp.replace(SETTINGS_FILE)
+    log(f"  merged BSG-managed keys into {SETTINGS_FILE}")
+
+
 # ---------- entry point ----------
 
 def main() -> int:
     setup_dirs()
     setup_logging()
     register_session_hook()
+    merge_bsg_settings()
     manifest = load_manifest()
     manifest = reconcile(manifest)
     save_manifest(manifest)

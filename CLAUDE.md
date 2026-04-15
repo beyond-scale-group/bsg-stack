@@ -1,0 +1,77 @@
+# CLAUDE.md
+
+Project instructions for [Claude Code](https://claude.com/claude-code) sessions
+in this repository.
+
+## What this repo is
+
+`beyond-scale-group/bsg-stack` — source of truth for the BSG shared Claude Code
+**commands, skills, and subagents**, plus the Renovate presets consumed across
+the org. Files under `claude-skills/` are cached into every developer's
+`~/.claude/` via the installer; files under `renovate/` are referenced by
+tracked repos' `renovate.json`.
+
+## Design principles for agents and skills
+
+### Pure Claude-driven, per-repo, on-demand
+
+Every agent or skill in `claude-skills/` runs **only when a human asks for it**,
+from inside the target repository. Primary invocation is a subagent mention or
+slash command:
+
+```
+@po-manager give me the full status
+/babysit bun run build
+```
+
+Headless one-shot for scripted use:
+
+```bash
+claude -p "@po-manager run a full status report and commit the results"
+```
+
+**Do not add CI automation for these agents.** No reusable GitHub Actions
+workflows, no scheduled cron jobs, no `repo_dispatch` orchestrators. Every run
+must be initiated by a human so each run is visible, intentional, and
+repo-scoped. If persistent state is needed, commit the agent's output to the
+target repo at a stable path (e.g. `po/`) — git history is the trend store.
+
+Escalating to CI automation requires explicit approval.
+
+### BSG-managed settings in `~/.claude/settings.json`
+
+`claude-skills/settings.json` is merged by the BSG updater into each
+developer's `~/.claude/settings.json` on every run. The merge is narrow —
+only the keys listed in `BSG_MANAGED_SETTINGS_KEYS` and
+`BSG_MANAGED_MCP_SERVERS` inside `update-bsg-skills.py` are touched; all
+other user-owned settings are preserved. Today that's:
+
+- `autoMemoryEnabled: false` — disables the Claude Code auto-memory system
+  so durable context lives in `CLAUDE.md` files and committed agent outputs
+  (e.g. `po/`) rather than a per-project memory store.
+- `mcpServers.context7` — pre-registers the Context7 MCP server so library
+  documentation lookups are available automatically in every session.
+
+See [`claude-skills/INSTALL.md`](claude-skills/INSTALL.md#settings-merged-into-claudesettingsjson)
+for the full list of managed keys and how to add or remove one.
+
+### Data lives in the target repo, not centrally
+
+Agents that produce reports or plans write them into the repo they were invoked
+in, at a root-level folder (e.g. `po/`), and commit them. No central portfolio
+folder, no cross-repo database. "One repo, one agent, one plan."
+
+### Scripts before LLM
+
+Inside a skill, deterministic bash + jq scripts do the aggregation and
+computation (counts, risk flags, tree walks). The LLM only narrates the
+results. Agents should never re-derive numbers the scripts already emit.
+
+## Contributing to the shared catalog
+
+Files in `~/.claude/` on a developer's machine are cached copies — they get
+overwritten on every install or SessionStart run. Always PR back here instead
+of editing the local copies. See [`claude-skills/INSTALL.md`][install] for the
+full add-a-skill checklist and required footer.
+
+[install]: claude-skills/INSTALL.md#adding-a-new-command-skill-or-agent-to-the-catalog
