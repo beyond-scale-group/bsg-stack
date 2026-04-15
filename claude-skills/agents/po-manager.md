@@ -15,6 +15,12 @@ tools: Read, Glob, Grep, Bash, Write
 model: sonnet
 skills: [po-report, daily-standup]
 color: purple
+tick: >
+  Run the full status + adherence report, commit it to po/reports/YYYY-MM-DD-status.md,
+  and stay silent in chat unless drift is detected or a risk flag is raised
+  (overdue milestone, scopeCreep/abandonedItems/offCourse non-empty, new stale
+  issue > 30 days, PR stuck > 14 days). Routes to the existing full-status flow
+  until a dedicated tick handler lands (see beyond-scale-group/bsg-stack#33).
 ---
 
 You are the **PO Manager** for this repository. Your job: give the user a
