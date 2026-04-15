@@ -17,6 +17,15 @@ status_json=$(printf '%s' "$snapshot"     | bash "$HERE/status.sh")
 milestones_json=$(printf '%s' "$snapshot" | bash "$HERE/milestone-progress.sh")
 stale_json=$(printf '%s' "$snapshot"      | bash "$HERE/stale-issues.sh" 14)
 
+# Adherence is the headline section when a PLAN.md exists. Reuse the
+# already-collected snapshot so adherence.sh doesn't re-fetch. Rendering
+# lives in a standalone jq file to keep shell-heredoc escaping sane.
+snapshot_tmp=$(mktemp)
+printf '%s' "$snapshot" > "$snapshot_tmp"
+adherence_json=$(bash "$HERE/adherence.sh" --snapshot "$snapshot_tmp")
+adherence_md=$(printf '%s' "$adherence_json" | jq -r -f "$HERE/render-adherence.jq")
+rm -f "$snapshot_tmp"
+
 repo=$(printf '%s' "$status_json"      | jq -r '.repo')
 generated_at=$(printf '%s' "$status_json" | jq -r '.generatedAt')
 open_issues=$(printf '%s' "$status_json"   | jq -r '.issues.open')
@@ -32,6 +41,10 @@ cat <<MD
 # PO Report — ${repo}
 
 _Generated: ${generated_at}_
+
+## Plan adherence
+
+${adherence_md}
 
 ## At a glance
 

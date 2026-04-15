@@ -280,6 +280,7 @@ class TestPoReportIntegration(unittest.TestCase):
         out = self._run("generate-report.sh")
         self.assertIn(f"# PO Report — {TARGET}", out)
         for header in (
+            "## Plan adherence",
             "## At a glance",
             "## Top labels (open issues)",
             "## Open issues by assignee",
@@ -296,6 +297,117 @@ class TestPoReportIntegration(unittest.TestCase):
             "Avg time to first review",
         ):
             self.assertIn(metric, out, f"missing at-a-glance row: {metric!r}")
+
+    # -- plan adherence -----------------------------------------------
+
+    def test_parse_plan_extracts_binding_tags(self) -> None:
+        """parse-plan.sh returns one item per tagged bullet with typed bindings."""
+        plan = self.workdir / "test-plan.md"
+        plan.write_text(
+            "# Big plan — fixture\n\n"
+            "## Objectives\n"
+            "- Ship redesign              [milestone:Payments-v1]\n"
+            "- Migrate DB                  [epic:#142]\n"
+            "- Hire DevRel                 [label:hire:devrel]\n"
+            "- Do everything               [milestone:Payments-v1] [epic:#287] [label:area:core]\n"
+            "- Shorthand issue ref         [#7]\n"
+            "\n"
+            "## Notes\n"
+            "This is prose and should be skipped.\n"
+        )
+        out = self._run("parse-plan.sh", "--plan", str(plan), use_snapshot=False)
+        items = json.loads(out)
+        self.assertEqual(len(items), 5)
+        # Check the multi-tag bullet picked up every binding.
+        multi = next(i for i in items if i["raw"] == "Do everything")
+        self.assertEqual(multi["bindings"]["milestones"], ["Payments-v1"])
+        self.assertEqual(multi["bindings"]["epics"], [287])
+        self.assertEqual(multi["bindings"]["labels"], ["area:core"])
+        # [#7] shorthand becomes an epic binding with integer value.
+        shorthand = next(i for i in items if i["raw"] == "Shorthand issue ref")
+        self.assertEqual(shorthand["bindings"]["epics"], [7])
+        # Section tracking.
+        self.assertEqual(multi["section"], "Objectives")
+
+    def test_parse_plan_returns_empty_array_when_missing(self) -> None:
+        """A missing PLAN.md is NOT an error — emit [] so adherence can surface the gap."""
+        nonexistent = self.workdir / "does-not-exist.md"
+        out = self._run("parse-plan.sh", "--plan", str(nonexistent), use_snapshot=False)
+        self.assertEqual(json.loads(out), [])
+
+    def test_adherence_emits_matrix_and_drift(self) -> None:
+        """adherence.sh joins a hand-written plan with the snapshot."""
+        plan = self.workdir / "adherence-plan.md"
+        plan.write_text(
+            "# Big plan — edomata fixture\n\n"
+            "## Objectives\n"
+            "- Audit Renovate PRs           [#21]\n"
+            "- Add release automation       [milestone:non-existent]\n"
+        )
+        out = subprocess.run(
+            [
+                "bash",
+                str(SCRIPTS / "adherence.sh"),
+                "--plan",
+                str(plan),
+                "--snapshot",
+                str(self.snapshot_path),
+            ],
+            cwd=self.workdir,
+            capture_output=True,
+            text=True,
+            timeout=SCRIPT_TIMEOUT_S,
+        )
+        self.assertEqual(out.returncode, 0, out.stderr)
+        data = json.loads(out.stdout)
+        self.assertTrue(data["planFound"])
+        self.assertEqual(data["repo"], TARGET)
+        # Top-level shape.
+        for key in ("items", "drift", "summary"):
+            self.assertIn(key, data)
+        for drift_key in ("scopeCreep", "abandonedItems", "offCourse"):
+            self.assertIn(drift_key, data["drift"])
+        for summary_key in (
+            "totalPlanItems",
+            "notStarted",
+            "inProgress",
+            "done",
+            "atRisk",
+            "scopeCreep",
+        ):
+            self.assertIn(summary_key, data["summary"])
+        self.assertEqual(data["summary"]["totalPlanItems"], 2)
+        # Every plan item carries its derived status + counts.
+        for item in data["items"]:
+            self.assertIn(item["status"],
+                {"done", "in_progress", "at_risk", "not_started"})
+            self.assertIn("counts", item)
+            self.assertIn("evidence", item)
+        # PR #21 is an open Renovate PR on edomata → the #21 binding
+        # should resolve to in_progress with non-zero openPrs.
+        pr21_item = next(i for i in data["items"] if i["raw"] == "Audit Renovate PRs")
+        self.assertEqual(pr21_item["status"], "in_progress")
+        self.assertGreaterEqual(pr21_item["counts"]["openPrs"], 1)
+        # Milestone binding against a non-existent milestone resolves
+        # to not_started (no evidence anywhere).
+        missing = next(i for i in data["items"] if i["raw"] == "Add release automation")
+        self.assertEqual(missing["status"], "not_started")
+
+    def test_bootstrap_plan_emits_draft_markdown(self) -> None:
+        """bootstrap-plan.sh produces a reviewable draft — no filesystem writes."""
+        out = self._run("bootstrap-plan.sh")
+        self.assertIn(f"# Big plan — {TARGET}", out)
+        for header in (
+            "## Objectives",
+            "## Milestones",
+            "## Epics",
+            "## Cross-cutting work (by label)",
+            "## Decision log",
+            "## Tracked risks",
+        ):
+            self.assertIn(header, out, f"missing bootstrap section: {header!r}")
+        # Draft references plan-schema.md so readers know how to edit it.
+        self.assertIn("plan-schema.md", out)
 
 
 if __name__ == "__main__":

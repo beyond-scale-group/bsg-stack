@@ -20,11 +20,14 @@ actionable progress report. All heavy lifting is done by bash scripts in
 
 Read the user's request and pick the matching reference document:
 
-| If the user asks about...                          | Read this reference        |
-| -------------------------------------------------- | -------------------------- |
-| Overall status / health / "où en est le projet"    | `references/status.md`     |
-| Milestone progress, sprint health, burndown        | `references/milestones.md` |
-| Stale issues, no recent activity, abandoned work   | `references/stale.md`      |
+| If the user asks about...                                      | Read this reference         |
+| -------------------------------------------------------------- | --------------------------- |
+| Plan adherence, drift, "où en est le plan", "on course?"       | `references/adherence.md`   |
+| Bootstrap / propose a starter `PLAN.md`                        | `references/adherence.md` (bootstrap flow) |
+| PLAN.md schema / how to write bindings                         | `references/plan-schema.md` |
+| Overall status / health / "où en est le projet" / full report  | `references/status.md` (adherence is its headline section) |
+| Milestone progress, sprint health, burndown                    | `references/milestones.md`  |
+| Stale issues, no recent activity, abandoned work               | `references/stale.md`       |
 
 For multi-topic requests (e.g. "give me a full report"), follow `references/status.md`
 which itself orchestrates the others.
@@ -52,10 +55,14 @@ script auto-collect a fresh one.
 | Script                    | Purpose                                                                |
 | ------------------------- | ---------------------------------------------------------------------- |
 | `collect.sh`              | One paginated GraphQL fetch → full snapshot JSON (issues, PRs, milestones, releases, repo meta). Every other script consumes this. |
+| `parse-plan.sh`           | Parse `po/PLAN.md` into an array of plan items with typed bindings (`milestones`, `epics`, `labels`). Empty array if the file is missing. |
+| `adherence.sh`            | Join plan items with the snapshot → per-item status, evidence, and the three drift classes (`scopeCreep`, `abandonedItems`, `offCourse`). |
+| `bootstrap-plan.sh`       | Emit a draft starter `PLAN.md` from current milestones + top labels. Never writes to disk — caller saves under `po/drafts/`. |
 | `status.sh`               | Repo-wide counts + PR flow metrics (review pending, failing checks, oldest open PR, avg time-to-first-review). |
 | `milestone-progress.sh`   | Per-milestone progress with risk flags (`overdue`, `at_risk`, `understaffed`, `stalled`) computed in jq. |
 | `stale-issues.sh [DAYS]`  | Open issues with no comment activity for N days (default: 14). Uses `lastCommentedAt` so bot label bumps don't reset staleness. |
-| `generate-report.sh`      | Collects once, composes a full markdown report from all the above.     |
+| `generate-report.sh`      | Collects once, runs adherence, composes a full markdown report with the adherence matrix as headline. |
+| `render-adherence.jq`     | Standalone jq program that turns `adherence.sh` output into the "Plan adherence" markdown section (used by `generate-report.sh`). |
 
 **Invocation patterns:**
 
