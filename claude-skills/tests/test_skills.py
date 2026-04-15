@@ -42,6 +42,15 @@ FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 # Top-level YAML-ish key at column 0 (ignores indented continuation lines of
 # folded scalars). Matches `key:` or `key: value`.
 TOP_LEVEL_KEY_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*)\s*:", re.MULTILINE)
+# Inline `key: value` match for scalar fields in frontmatter — captures the
+# value too, unlike TOP_LEVEL_KEY_RE which only captures the key name.
+FRONTMATTER_SCALAR_RE = re.compile(
+    r"^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(.*?)\s*$", re.MULTILINE
+)
+
+# Output modes allowed in an agent's frontmatter `output:` field.
+# See CLAUDE.md → "Reporting agents output via auto-merge PRs" for semantics.
+ALLOWED_OUTPUT_MODES = {"pr", "commit", "chat"}
 
 # Catches any reference of the form `claude-skills/<...>` inside backticks
 # in a footer block, regardless of whether it's a command, skill, or agent.
@@ -202,6 +211,47 @@ class TestSharedSkills(unittest.TestCase):
                 break
             body.append(line)
         return "\n".join(body)
+
+    # ---------------------------------------------------------- output mode
+
+    def test_every_agent_declares_an_output_mode(self) -> None:
+        """Every agent file must declare a valid `output:` in frontmatter.
+
+        Allowed values: pr, commit, chat. See CLAUDE.md →
+        "Reporting agents output via auto-merge PRs" for the semantics:
+        reporting agents must use `output: pr` and call
+        `claude-skills/scripts/open-report-pr.sh` to wrap their output in
+        an auto-merge PR instead of pushing directly to main.
+        """
+        agents = list_agents()
+        self.assertGreater(len(agents), 0, "no agents discovered")
+        for path in agents:
+            with self.subTest(agent=path.stem):
+                text = path.read_text()
+                fm_match = FRONTMATTER_RE.match(text)
+                self.assertIsNotNone(
+                    fm_match,
+                    f"{path.relative_to(REPO_ROOT)}: missing or malformed "
+                    f"YAML frontmatter (expected '---\\n...\\n---' at top).",
+                )
+                frontmatter = fm_match.group(1)
+                scalars = dict(FRONTMATTER_SCALAR_RE.findall(frontmatter))
+                self.assertIn(
+                    "output",
+                    scalars,
+                    f"{path.relative_to(REPO_ROOT)}: agent frontmatter is "
+                    f"missing a scalar `output:` field. Every BSG agent must "
+                    f"declare where its results go — see CLAUDE.md → "
+                    f"'Reporting agents output via auto-merge PRs'. "
+                    f"Allowed values: {sorted(ALLOWED_OUTPUT_MODES)}.",
+                )
+                value = scalars["output"]
+                self.assertIn(
+                    value,
+                    ALLOWED_OUTPUT_MODES,
+                    f"{path.relative_to(REPO_ROOT)}: unknown `output: {value}`. "
+                    f"Allowed values: {sorted(ALLOWED_OUTPUT_MODES)}.",
+                )
 
     # ----------------------------------------------------------- catalog sync
 

@@ -88,6 +88,41 @@ Agents that produce reports or plans write them into the repo they were invoked
 in, at a root-level folder (e.g. `po/`), and commit them. No central portfolio
 folder, no cross-repo database. "One repo, one agent, one plan."
 
+### Reporting agents output via auto-merge PRs
+
+Agents that **generate reports** (po-manager, github-compliance, future
+similar agents) must not push their output directly to `main`. Every generated
+file lands through a Pull Request opened by the shared helper:
+
+```
+claude-skills/scripts/open-report-pr.sh <file> --agent <agent-name>
+```
+
+The helper creates a branch `reports/<agent>/<slug>`, commits the file,
+opens a PR, and enables auto-merge (squash). If the target repo doesn't have
+the prerequisites for auto-merge (Settings → Allow auto-merge + a branch
+protection rule with required checks or reviews), the helper falls back to a
+direct squash merge — the report still lands on `main`, just without the
+gate.
+
+Why this is the rule even though it's more ceremony than a direct commit:
+
+- Every report has a PR URL to link from Slack / notifications
+- CI / branch-protection checks run on the report before it lands
+- The PR list **is** the report archive — searchable, taggable, labelable
+- Nothing automated bypasses the repo's merge gate by accident
+
+Agents declare their output mode in frontmatter:
+
+```yaml
+output: pr        # reporting agents (po-manager, github-compliance, …)
+output: commit    # agents that mutate source code directly (rare; explicit opt-out)
+output: chat      # agents that only return a chat summary (no persisted artifact)
+```
+
+A unit test in `claude-skills/tests/test_skills.py` enforces that every agent
+declares a valid `output` field.
+
 ### Scripts before LLM
 
 Inside a skill, deterministic bash + jq scripts do the aggregation and
