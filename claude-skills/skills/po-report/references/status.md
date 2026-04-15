@@ -18,14 +18,14 @@ Use this when the user asks for an overall project status, health check, or
    `generate-report.sh`, which produces a single markdown document:
 
    ```bash
-   bash .claude/skills/po-report/scripts/generate-report.sh > .claude/reports/$(date +%F)-status.md
+   bash .claude/skills/po-report/scripts/generate-report.sh > po/reports/$(date +%F)-status.md
    ```
 
 3. **Read back the file** with the Read tool and extract the executive summary
    for the chat response. Do not paste the whole report.
 
 4. **Reply to the user** with:
-   - Path to the file (`.claude/reports/YYYY-MM-DD-status.md`)
+   - Path to the file (`po/reports/YYYY-MM-DD-status.md`)
    - 3 bullet points: what's healthy, what's at risk, what needs a decision
    - Offer next actions (drill into a milestone, work a specific ticket, etc.)
 
@@ -39,5 +39,5 @@ Use this when the user asks for an overall project status, health check, or
 ## What NOT to do
 
 - Do NOT post the report as a GitHub comment unless the user explicitly asks
-- Do NOT delete or modify older reports in `.claude/reports/` — they're history
+- Do NOT delete or modify older reports in `po/reports/` — they're history
 - Do NOT speculate about reasons for delays; report facts, the user provides context

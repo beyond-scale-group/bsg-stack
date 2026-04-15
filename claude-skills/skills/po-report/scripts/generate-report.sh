@@ -1,22 +1,32 @@
 #!/usr/bin/env bash
-# generate-report.sh — compose a full PO markdown report.
-# Calls the other scripts and emits markdown on stdout.
+# generate-report.sh — compose a full PO markdown report from one snapshot.
+#
+# Collects once via collect.sh and feeds that snapshot into every
+# downstream script. The snapshot itself should be committed to
+# `po/history/<date>.json` by the caller (the @po-manager agent writes
+# it there); this script only emits the rendered markdown on stdout.
+#
 # Usage:
-#   bash scripts/generate-report.sh > .claude/reports/$(date +%F)-status.md
+#   bash generate-report.sh > po/reports/$(date +%F)-status.md
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
-status_json=$(bash "${HERE}/status.sh")
-milestones_json=$(bash "${HERE}/milestone-progress.sh")
-stale_json=$(bash "${HERE}/stale-issues.sh" 14)
+snapshot=$(bash "$HERE/collect.sh")
+status_json=$(printf '%s' "$snapshot"     | bash "$HERE/status.sh")
+milestones_json=$(printf '%s' "$snapshot" | bash "$HERE/milestone-progress.sh")
+stale_json=$(printf '%s' "$snapshot"      | bash "$HERE/stale-issues.sh" 14)
 
-repo=$(printf '%s' "$status_json" | jq -r '.repo')
+repo=$(printf '%s' "$status_json"      | jq -r '.repo')
 generated_at=$(printf '%s' "$status_json" | jq -r '.generatedAt')
-open_issues=$(printf '%s' "$status_json" | jq -r '.issues.open')
+open_issues=$(printf '%s' "$status_json"   | jq -r '.issues.open')
 closed_issues=$(printf '%s' "$status_json" | jq -r '.issues.closed')
-open_prs=$(printf '%s' "$status_json" | jq -r '.pullRequests.open')
-draft_prs=$(printf '%s' "$status_json" | jq -r '.pullRequests.draft')
+open_prs=$(printf '%s' "$status_json"      | jq -r '.pullRequests.open')
+draft_prs=$(printf '%s' "$status_json"     | jq -r '.pullRequests.draft')
+awaiting_review=$(printf '%s' "$status_json"  | jq -r '.pullRequests.awaitingReview')
+failing_checks=$(printf '%s' "$status_json"   | jq -r '.pullRequests.failingChecks')
+oldest_pr_age=$(printf '%s' "$status_json"    | jq -r '.pullRequests.oldestOpenAgeDays // "—"')
+avg_review_h=$(printf '%s' "$status_json"     | jq -r '.pullRequests.avgTimeToFirstReviewHours // "—"')
 
 cat <<MD
 # PO Report — ${repo}
@@ -25,12 +35,16 @@ _Generated: ${generated_at}_
 
 ## At a glance
 
-| Metric            | Value |
-| ----------------- | ----- |
-| Open issues       | ${open_issues} |
-| Closed issues     | ${closed_issues} |
-| Open PRs          | ${open_prs} |
-| Draft PRs         | ${draft_prs} |
+| Metric                         | Value |
+| ------------------------------ | ----- |
+| Open issues                    | ${open_issues} |
+| Closed issues                  | ${closed_issues} |
+| Open PRs                       | ${open_prs} |
+| Draft PRs                      | ${draft_prs} |
+| PRs awaiting review            | ${awaiting_review} |
+| PRs with failing checks        | ${failing_checks} |
+| Oldest open PR (days)          | ${oldest_pr_age} |
+| Avg time to first review (h)   | ${avg_review_h} |
 
 ## Top labels (open issues)
 
@@ -52,17 +66,31 @@ $(printf '%s' "$status_json" | jq -r '
 
 $(printf '%s' "$milestones_json" | jq -r '
   if length == 0 then "_No open milestones._"
-  else (["| Milestone | Due | Closed/Total | % | URL |", "| --- | --- | --- | --- | --- |"]
-        + (map("| \(.title) | \(.due_on // "—") | \(.closed_issues)/\(.total) | \(.percent_complete | floor)% | \(.url) |"))) | join("\n")
+  else
+    (
+      ["| Milestone | Due | Days left | Closed/Total | % | Flags |",
+       "| --- | --- | --- | --- | --- | --- |"]
+      + (map(
+          (
+            [ if .flags.overdue      then "overdue"      else empty end,
+              if .flags.at_risk      then "at-risk"      else empty end,
+              if .flags.understaffed then "understaffed" else empty end,
+              if .flags.stalled      then "stalled"      else empty end
+            ] | join(", ")
+          ) as $flags
+          | "| \(.title) | \(.dueOn // "—") | \(.daysRemaining // "—") | \(.closedIssues)/\(.total) | \(.percentComplete | floor)% | \($flags) |"
+        ))
+    ) | join("\n")
   end
 ')
 
-## Stale open issues (no activity > 14 days)
+## Stale open issues (no comment activity > 14 days)
 
 $(printf '%s' "$stale_json" | jq -r '
   if length == 0 then "_None._"
-  else (["| # | Title | Days stale | Assignees | Labels |", "| --- | --- | --- | --- | --- |"]
-        + (.[0:25] | map("| [#\(.number)](\(.url)) | \(.title | gsub("\\|"; "\\\\|")) | \(.daysStale) | \((.assignees // []) | join(", ")) | \((.labels // []) | join(", ")) |"))) | join("\n")
+  else (["| # | Title | Days stale | Last comment | Assignees | Labels |",
+         "| --- | --- | --- | --- | --- | --- |"]
+        + (.[0:25] | map("| [#\(.number)](\(.url)) | \(.title | gsub("\\|"; "\\\\|")) | \(.daysStale) | \(.lastCommentedAt // "—") | \((.assignees // []) | join(", ")) | \((.labels // []) | join(", ")) |"))) | join("\n")
   end
 ')
 
@@ -72,7 +100,8 @@ $(printf '%s' "$stale_json" | jq -r 'if length > 25 then "_Showing top 25 of \(l
 
 $(printf '%s' "$status_json" | jq -r '
   if .oldestOpenPr == null then "_No open PRs._"
-  else "- [#\(.oldestOpenPr.number)](\(.oldestOpenPr.url)) — \(.oldestOpenPr.title) _(opened \(.oldestOpenPr.createdAt))_"
+  else
+    "- [#\(.oldestOpenPr.number)](\(.oldestOpenPr.url)) — \(.oldestOpenPr.title) _(opened \(.oldestOpenPr.createdAt); review: \(.oldestOpenPr.reviewDecision // "pending"); checks: \(.oldestOpenPr.statusCheck // "—"))_"
   end
 ')
 MD
