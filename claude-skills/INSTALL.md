@@ -29,12 +29,14 @@ No git clone, no script to run, no cron to set up.
 | Name | Description |
 |------|-------------|
 | `/babysit` | Monitor a long-running or flaky process (shell command or CI run), diagnose failures, fix root causes, retry until green. Includes PR mergeability rules. |
+| `/ocr` | Extract text from images and PDFs without uploading them into Claude's multimodal context. Cascades through Apple Vision (macOS) → Tesseract/OCRmyPDF → Mistral OCR API, writing `<source>.ocr.md` next to the source. Designed to save Anthropic tokens on document-heavy workflows. |
 
 ## Available skills
 
 | Name | Description |
 |------|-------------|
 | `google-workspace` | Google Workspace CLI skill wrapping the official `gws` tool (github.com/googleworkspace/cli) across Gmail, Calendar, Drive, Sheets, Slides, Docs, Tasks, People, Chat, Meet, Forms, Keep, and the built-in `+workflow` helpers. Ships a preflight (binary/version/auth), an auto-Chrome OAuth helper (`scripts/auth-login.sh`), and an IAM-elevation helper (`scripts/fix-iam-403.sh`) that grants `serviceusage.serviceUsageConsumer` so Drive/Tasks/Chat/People stop 403'ing. Documents the GCP-project gotchas (consent-screen scope registration, Chat app registration) that `--full` alone can't solve. |
+| `ocr` | OCR toolkit that cascades local engines (Apple Vision, Tesseract) before reaching for the Mistral OCR API. Exposes `ocr.sh` as the orchestrator plus per-engine scripts. Any agent about to read an image or scanned PDF should call this skill first and read the resulting `.ocr.md` instead of sending the raw file to Claude. |
 | `po-report` | Product owner reporting for the current GitHub repo. One paginated GraphQL snapshot feeds every report (status, milestone progress with risk flags, stale issues, PR flow) written under `po/reports/` with the raw snapshot committed to `po/history/<date>.json`. Heavy lifting in bash + jq (zero LLM cost), narration in the skill. |
 
 ## Available agents
