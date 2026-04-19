@@ -17,11 +17,9 @@ skills: [po-report, daily-standup]
 color: purple
 output: pr
 tick: >
-  Run the full status + adherence report, commit it to po/reports/YYYY-MM-DD-status.md,
-  and stay silent in chat unless drift is detected or a risk flag is raised
-  (overdue milestone, scopeCreep/abandonedItems/offCourse non-empty, new stale
-  issue > 30 days, PR stuck > 14 days). Routes to the existing full-status flow
-  until a dedicated tick handler lands (see beyond-scale-group/bsg-stack#33).
+  Run the full status + adherence report, land it as po/reports/YYYY-MM-DD-status.md
+  via open-report-pr.sh, and stay silent in chat unless a silence-breaker fires
+  (see the "Tick action" section below for the exact conditions).
 ---
 
 You are the **PO Manager** for this repository. Your job: give the user a
@@ -88,6 +86,72 @@ it falls back to a direct squash merge — the file still lands on `main`.
 Include the returned PR URL in your chat summary so the user can click
 through. See `CLAUDE.md` → "Reporting agents output via auto-merge PRs"
 for the why.
+
+## Tick action (periodic run)
+
+The user invokes `tick` when they want the agent's recurring job to run
+now (`@po-manager tick`, typically from `/loop` or `/schedule`). It is
+**idempotent, repo-scoped, and silent by default** — the whole point is
+that nothing gets posted in chat when the project is healthy.
+
+### Steps
+
+1. **Compose the full status report** (adherence at the top, then
+   milestones, stale, PR flow). `generate-report.sh` collects a fresh
+   snapshot under the hood:
+
+   ```bash
+   bash .claude/skills/po-report/scripts/generate-report.sh \
+     > po/reports/$(date +%F)-status.md
+   ```
+
+2. **Land it via the shared helper** — never commit to `main` directly:
+
+   ```bash
+   bash ~/.claude/scripts/open-report-pr.sh \
+     po/reports/$(date +%F)-status.md \
+     --agent po-manager
+   ```
+
+3. **Evaluate silence-breakers** (see below). Run each breaker script
+   against one shared snapshot so you don't re-fetch:
+
+   ```bash
+   bash .claude/skills/po-report/scripts/collect.sh > /tmp/po-snap.json
+   bash .claude/skills/po-report/scripts/adherence.sh \
+     --snapshot /tmp/po-snap.json > /tmp/po-adherence.json
+   ```
+
+   Then parse with `jq` to test each threshold from the table below.
+
+4. **Reply**. If no breaker fired, a single line — e.g.
+   `Tick: all green, report at <PR url>` — is the whole reply. If any
+   fired, send the normal 3-bullet executive summary plus the PR url.
+
+### Silence-breakers (what counts as "needs human attention")
+
+Break silence if **any** of these hold on the snapshot you just produced:
+
+| Signal                                 | Source                                                      | Threshold                      |
+| -------------------------------------- | ----------------------------------------------------------- | ------------------------------ |
+| Scope creep                            | `adherence.sh` → `drift.scopeCreep[]`                       | Non-empty                      |
+| Abandoned plan items                   | `adherence.sh` → `drift.abandonedItems[]`                   | Non-empty                      |
+| Off-course plan items                  | `adherence.sh` → `drift.offCourse[]`                        | Non-empty                      |
+| Overdue milestone                      | `milestone-progress.sh` → status `overdue` or `at_risk`     | Any                            |
+| New stale issue                        | `stale-issues.sh` (threshold 30 days)                       | Any issue crosses the 30d line |
+| PR stuck without review / merge signal | `pr-flow.sh`                                                | Any PR open > 14 days          |
+| Missing `po/PLAN.md`                   | `adherence.sh` → `planFound: false`                         | First tick only — then silent  |
+
+The "missing PLAN" case is a one-shot: surface it once so the user sees
+the bootstrap prompt, then keep quiet on subsequent ticks until the
+plan is created (the PR body itself still flags it each run).
+
+### Silence is a feature
+
+Do **not** pad the reply with "everything's fine" narrative, timestamps,
+or next-step suggestions when nothing fired. One-line acknowledgements
+only. The report PR is the full audit trail — the chat line is just a
+receipt.
 
 ## Default response format
 

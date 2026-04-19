@@ -154,6 +154,40 @@ For files under `claude-skills/agents/<name>.md`, replace
 `commands/<name>.md` with `agents/<name>.md` everywhere in the footer,
 and replace `~/.claude/commands/<name>.md` with `~/.claude/agents/<name>.md`.
 
+### Required `tick:` frontmatter on every agent
+
+Every file in `claude-skills/agents/` must declare a `tick:` field in its
+YAML frontmatter, describing what the agent's periodic run does. This is
+the BSG-wide convention for agents that produce recurring reports or
+checks — one verb across the catalog (`@<agent> tick`) so users don't
+have to memorize per-agent vocabulary. See the "The `tick` convention"
+section of the top-level [`CLAUDE.md`][claude-md] for the full spec
+(silent-by-default, idempotent, repo-scoped, human-initiated — no CI
+cron). The test in [`claude-skills/tests/test_skills.py`][tests]
+(`test_every_agent_declares_a_tick_action`) enforces that the field
+exists and is non-empty.
+
+A minimal example:
+
+```yaml
+---
+name: my-agent
+output: pr
+tick: >
+  Run the periodic audit, land the report under <agent>/reports/YYYY-MM-DD-*.md
+  via open-report-pr.sh, and stay silent in chat unless a silence-breaker
+  fires (list them explicitly in the agent body).
+---
+```
+
+Best practice: keep the frontmatter summary short and put the concrete
+step-by-step + silence-breaker table in a dedicated "Tick action"
+section of the agent body, so the LLM has a single place to look when
+the user types `tick`.
+
+[claude-md]: https://github.com/beyond-scale-group/bsg-stack/blob/main/CLAUDE.md
+[tests]: https://github.com/beyond-scale-group/bsg-stack/blob/main/claude-skills/tests/test_skills.py
+
 ---
 
 ## Instructions for the Claude Code agent
