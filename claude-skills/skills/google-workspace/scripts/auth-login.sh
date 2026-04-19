@@ -28,11 +28,35 @@ fi
 LOG=$(mktemp -t gws-auth-login.XXXXXX)
 trap 'rm -f "$LOG"' EXIT
 
-# If the caller didn't specify a scope-shaping flag, default to `--full`.
-# That grants every available scope including cloud-platform + pubsub —
-# needed to avoid 403s on APIs that enforce `serviceusage.services.use`
-# (Drive, Tasks, Chat, People). Pass `--readonly`, `--services ...`, or
-# `--scopes ...` explicitly to override.
+# Curated scope list covering every Workspace API the skill exercises.
+# Kept in sync with scripts/onboard.sh (single source of truth).
+#
+# Why not `--full`? gws's `--full` silently drops sensitive scopes
+# (chat.spaces, contacts, directory.readonly, forms.body,
+# meetings.space.created) that aren't pre-registered on the project's
+# OAuth consent screen. Passing the explicit list surfaces the drop:
+# Google still won't grant unregistered scopes, but at least the
+# request matches the user's intent.
+GWS_DEFAULT_SCOPES="\
+https://www.googleapis.com/auth/drive,\
+https://www.googleapis.com/auth/spreadsheets,\
+https://www.googleapis.com/auth/gmail.modify,\
+https://www.googleapis.com/auth/calendar,\
+https://www.googleapis.com/auth/documents,\
+https://www.googleapis.com/auth/presentations,\
+https://www.googleapis.com/auth/tasks,\
+https://www.googleapis.com/auth/chat.spaces,\
+https://www.googleapis.com/auth/contacts,\
+https://www.googleapis.com/auth/directory.readonly,\
+https://www.googleapis.com/auth/forms.body,\
+https://www.googleapis.com/auth/meetings.space.created,\
+openid,\
+https://www.googleapis.com/auth/userinfo.email,\
+https://www.googleapis.com/auth/userinfo.profile"
+
+# If the caller didn't specify a scope-shaping flag, request our explicit
+# 15-scope list. Pass `--full`, `--readonly`, `--services …`, or
+# `--scopes …` to override.
 HAS_SCOPE_FLAG=0
 for arg in "$@"; do
   case "$arg" in
@@ -40,8 +64,8 @@ for arg in "$@"; do
   esac
 done
 if [ "$HAS_SCOPE_FLAG" -eq 0 ]; then
-  set -- --full "$@"
-  echo "→ no scope flag given; defaulting to --full (all available scopes)"
+  set -- --scopes "$GWS_DEFAULT_SCOPES" "$@"
+  echo "→ no scope flag given; requesting the curated 15-scope BSG default"
 fi
 
 # Start `gws auth login` in the background, capturing stdout+stderr.
@@ -135,8 +159,16 @@ if [ -n "$CID" ] && [ -n "$CSECRET" ] && [ -n "$REFRESH" ] && command -v curl >/
     COUNT=$(printf '%s\n' "$GRANTED" | grep -c .)
     echo "→ granted $COUNT scope(s)"
 
-    # Warn on notable omissions when the caller asked for --full
+    # Warn on notable omissions when the caller asked for --full or our
+    # curated default list. Drops here usually mean the scope isn't
+    # registered on the project's OAuth consent screen.
+    REQUESTED_BROAD=0
     if printf "%s\n" "$@" | grep -q -- '--full'; then
+      REQUESTED_BROAD=1
+    elif printf "%s\n" "$@" | grep -q -- "$GWS_DEFAULT_SCOPES"; then
+      REQUESTED_BROAD=1
+    fi
+    if [ "$REQUESTED_BROAD" -eq 1 ]; then
       MISSING=""
       for needle in chat. contacts people directory forms keep meet; do
         if ! printf "%s" "$GRANTED" | grep -q "$needle"; then
@@ -144,10 +176,11 @@ if [ -n "$CID" ] && [ -n "$CSECRET" ] && [ -n "$REFRESH" ] && command -v curl >/
         fi
       done
       if [ -n "$MISSING" ]; then
-        warn "requested --full but consent dropped:$MISSING"
+        warn "consent dropped:$MISSING"
         warn "Google's consent screen shows sensitive scopes as individual"
-        warn "checkboxes. Re-run and TICK EVERY BOX, or the scopes won't be"
-        warn "on your access token even though the OAuth URL requested them."
+        warn "checkboxes. Either (a) re-run and TICK EVERY BOX, or (b) add"
+        warn "the missing scopes on the OAuth consent screen first:"
+        warn "  bash scripts/onboard.sh --step scopes"
       fi
     fi
   fi
