@@ -30,6 +30,45 @@ This CLI evolves fast — **never assume memorized flags**, verify with
 For Admin SDK (user provisioning on `the-shift.ai`), use the separate
 `workspace-admin` skill — `gws` doesn't cover Admin APIs.
 
+## First-time setup → `scripts/onboard.sh`
+
+If the user has never run `gws` on this machine — no binary, no OAuth
+client, no consent-screen scopes registered, no Chat app — point them at
+the orchestrator:
+
+```bash
+bash scripts/onboard.sh
+```
+
+It walks 7 idempotent steps (prereqs → enable APIs → OAuth client →
+consent-screen scopes → Chat app → login → smoke tests). Steps that
+require GCP Console interaction print the exact URL + checklist and
+pause. Re-run a single step with `--step <name>` (`prereqs`, `apis`,
+`oauth`, `scopes`, `chat-app`, `login`, `smoke`).
+
+⚠ **GCP Console always demands passkey re-authentication**, even with a
+saved browser session. Plan to authenticate once and run the manual
+steps back-to-back so the session covers them all.
+
+Browser automation for the GCP Console steps will land via a future
+`/browser` skill (tracked in beyond-scale-group/bsg-stack#39); until then,
+those steps are manual.
+
+## Daily health check → `scripts/doctor.sh`
+
+For sessions where `gws` is already configured, the doctor is the
+fast read-only check:
+
+```bash
+bash scripts/doctor.sh           # full report
+bash scripts/doctor.sh --quiet   # exit codes only, silent on green
+```
+
+Exits `0` (healthy), `1` (warnings — e.g. outdated version), or `2` (auth
+or service failing). Auto-repairs missing scopes by re-running
+`auth-login.sh` and re-checking — only escalates to manual if the scope
+is missing from the consent-screen registration.
+
 ## Preflight (run first, every session)
 
 Before issuing any `gws` command, run these three checks once per session.
@@ -65,20 +104,27 @@ If any check fails, surface it to the user **before** attempting the task:
   it in Google Chrome (or the OS default browser as fallback), waits
   for the callback, and verifies `token_valid == true` before exiting.
 
-  **Defaults to `--full`** (all available scopes including
-  `cloud-platform` + `pubsub`). Gives you the widest API surface in one
-  consent flow. You can narrow later if needed.
+  **Defaults to a curated 15-scope list** covering every Workspace API
+  the skill exercises (Drive, Sheets, Gmail, Calendar, Docs, Slides,
+  Tasks, Chat, Contacts, Directory, Forms, Meet, OpenID). Picking
+  scopes explicitly — instead of `--full` — surfaces the silent drops
+  Google performs when a scope isn't registered on the consent screen.
 
-  ⚠ `--full` does **not** fix `403 Caller does not have required
-  permission to use project …` errors on Drive/Tasks/Chat/People — those
-  are **GCP IAM** problems, not OAuth-scope problems. See the
-  "403 on Drive/Tasks/Chat/People" section below.
+  ⚠ Even the curated list does **not** fix:
+    - `403 Caller does not have required permission to use project …`
+      → that's a **GCP IAM** problem; see the "403 on Drive/Tasks/Chat/People"
+      section below.
+    - `404 Google Chat app not found` on `gws chat *`
+      → Chat needs the GCP project to have a registered Chat app
+      configuration; see the "Chat API" section below or run
+      `bash scripts/onboard.sh --step chat-app`.
 
-  Override when you want narrower scopes:
+  Override when you want narrower or wider scopes:
   ```
   bash scripts/auth-login.sh --readonly
   bash scripts/auth-login.sh --services gmail,calendar,drive
   bash scripts/auth-login.sh --scopes https://www.googleapis.com/auth/drive.readonly
+  bash scripts/auth-login.sh --full   # everything gws knows about
   ```
   **Always prefer this helper over bare `gws auth login`** — it saves
   the user a copy/paste step, opens Chrome, and confirms success.
@@ -121,10 +167,12 @@ mention any drift to the user.
 ## Decision tree
 
 ```
-Common task?     → use a +helper (prefer)        §Helpers
-Raw API call?    → gws <svc> <res> <method>      §Raw API
-Cross-service?   → gws workflow +<name>          §Workflow
-Unknown schema?  → gws schema <svc.res.method>   references/raw-api.md
+First-time setup?  → bash scripts/onboard.sh    §First-time setup
+Health check?      → bash scripts/doctor.sh     §Daily health check
+Common task?       → use a +helper (prefer)     §Helpers
+Raw API call?      → gws <svc> <res> <method>   §Raw API
+Cross-service?     → gws workflow +<name>       §Workflow
+Unknown schema?    → gws schema <svc.res.method> references/raw-api.md
 ```
 
 Default to `+helpers` before raw API calls. They handle tedious encoding
@@ -348,6 +396,12 @@ Find the current project with `gws auth status | jq .project_id`.
 - **Version drift** — if a flag shown here errors out, the installed `gws`
   may be ahead of this skill. Run `gws <svc> --help` and prefer the live
   output.
+- **GCP Console passkey re-auth** — `console.cloud.google.com` always
+  demands passkey verification, even with a saved Google session. When
+  walking a user through manual GCP Console steps (OAuth client,
+  consent-screen scopes, Chat app), batch them into one session so they
+  authenticate once. `scripts/onboard.sh` is structured to do exactly
+  that.
 
 ---
 
