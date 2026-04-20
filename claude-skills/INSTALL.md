@@ -37,13 +37,13 @@ No git clone, no script to run, no cron to set up.
 |------|-------------|
 | `google-workspace` | Google Workspace CLI skill wrapping the official `gws` tool (github.com/googleworkspace/cli) across Gmail, Calendar, Drive, Sheets, Slides, Docs, Tasks, People, Chat, Meet, Forms, Keep, and the built-in `+workflow` helpers. Ships a preflight (binary/version/auth), an auto-Chrome OAuth helper (`scripts/auth-login.sh`), and an IAM-elevation helper (`scripts/fix-iam-403.sh`) that grants `serviceusage.serviceUsageConsumer` so Drive/Tasks/Chat/People stop 403'ing. Documents the GCP-project gotchas (consent-screen scope registration, Chat app registration) that `--full` alone can't solve. |
 | `ocr` | OCR toolkit that cascades local engines (Apple Vision, Tesseract) before reaching for the Mistral OCR API. Exposes `ocr.sh` as the orchestrator plus per-engine scripts. Any agent about to read an image or scanned PDF should call this skill first and read the resulting `.ocr.md` instead of sending the raw file to Claude. |
-| `po-report` | Product owner reporting for the current GitHub repo. One paginated GraphQL snapshot feeds every report (status, milestone progress with risk flags, stale issues, PR flow) written under `po/reports/` with the raw snapshot committed to `po/history/<date>.json`. Heavy lifting in bash + jq (zero LLM cost), narration in the skill. |
+| `po` | Product owner skill for the current GitHub repo. Covers plan adherence, backlog triage, milestone tracking, sprint planning, scope-creep detection, PR flow health, and stakeholder reporting. One paginated GraphQL snapshot feeds every capability; reports land under `po/reports/` with the raw snapshot in `po/history/<date>.json`. Heavy lifting in bash + jq (zero LLM cost), narration in the skill. |
 
 ## Available agents
 
 | Name | Description |
 |------|-------------|
-| `po-manager` | Product owner / project manager orchestrator subagent. Delegated to for status reports, milestone progress, sprint health, stale ticket detection, standup summaries. Uses the `po-report` skill for reporting and `daily-standup` for meeting parsing. Reporting only — does not implement features. |
+| `po-manager` | Product owner / project manager orchestrator subagent. Delegated to for plan adherence, backlog triage, milestone progress, sprint health, stale ticket detection, standup summaries. Uses the `po` skill and `daily-standup` for meeting parsing. Does not implement features. |
 
 ## Settings merged into `~/.claude/settings.json`
 

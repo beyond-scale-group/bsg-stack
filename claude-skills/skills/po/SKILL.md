@@ -1,20 +1,24 @@
 ---
-name: po-report
+name: po
 description: >
-  Product owner reporting and project status for the current GitHub repository.
-  Use when the user asks to "generate a PO report", "où en est le projet",
-  "project status", "milestone progress", "rapport produit", "list stale issues",
-  "burndown", "what's blocking us", "sprint health", or any request for an
-  aggregated view of GitHub issues, milestones, labels, or assignees.
-  Produces a dated markdown report in po/reports/ and prints a summary.
-version: 0.1.0
+  Product owner skill for the current GitHub repository. Covers the full
+  scope of a real PO: plan authoring and adherence, backlog triage,
+  milestone tracking, stale-issue gardening, PR flow health, sprint
+  planning, scope-creep detection, and stakeholder reporting. Use when
+  the user asks "où en est le projet", "what's drifting", "triage the
+  backlog", "bootstrap a plan", "sprint health", "what's blocking us",
+  "generate a PO report", or any product-ownership question. Reporting
+  is one capability among many — not the primary purpose.
+version: 0.2.0
 ---
 
-# Product Owner Report
+# Product Owner
 
-Aggregates GitHub state for the **current repository** and produces an
-actionable progress report. All heavy lifting is done by bash scripts in
-`scripts/` — use them instead of re-deriving data through ad-hoc `gh` calls.
+The PO skill for the **current repository**. Covers plan adherence,
+backlog triage, milestone tracking, sprint planning, scope-creep
+detection, and stakeholder reporting. All heavy lifting is done by bash
+scripts in `scripts/` — use them instead of re-deriving data through
+ad-hoc `gh` calls.
 
 ## Intent routing
 
@@ -100,16 +104,16 @@ summary in the chat — do **not** dump the full report inline.
 
 ## How to improve this skill
 
-This file is a cached copy of `claude-skills/skills/po-report/SKILL.md` in
+This file is a cached copy of `claude-skills/skills/po/SKILL.md` in
 [beyond-scale-group/bsg-stack](https://github.com/beyond-scale-group/bsg-stack).
-That repo is the single source of truth — `~/.claude/skills/po-report/SKILL.md` is
+That repo is the single source of truth — `~/.claude/skills/po/SKILL.md` is
 overwritten every time the BSG install flow runs.
 
 If the user asks you to improve, fix, or extend this skill, do **not** edit
 the local file. Instead:
 
 1. `gh repo clone beyond-scale-group/bsg-stack` (or work in an existing clone)
-2. Edit `claude-skills/skills/po-report/SKILL.md` on a feature branch
+2. Edit `claude-skills/skills/po/SKILL.md` on a feature branch
 3. Open a pull request against `main`
 
 Bug reports and ideas without a fix → open an issue on the same repo.

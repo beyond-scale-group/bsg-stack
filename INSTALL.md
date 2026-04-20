@@ -97,7 +97,7 @@ every new Claude Code session pulls the latest skills automatically.
 ### What gets installed
 
 - **Slash commands** → `~/.claude/commands/` (e.g. `/babysit`)
-- **Skills** → `~/.claude/skills/` (e.g. `po-report`)
+- **Skills** → `~/.claude/skills/` (e.g. `po`)
 - **Subagents** → `~/.claude/agents/` (e.g. `po-manager`)
 
 The updater only overwrites files it owns (tracked in a local manifest),
