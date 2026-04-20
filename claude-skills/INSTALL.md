@@ -41,6 +41,7 @@ No git clone, no script to run, no cron to set up.
 | `github-compliance` | GitHub organization compliance checker for `beyond-scale-group`. Audits that every non-archived private repo has the `board` team assigned with `admin` permission, and (with `--fix`) assigns missing teams. Exposes a `tick` action that lands the audit under `compliance/reports/YYYY-MM-DD-compliance.md` via `open-report-pr.sh` and stays silent unless a non-compliant repo is found. |
 | `po` | Product owner skill for the current GitHub repo. Covers plan adherence, backlog triage, milestone tracking, sprint planning, scope-creep detection, PR flow health, and stakeholder reporting. One paginated GraphQL snapshot feeds every capability; reports land under `po/reports/` with the raw snapshot in `po/history/<date>.json`. Heavy lifting in bash + jq (zero LLM cost), narration in the skill. |
 | `security-report` | Security audit toolkit for the current repo. Auto-detects the package ecosystem (npm/pip/go/cargo), runs vulnerability scanners, cross-checks with Dependabot alerts, scans tracked files for secret patterns (AWS keys, GitHub tokens, private keys), and audits HTTP security headers on web-serving repos. Exposes a `tick` action that lands the audit under `security/reports/YYYY-MM-DD-audit.md` via `open-report-pr.sh` and stays silent unless a critical/high CVE, secret finding, missing critical header, or tracked `.env` is detected. |
+| `qa-report` | Quality-assurance audit toolkit for the current repo. Parses coverage reports in any of lcov / Istanbul JSON / Cobertura / scoverage / Python / Go formats, computes regression risk from churn × coverage, detects flaky tests from recent CI runs, and emits a dated audit. Exposes a `tick` action that lands the audit under `qa/reports/YYYY-MM-DD-audit.md` and archives the raw snapshot in `qa/history/` for trend analysis. |
 
 ## Available agents
 
@@ -48,6 +49,7 @@ No git clone, no script to run, no cron to set up.
 |------|-------------|
 | `po-manager` | Product owner / project manager orchestrator subagent. Delegated to for plan adherence, backlog triage, milestone progress, sprint health, stale ticket detection, standup summaries. Uses the `po` skill and `daily-standup` for meeting parsing. Does not implement features. |
 | `security` | Security posture auditor subagent. Delegated to for "security audit", "vulnerability scan", "secret scan", "OWASP check", "are we secure". Uses the `security-report` skill for deps / secrets / headers / OWASP heuristics. Reports only — does not remediate, upgrade packages, or edit source. |
+| `qa` | Quality-assurance auditor subagent. Delegated to for "test coverage", "regression risk", "flaky tests", "QA audit", "quality report". Uses the `qa-report` skill for coverage / risk / flake analysis. Reports only — does not write tests or execute the test suite. |
 
 ## Settings merged into `~/.claude/settings.json`
 
