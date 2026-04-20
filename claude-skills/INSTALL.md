@@ -38,6 +38,7 @@ No git clone, no script to run, no cron to set up.
 | `google-workspace` | Google Workspace CLI skill wrapping the official `gws` tool (github.com/googleworkspace/cli) across Gmail, Calendar, Drive, Sheets, Slides, Docs, Tasks, People, Chat, Meet, Forms, Keep, and the built-in `+workflow` helpers. Ships a preflight (binary/version/auth), an auto-Chrome OAuth helper (`scripts/auth-login.sh`), and an IAM-elevation helper (`scripts/fix-iam-403.sh`) that grants `serviceusage.serviceUsageConsumer` so Drive/Tasks/Chat/People stop 403'ing. Documents the GCP-project gotchas (consent-screen scope registration, Chat app registration) that `--full` alone can't solve. |
 | `ocr` | OCR toolkit that cascades local engines (Apple Vision, Tesseract) before reaching for the Mistral OCR API. Exposes `ocr.sh` as the orchestrator plus per-engine scripts. Any agent about to read an image or scanned PDF should call this skill first and read the resulting `.ocr.md` instead of sending the raw file to Claude. |
 | `browser` | Browser automation wrapping [`agent-browser`](https://www.npmjs.com/package/agent-browser) with persistent profile management, a Google login helper (`scripts/login-google.sh`), and a generic profile wrapper (`scripts/with-profile.sh`). Headed mode for first-time logins, headless for replay. Core verbs: open, click, fill, type, screenshot, snapshot (accessibility tree). |
+| `github-compliance` | GitHub organization compliance checker for `beyond-scale-group`. Audits that every non-archived private repo has the `board` team assigned with `admin` permission, and (with `--fix`) assigns missing teams. Exposes a `tick` action that lands the audit under `compliance/reports/YYYY-MM-DD-compliance.md` via `open-report-pr.sh` and stays silent unless a non-compliant repo is found. |
 | `po` | Product owner skill for the current GitHub repo. Covers plan adherence, backlog triage, milestone tracking, sprint planning, scope-creep detection, PR flow health, and stakeholder reporting. One paginated GraphQL snapshot feeds every capability; reports land under `po/reports/` with the raw snapshot in `po/history/<date>.json`. Heavy lifting in bash + jq (zero LLM cost), narration in the skill. |
 
 ## Available agents
@@ -155,16 +156,40 @@ For files under `claude-skills/agents/<name>.md`, replace
 `commands/<name>.md` with `agents/<name>.md` everywhere in the footer,
 and replace `~/.claude/commands/<name>.md` with `~/.claude/agents/<name>.md`.
 
-### Required `tick:` frontmatter on every agent
+### The `tick` convention (periodic agent and skill runs)
 
-Every file in `claude-skills/agents/` must declare a `tick:` field in its
-YAML frontmatter, describing what the agent's periodic run does. This is
-the BSG-wide convention for agents that produce recurring reports or
-checks — one verb across the catalog (`@<agent> tick`) so users don't
-have to memorize per-agent vocabulary. See the "The `tick` convention"
-section of the top-level [`CLAUDE.md`][claude-md] for the full spec
-(silent-by-default, idempotent, repo-scoped, human-initiated — no CI
-cron). The test in [`claude-skills/tests/test_skills.py`][tests]
+All BSG agents and reporting skills expose a single conventional verb
+for "do your periodic job now": `tick`. Users invoke it as
+`@<agent> tick` (for subagents) or `<skill> tick` / a routed slash
+command (for skills), typically driven by Claude Code's own
+[`/loop`][loop] or [`/schedule`][schedule] — never by GitHub Actions,
+Renovate, or any org-level cron. See the "The `tick` convention"
+section of the top-level [`CLAUDE.md`][claude-md] for the full
+rationale.
+
+Every `tick` implementation must satisfy three rules:
+
+1. **Idempotent and silent by default.** Write the dated output to the
+   repo (`po/reports/YYYY-MM-DD-*.md`,
+   `compliance/reports/YYYY-MM-DD-*.md`, etc.), land it through
+   [`open-report-pr.sh`][open-report-pr] so it ships via auto-merge PR,
+   and reply in chat with **one line** unless an explicit
+   silence-breaker fires. "All green" is not a chat message — it is a
+   committed file.
+2. **Explicit silence-breakers.** Each agent or reporting skill must
+   list, in its own body, the exact conditions that allow it to break
+   silence (drift score crossed a threshold, a non-compliant repo
+   appeared, a milestone went overdue, …). Thresholds live in the
+   agent's or skill's own file, not centrally — they are part of that
+   agent's product definition.
+3. **Repo-scoped.** `tick` runs inside one repo's working directory and
+   touches only that repo. Multi-repo sweeps are out of scope.
+
+#### For agents
+
+Every file in `claude-skills/agents/` must declare a `tick:` field in
+its YAML frontmatter, describing what the agent's periodic run does.
+The test in [`claude-skills/tests/test_skills.py`][tests]
 (`test_every_agent_declares_a_tick_action`) enforces that the field
 exists and is non-empty.
 
@@ -186,8 +211,20 @@ step-by-step + silence-breaker table in a dedicated "Tick action"
 section of the agent body, so the LLM has a single place to look when
 the user types `tick`.
 
+#### For reporting skills
+
+Skills under `claude-skills/skills/<name>/` that produce a periodic
+report or audit (today: `po`, `github-compliance`) document their
+`tick` as a top-level **"Tick action"** section in `SKILL.md`. There is
+no frontmatter test for skills — the section is the contract. Mirror
+the agent layout: numbered steps, a silence-breakers table, and a
+"Silence is a feature" reminder so the LLM does not pad the chat reply.
+
 [claude-md]: https://github.com/beyond-scale-group/bsg-stack/blob/main/CLAUDE.md
 [tests]: https://github.com/beyond-scale-group/bsg-stack/blob/main/claude-skills/tests/test_skills.py
+[open-report-pr]: https://github.com/beyond-scale-group/bsg-stack/blob/main/claude-skills/scripts/open-report-pr.sh
+[loop]: https://docs.claude.com/en/docs/claude-code/skills
+[schedule]: https://docs.claude.com/en/docs/claude-code/skills
 
 ---
 
