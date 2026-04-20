@@ -1,7 +1,7 @@
 # PLAN.md schema — the "big plan" source of truth
 
 `po/PLAN.md` is the **human-authored source of truth** for a project's
-intent: objectives, milestones, epics, and decisions. The `po-report`
+intent: objectives, milestones, epics, and decisions. The `po`
 skill reads it and cross-references live GitHub state to compute
 adherence — it **never writes back to this file**. Proposed changes
 land in `po/drafts/` as markdown for a human to accept.
@@ -114,16 +114,16 @@ The human reviews, edits, and renames (or `git mv`s) the draft to
 
 ## How to improve this skill
 
-This file is a cached copy of `claude-skills/skills/po-report/references/plan-schema.md` in
+This file is a cached copy of `claude-skills/skills/po/references/plan-schema.md` in
 [beyond-scale-group/bsg-stack](https://github.com/beyond-scale-group/bsg-stack).
-That repo is the single source of truth — `~/.claude/skills/po-report/references/plan-schema.md` is
+That repo is the single source of truth — `~/.claude/skills/po/references/plan-schema.md` is
 overwritten every time the BSG install flow runs.
 
 If the user asks you to improve, fix, or extend this skill, do **not** edit
 the local file. Instead:
 
 1. `gh repo clone beyond-scale-group/bsg-stack` (or work in an existing clone)
-2. Edit `claude-skills/skills/po-report/references/plan-schema.md` on a feature branch
+2. Edit `claude-skills/skills/po/references/plan-schema.md` on a feature branch
 3. Open a pull request against `main`
 
 Bug reports and ideas without a fix → open an issue on the same repo.

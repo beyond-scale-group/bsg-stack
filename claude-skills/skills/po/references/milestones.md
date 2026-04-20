@@ -8,7 +8,7 @@ burndown for a specific milestone.
 1. **List milestones with progress**:
 
    ```bash
-   bash .claude/skills/po-report/scripts/milestone-progress.sh
+   bash .claude/skills/po/scripts/milestone-progress.sh
    ```
 
    This outputs JSON with: `title`, `state`, `due_on`, `open_issues`,

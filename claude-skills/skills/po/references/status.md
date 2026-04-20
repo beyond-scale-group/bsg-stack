@@ -9,16 +9,16 @@ Use this when the user asks for an overall project status, health check, or
    tool calls):
 
    ```bash
-   bash .claude/skills/po-report/scripts/status.sh
-   bash .claude/skills/po-report/scripts/milestone-progress.sh
-   bash .claude/skills/po-report/scripts/stale-issues.sh 14
+   bash .claude/skills/po/scripts/status.sh
+   bash .claude/skills/po/scripts/milestone-progress.sh
+   bash .claude/skills/po/scripts/stale-issues.sh 14
    ```
 
 2. **Compose the report** by piping the three JSON blobs into
    `generate-report.sh`, which produces a single markdown document:
 
    ```bash
-   bash .claude/skills/po-report/scripts/generate-report.sh > po/reports/$(date +%F)-status.md
+   bash .claude/skills/po/scripts/generate-report.sh > po/reports/$(date +%F)-status.md
    ```
 
 3. **Read back the file** with the Read tool and extract the executive summary
