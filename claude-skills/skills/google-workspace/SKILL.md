@@ -50,9 +50,9 @@ pause. Re-run a single step with `--step <name>` (`prereqs`, `apis`,
 saved browser session. Plan to authenticate once and run the manual
 steps back-to-back so the session covers them all.
 
-Browser automation for the GCP Console steps will land via a future
-`/browser` skill (tracked in beyond-scale-group/bsg-stack#39); until then,
-those steps are manual.
+Browser automation for the GCP Console steps is available via the
+`/browser` skill (`scripts/login-google.sh` for Google auth,
+`scripts/with-profile.sh` for profile-based replay).
 
 ## Daily health check → `scripts/doctor.sh`
 
