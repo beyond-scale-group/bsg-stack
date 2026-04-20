@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Integration test for the po-report skill against beyond-scale-group/edomata.
+Integration test for the po skill against beyond-scale-group/edomata.
 
-Runs every po-report script against the real GitHub repo (via `GH_REPO=`
+Runs every po script against the real GitHub repo (via `GH_REPO=`
 — no checkout needed) and asserts:
 
   - JSON-emitting scripts produce well-formed JSON with the expected
@@ -42,7 +42,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SCRIPTS = REPO_ROOT / "claude-skills" / "skills" / "po-report" / "scripts"
+SCRIPTS = REPO_ROOT / "claude-skills" / "skills" / "po" / "scripts"
 TARGET = "beyond-scale-group/edomata"
 
 SCRIPT_TIMEOUT_S = 120
@@ -66,7 +66,7 @@ def _gh_authenticated() -> bool:
 
 
 class TestPoReportIntegration(unittest.TestCase):
-    """End-to-end smoke test of every po-report script against a real repo."""
+    """End-to-end smoke test of every po script against a real repo."""
 
     tmpdir: "tempfile.TemporaryDirectory | None" = None
     workdir: Path

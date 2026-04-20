@@ -8,9 +8,9 @@ without recent activity.
 1. **Run the stale detector** with the desired threshold (default 14 days):
 
    ```bash
-   bash .claude/skills/po-report/scripts/stale-issues.sh 14
+   bash .claude/skills/po/scripts/stale-issues.sh 14
    # or for a stricter threshold
-   bash .claude/skills/po-report/scripts/stale-issues.sh 30
+   bash .claude/skills/po/scripts/stale-issues.sh 30
    ```
 
    Output is JSON: `[{number, title, assignees, labels, updatedAt, daysStale, url}, ...]`.

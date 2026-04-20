@@ -1,7 +1,7 @@
 # PO Agent — Implementation Plan (v5)
 
 **Status:** approved outline, not yet implemented
-**Owner:** `claude-skills/agents/po-manager.md` + `claude-skills/skills/po-report/`
+**Owner:** `claude-skills/agents/po-manager.md` + `claude-skills/skills/po/`
 **Scope:** Product Owner agent that runs inside any `beyond-scale-group/*` repo, compares that repo's **big plan** (`po/PLAN.md`, authored by humans) against **live GitHub state**, and reports drift. Launchable repo-by-repo, pure Claude-driven.
 **Smoke-test target:** `beyond-scale-group/edomata`
 
@@ -125,7 +125,7 @@ commit_reports: true
 bsg-stack/
 └── claude-skills/
     ├── agents/po-manager.md          # routing + per-repo scope; paths → po/
-    └── skills/po-report/
+    └── skills/po/
         ├── SKILL.md
         ├── references/
         │   ├── adherence.md          # NEW — primary reference (plan vs reality)

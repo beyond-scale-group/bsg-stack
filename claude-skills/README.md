@@ -10,7 +10,7 @@ command and auto-updates on every new session.
 | Directory | Purpose |
 |-----------|---------|
 | `commands/` | Slash commands (`/babysit`, …) — single-file prompts invoked as `/name` |
-| `skills/` | Full skills (`po-report`, …) — `SKILL.md` + optional `scripts/` and `references/` |
+| `skills/` | Full skills (`po`, …) — `SKILL.md` + optional `scripts/` and `references/` |
 | `agents/` | Subagents (`po-manager`, …) — role-scoped agents with their own tool budget |
 | `scripts/` | The installer (`update-bsg-skills.py`) and helper scripts |
 | `tests/` | Smoke tests for the installer and skill metadata |

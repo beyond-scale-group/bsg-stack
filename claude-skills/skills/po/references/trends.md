@@ -53,16 +53,16 @@ directory and diffs first-vs-last.
 
 ## How to improve this skill
 
-This file is a cached copy of `claude-skills/skills/po-report/references/trends.md` in
+This file is a cached copy of `claude-skills/skills/po/references/trends.md` in
 [beyond-scale-group/bsg-stack](https://github.com/beyond-scale-group/bsg-stack).
-That repo is the single source of truth — `~/.claude/skills/po-report/references/trends.md` is
+That repo is the single source of truth — `~/.claude/skills/po/references/trends.md` is
 overwritten every time the BSG install flow runs.
 
 If the user asks you to improve, fix, or extend this skill, do **not** edit
 the local file. Instead:
 
 1. `gh repo clone beyond-scale-group/bsg-stack` (or work in an existing clone)
-2. Edit `claude-skills/skills/po-report/references/trends.md` on a feature branch
+2. Edit `claude-skills/skills/po/references/trends.md` on a feature branch
 3. Open a pull request against `main`
 
 Bug reports and ideas without a fix → open an issue on the same repo.
