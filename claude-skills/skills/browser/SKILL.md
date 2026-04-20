@@ -32,16 +32,12 @@ at the onboarding orchestrator:
 bash scripts/onboard.sh
 ```
 
-It walks through **6 services** in headed mode, one at a time:
+It walks through **2 services** in headed mode, one at a time:
 
 | Step | Profile | Service |
 |------|---------|---------|
 | 1 | `google` | Google (Gmail, Drive, GCP Console) |
 | 2 | `github` | GitHub |
-| 3 | `slack` | Slack |
-| 4 | `notion` | Notion |
-| 5 | `linear` | Linear |
-| 6 | `yousign` | Yousign |
 
 For each service a browser window opens, the user logs in (including 2FA /
 passkey), and the session is saved as a named profile. After onboarding,
@@ -159,7 +155,6 @@ bash scripts/with-profile.sh github open https://github.com/settings
 First time using agent-browser?  -> npm install -g agent-browser && agent-browser install
 First time at BSG / new machine? -> bash scripts/onboard.sh         (all services)
 Need to log in to Google?        -> bash scripts/onboard.sh --step google
-Need to log in to Yousign?       -> bash scripts/onboard.sh --step yousign
 Need to log in to another site?  -> bash scripts/with-profile.sh <name> open <url> --headed
 Check all logins still valid?    -> bash scripts/onboard.sh --check
 Replay an authenticated session? -> bash scripts/with-profile.sh <name> open <url>
@@ -257,8 +252,7 @@ if the app keeps open connections.
 |---|---|
 | "Set up browser", "onboard", "log in to everything" | `bash scripts/onboard.sh` |
 | "Log in to Google" | `bash scripts/onboard.sh --step google` |
-| "Log in to Yousign" | `bash scripts/onboard.sh --step yousign` |
-| "Log in to GitHub / Slack / Notion / Linear" | `bash scripts/onboard.sh --step <name>` |
+| "Log in to GitHub" | `bash scripts/onboard.sh --step github` |
 | "Check my logins", "are sessions still valid?" | `bash scripts/onboard.sh --check` |
 | "Log in to X" (non-BSG site) | `bash scripts/with-profile.sh <name> open <url> --headed` |
 | "Open this URL", "go to site" | `agent-browser open <url> [--headed]` |

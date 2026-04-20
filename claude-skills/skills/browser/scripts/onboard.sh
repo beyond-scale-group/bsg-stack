@@ -21,10 +21,6 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SERVICES=(
   "google|google|https://accounts.google.com|**/myaccount.google.com/**|Google (Gmail, Drive, GCP Console)"
   "github|github|https://github.com/login|**/github.com|GitHub"
-  "slack|slack|https://app.slack.com|**/app.slack.com/**|Slack"
-  "notion|notion|https://www.notion.so/login|**/notion.so/**|Notion"
-  "linear|linear|https://linear.app/login|**/linear.app/**|Linear"
-  "yousign|yousign|https://yousign.app|**/yousign.app/**|Yousign"
 )
 
 TIMEOUT=120000  # 2 minutes per login
