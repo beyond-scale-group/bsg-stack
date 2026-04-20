@@ -23,6 +23,47 @@ Binary: `agent-browser` (npm package `agent-browser`, installed globally).
 This CLI evolves fast -- **never assume memorized flags**, verify with
 `agent-browser --help` before scripting.
 
+## First-time setup -> `scripts/onboard.sh`
+
+If the user has never logged in to BSG services via agent-browser, point them
+at the onboarding orchestrator:
+
+```bash
+bash scripts/onboard.sh
+```
+
+It walks through **6 services** in headed mode, one at a time:
+
+| Step | Profile | Service |
+|------|---------|---------|
+| 1 | `google` | Google (Gmail, Drive, GCP Console) |
+| 2 | `github` | GitHub |
+| 3 | `slack` | Slack |
+| 4 | `notion` | Notion |
+| 5 | `linear` | Linear |
+| 6 | `yousign` | Yousign |
+
+For each service a browser window opens, the user logs in (including 2FA /
+passkey), and the session is saved as a named profile. After onboarding,
+every `agent-browser --profile <name>` call reuses the saved session
+headlessly -- no more manual logins.
+
+Re-run a single step:
+```bash
+bash scripts/onboard.sh --step google
+bash scripts/onboard.sh --step yousign
+```
+
+Check all profiles:
+```bash
+bash scripts/onboard.sh --check
+```
+
+List available services:
+```bash
+bash scripts/onboard.sh --list
+```
+
 ## Hard rules
 
 1. **Scripts do the work.** This SKILL.md narrates; the `scripts/` directory
@@ -116,8 +157,11 @@ bash scripts/with-profile.sh github open https://github.com/settings
 
 ```
 First time using agent-browser?  -> npm install -g agent-browser && agent-browser install
-Need to log in to Google?        -> bash scripts/login-google.sh
+First time at BSG / new machine? -> bash scripts/onboard.sh         (all services)
+Need to log in to Google?        -> bash scripts/onboard.sh --step google
+Need to log in to Yousign?       -> bash scripts/onboard.sh --step yousign
 Need to log in to another site?  -> bash scripts/with-profile.sh <name> open <url> --headed
+Check all logins still valid?    -> bash scripts/onboard.sh --check
 Replay an authenticated session? -> bash scripts/with-profile.sh <name> open <url>
 One-off page interaction?        -> agent-browser open <url> [--headed]
 Screenshot a page?               -> agent-browser screenshot [path] [--full]
@@ -211,9 +255,13 @@ if the app keeps open connections.
 
 | User says... | Do... |
 |---|---|
+| "Set up browser", "onboard", "log in to everything" | `bash scripts/onboard.sh` |
+| "Log in to Google" | `bash scripts/onboard.sh --step google` |
+| "Log in to Yousign" | `bash scripts/onboard.sh --step yousign` |
+| "Log in to GitHub / Slack / Notion / Linear" | `bash scripts/onboard.sh --step <name>` |
+| "Check my logins", "are sessions still valid?" | `bash scripts/onboard.sh --check` |
+| "Log in to X" (non-BSG site) | `bash scripts/with-profile.sh <name> open <url> --headed` |
 | "Open this URL", "go to site" | `agent-browser open <url> [--headed]` |
-| "Log in to Google" | `bash scripts/login-google.sh [email]` |
-| "Log in to X" (any site) | `bash scripts/with-profile.sh <name> open <url> --headed` |
 | "Take a screenshot" | `agent-browser screenshot [path] [--full] [--annotate]` |
 | "Click the submit button" | `agent-browser snapshot` then `agent-browser click @ref` |
 | "Fill out the form" | `agent-browser snapshot`, identify fields, `agent-browser fill @ref "value"` |
