@@ -1,2 +1,6 @@
 # macOS Finder metadata — never committed.
 .DS_Store
+
+# Claude Code / Superconductor runtime state — session locks and
+# per-agent worktrees live here. Never committed.
+.claude/
