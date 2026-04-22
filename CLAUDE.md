@@ -60,6 +60,13 @@ Semantics every `tick` must follow:
   Detailed narrative belongs in the committed report file, never duplicated
   in chat. Multi-line receipts break `/tick-all`'s summary format and leak
   tokens at scale (8 agents × recurring `/loop` cadence).
+  Explicitly forbidden in chat output:
+  1. Reasoning-narration ("Let me check the silence-breakers…", "Evaluating…")
+     — reasoning happens silently; only the final receipt emits.
+  2. Silence-breaker evaluation matrices (`scopeCreep: Non-empty`, `stale: Empty`)
+     — that detail belongs in the report file.
+  3. Contradictory receipts like `PR #94 opened. Nothing to report` — if a PR
+     was opened, state what it says; if nothing to report, don't open a PR.
 - **Short-circuit on same-day idempotency.** When today's report for the
   same agent is already merged and inputs haven't changed, the tick must
   skip its full aggregation and return `Tick: unchanged — see PR #NN`.
