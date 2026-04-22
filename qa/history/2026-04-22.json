@@ -1,6 +1,6 @@
 {
-  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-a5acd786",
-  "generatedAt": "2026-04-22T22:23:32Z",
+  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-a75b4118",
+  "generatedAt": "2026-04-22T22:33:43Z",
   "windowDays": 30,
   "flakeWindowDays": 14,
   "coverage": {
@@ -47,12 +47,20 @@
       "commits": 4
     },
     {
+      "path": "seo/reports/2026-04-22-audit.md",
+      "commits": 4
+    },
+    {
       "path": "claude-skills/tests/test_skills.py",
       "commits": 4
     },
     {
       "path": "claude-skills/scripts/update-bsg-skills.py",
       "commits": 4
+    },
+    {
+      "path": "security/reports/2026-04-22-audit.md",
+      "commits": 3
     },
     {
       "path": "renovate/README.md",
@@ -63,11 +71,19 @@
       "commits": 3
     },
     {
+      "path": "marketing/reports/2026-04-22-audit.md",
+      "commits": 3
+    },
+    {
       "path": "docs/workflows.md",
       "commits": 3
     },
     {
       "path": "docs/renovate.md",
+      "commits": 3
+    },
+    {
+      "path": "comms/reports/2026-04-22-events.md",
       "commits": 3
     },
     {
@@ -83,20 +99,16 @@
       "commits": 3
     },
     {
+      "path": "brand/reports/2026-04-22-audit.md",
+      "commits": 3
+    },
+    {
       "path": ".github/workflows/review_app_deploy.yaml",
       "commits": 3
     },
     {
       "path": ".github/workflows/ci-claude-skills-test.yaml",
       "commits": 3
-    },
-    {
-      "path": "seo/reports/2026-04-22-audit.md",
-      "commits": 2
-    },
-    {
-      "path": "security/reports/2026-04-22-audit.md",
-      "commits": 2
     },
     {
       "path": "renovate/scala_config.json",
@@ -107,7 +119,15 @@
       "commits": 2
     },
     {
-      "path": "marketing/reports/2026-04-22-audit.md",
+      "path": "qa/reports/2026-04-22-audit.md",
+      "commits": 2
+    },
+    {
+      "path": "qa/history/2026-04-22.json",
+      "commits": 2
+    },
+    {
+      "path": "po/reports/2026-04-23-status.md",
       "commits": 2
     },
     {
@@ -124,10 +144,6 @@
     },
     {
       "path": "docs/known-false-positives.md",
-      "commits": 2
-    },
-    {
-      "path": "comms/reports/2026-04-22-events.md",
       "commits": 2
     },
     {
@@ -208,18 +224,6 @@
     },
     {
       "path": "renovate/react.json",
-      "commits": 1
-    },
-    {
-      "path": "qa/reports/2026-04-22-audit.md",
-      "commits": 1
-    },
-    {
-      "path": "qa/history/2026-04-22.json",
-      "commits": 1
-    },
-    {
-      "path": "po/reports/2026-04-23-status.md",
       "commits": 1
     },
     {
@@ -804,10 +808,6 @@
     },
     {
       "path": "claude-skills/agents/marketing.md",
-      "commits": 1
-    },
-    {
-      "path": "brand/reports/2026-04-22-audit.md",
       "commits": 1
     },
     {
