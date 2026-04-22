@@ -89,6 +89,39 @@ The merge is **idempotent** and **narrow**:
 To add or remove a managed key, edit `claude-skills/settings.json` **and**
 update the `BSG_MANAGED_*` lists in the installer in the same PR.
 
+## GitHub labels used by BSG agents
+
+BSG agents expect the following labels to exist on any repo where they file
+issues or open PRs. `claude-skills/scripts/file-issue.sh` auto-creates
+`needs-human-review` on first use; the others are standard GitHub defaults
+that most repos already have.
+
+| Label | Color | Applied by | Meaning |
+|---|---|---|---|
+| `needs-human-review` | `fbca04` (yellow) | Agents **and** humans | Awaiting a human decision (triage, merge, or scope). `file-issue.sh` adds it to every agent-filed issue; humans add it to non-auto-merge PRs at creation. Never removed automatically. |
+| `human-reviewed` | `0e8a16` (green) | **Humans only — agents forbidden** | A human has made a disposition decision on the item: merged, closed, bound to a plan item, or commented with a decision. Proves the audit trail. Only a human GitHub account may apply this label; if a non-human actor ever applies it, that is a bug. |
+| `bug` | `d73a4a` (red) | Agents and humans | Standard GitHub label for defects. |
+| `enhancement` | `a2eeef` (cyan) | Agents and humans | Standard GitHub label for feature requests and improvements. |
+
+Why `human-reviewed` matters: agents operate under the developer's own `gh`
+credentials, so GitHub records every agent-driven merge/close/comment under
+the human's account. The label is the one signal that cleanly distinguishes
+"a human actually looked at this" from "Claude ran `gh` as me." Humans
+apply it as part of the action — `gh pr edit <n> --add-label human-reviewed`
+when they merge — and agents treat its absence as "still unverified."
+
+To bootstrap the two BSG labels on a new repo (one-time, idempotent):
+
+```bash
+gh label create needs-human-review \
+  --color fbca04 \
+  --description "Awaiting a human decision (triage, merge, or scope)"
+
+gh label create human-reviewed \
+  --color 0e8a16 \
+  --description "A human has reviewed and validated this item (agents MUST NOT apply)"
+```
+
 ## How it works under the hood
 
 The whole install flow boils down to: **drop one Python script in
