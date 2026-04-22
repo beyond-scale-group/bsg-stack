@@ -1,6 +1,6 @@
 {
-  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-ae96611c",
-  "generatedAt": "2026-04-22T22:38:28Z",
+  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-a78b4668",
+  "generatedAt": "2026-04-22T22:49:50Z",
   "windowDays": 30,
   "flakeWindowDays": 14,
   "coverage": {
@@ -28,6 +28,10 @@
     },
     {
       "path": "seo/reports/2026-04-22-audit.md",
+      "commits": 6
+    },
+    {
+      "path": "marketing/reports/2026-04-22-audit.md",
       "commits": 5
     },
     {
@@ -47,11 +51,27 @@
       "commits": 5
     },
     {
+      "path": "brand/reports/2026-04-22-audit.md",
+      "commits": 5
+    },
+    {
       "path": "stack.yaml",
       "commits": 4
     },
     {
-      "path": "marketing/reports/2026-04-22-audit.md",
+      "path": "security/reports/2026-04-22-audit.md",
+      "commits": 4
+    },
+    {
+      "path": "qa/reports/2026-04-22-audit.md",
+      "commits": 4
+    },
+    {
+      "path": "qa/history/2026-04-22.json",
+      "commits": 4
+    },
+    {
+      "path": "comms/reports/2026-04-22-events.md",
       "commits": 4
     },
     {
@@ -63,19 +83,7 @@
       "commits": 4
     },
     {
-      "path": "security/reports/2026-04-22-audit.md",
-      "commits": 3
-    },
-    {
       "path": "renovate/README.md",
-      "commits": 3
-    },
-    {
-      "path": "qa/reports/2026-04-22-audit.md",
-      "commits": 3
-    },
-    {
-      "path": "qa/history/2026-04-22.json",
       "commits": 3
     },
     {
@@ -95,10 +103,6 @@
       "commits": 3
     },
     {
-      "path": "comms/reports/2026-04-22-events.md",
-      "commits": 3
-    },
-    {
       "path": "claude-skills/skills/po-report/scripts/generate-report.sh",
       "commits": 3
     },
@@ -108,10 +112,6 @@
     },
     {
       "path": "claude-skills/scripts/open-report-pr.sh",
-      "commits": 3
-    },
-    {
-      "path": "brand/reports/2026-04-22-audit.md",
       "commits": 3
     },
     {
@@ -227,7 +227,23 @@
       "commits": 1
     },
     {
+      "path": "po/reports/2026-04-23-status-tick4.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-04-23-status-tick3.md",
+      "commits": 1
+    },
+    {
       "path": "po/reports/2026-04-20-status.md",
+      "commits": 1
+    },
+    {
+      "path": "po/PLAN.md",
+      "commits": 1
+    },
+    {
+      "path": "po/drafts/2026-04-23-plan-bootstrap.md",
       "commits": 1
     },
     {
