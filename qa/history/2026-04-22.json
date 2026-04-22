@@ -1,6 +1,6 @@
 {
-  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-adac031f",
-  "generatedAt": "2026-04-22T23:05:08Z",
+  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-a87816e2",
+  "generatedAt": "2026-04-22T23:14:45Z",
   "windowDays": 30,
   "flakeWindowDays": 14,
   "coverage": {
@@ -27,32 +27,32 @@
       "commits": 7
     },
     {
+      "path": "security/reports/2026-04-22-audit.md",
+      "commits": 7
+    },
+    {
       "path": "README.md",
       "commits": 7
     },
     {
       "path": "qa/history/2026-04-22.json",
-      "commits": 6
+      "commits": 7
     },
     {
       "path": "brand/reports/2026-04-22-audit.md",
-      "commits": 6
-    },
-    {
-      "path": "security/reports/2026-04-22-audit.md",
-      "commits": 5
+      "commits": 7
     },
     {
       "path": "qa/reports/2026-04-22-audit.md",
-      "commits": 5
+      "commits": 6
     },
     {
       "path": "po/reports/2026-04-23-status.md",
-      "commits": 5
+      "commits": 6
     },
     {
       "path": "marketing/reports/2026-04-22-audit.md",
-      "commits": 5
+      "commits": 6
     },
     {
       "path": "INSTALL.md",
