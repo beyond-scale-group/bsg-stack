@@ -43,6 +43,8 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import subprocess
 import sys
 import time
 import urllib.error
@@ -78,6 +80,43 @@ API_HEADERS = {
     "X-GitHub-Api-Version": "2022-11-28",
     "User-Agent": "bsg-skills-updater",
 }
+
+
+def _discover_github_token() -> str | None:
+    """Return a GitHub token from env vars or `gh auth token`, else None.
+
+    The unauthenticated api.github.com limit is 60/hr per IP and is easy
+    to exhaust on a shared-egress machine. Any token bumps it to 5000/hr.
+    We try env vars first (explicit > implicit) then fall back to the
+    already-authenticated `gh` CLI, so nothing is required from the user
+    when gh is installed and logged in — which every BSG skill assumes
+    anyway.
+    """
+    for var in ("GH_TOKEN", "GITHUB_TOKEN"):
+        token = os.environ.get(var, "").strip()
+        if token:
+            return token
+    if not shutil.which("gh"):
+        return None
+    try:
+        result = subprocess.run(
+            ["gh", "auth", "token"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    token = result.stdout.strip()
+    return token or None
+
+
+_token = _discover_github_token()
+if _token:
+    API_HEADERS["Authorization"] = f"Bearer {_token}"
 
 # Sections of the repo that are mirrored into ~/.claude/. Each tuple is:
 #   (api subpath under claude-skills/, local destination, manifest prefix)
