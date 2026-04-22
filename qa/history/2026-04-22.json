@@ -1,6 +1,6 @@
 {
-  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-a78b4668",
-  "generatedAt": "2026-04-22T22:49:50Z",
+  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-a021c586",
+  "generatedAt": "2026-04-22T22:55:01Z",
   "windowDays": 30,
   "flakeWindowDays": 14,
   "coverage": {
@@ -29,6 +29,10 @@
     {
       "path": "seo/reports/2026-04-22-audit.md",
       "commits": 6
+    },
+    {
+      "path": "qa/history/2026-04-22.json",
+      "commits": 5
     },
     {
       "path": "marketing/reports/2026-04-22-audit.md",
@@ -64,10 +68,6 @@
     },
     {
       "path": "qa/reports/2026-04-22-audit.md",
-      "commits": 4
-    },
-    {
-      "path": "qa/history/2026-04-22.json",
       "commits": 4
     },
     {
@@ -227,6 +227,10 @@
       "commits": 1
     },
     {
+      "path": "po/reports/2026-04-23-status-tick5.md",
+      "commits": 1
+    },
+    {
       "path": "po/reports/2026-04-23-status-tick4.md",
       "commits": 1
     },
@@ -252,6 +256,10 @@
     },
     {
       "path": "docs/claude-skills.md",
+      "commits": 1
+    },
+    {
+      "path": "comms/reports/2026-04-22-events-b.md",
       "commits": 1
     },
     {
@@ -910,6 +918,15 @@
   "ciRuns": [
     {
       "conclusion": "success",
+      "createdAt": "2026-04-22T22:53:54Z",
+      "databaseId": 24806846055,
+      "headSha": "16af58bea57bd70374860ae7f61c606b802e1d02",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/24806846055"
+    },
+    {
+      "conclusion": "success",
       "createdAt": "2026-04-22T21:57:34Z",
       "databaseId": 24804796252,
       "headSha": "7724c2f25762f3f6162df2a619a603b664ac00aa",
@@ -1348,15 +1365,6 @@
       "name": "claude-skills test",
       "status": "completed",
       "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/24451789073"
-    },
-    {
-      "conclusion": "success",
-      "createdAt": "2026-04-15T11:23:31Z",
-      "databaseId": 24451768399,
-      "headSha": "02a0f2e9a65664eb109843ee254788c6de660f1a",
-      "name": "claude-skills test",
-      "status": "completed",
-      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/24451768399"
     }
   ],
   "previous": {
