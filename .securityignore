@@ -1,0 +1,10 @@
+# .securityignore — paths/patterns the @security agent should skip.
+#
+# Format (see claude-skills/skills/security-report/scripts/secrets.sh):
+#   - one path glob per line to skip that file entirely
+#   - `PATTERN=<name> <glob>` to suppress one pattern on matching paths
+#
+# This repo hosts the security-report skill itself, so the skill's
+# own reference docs contain deliberate pattern *examples* (AWS doc
+# placeholder keys, sample tokens) that must never be flagged.
+claude-skills/skills/security-report/references/**

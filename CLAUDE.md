@@ -54,6 +54,12 @@ Semantics every `tick` must follow:
   (`po/reports/YYYY-MM-DD-*.md`, `compliance/reports/...`), commit it, and
   return a short summary only if something needs human attention (risk flag,
   drift crossing a threshold, new blocker). No news = no chat noise.
+- **Never pause for consent.** A `tick` on an `output: pr` agent must open
+  the report PR without asking. If a silence-breaker requires a human
+  decision, the report documents it and the PR *is* the consent surface —
+  reviewers act on the finding by merging, commenting, or closing. Pausing
+  mid-sweep with "do you want me to open a PR?" breaks `/tick-all` and is
+  a bug. Consent belongs to explicit, non-`tick` user asks.
 - **No CI cron.** `tick` is still human-initiated per the on-demand principle
   above. Scheduled execution goes through Claude Code's own `/schedule` or
   `/loop` (which the user sets up explicitly on their machine) — not through

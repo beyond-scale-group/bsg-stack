@@ -94,6 +94,15 @@ Thresholds live here (in the agent's product definition), not in the
 skill's scripts. The scripts emit raw counts; the agent decides what
 counts as "needs attention."
 
+**Known false-positive class.** Repos that ship the `security-report`
+skill itself (e.g., `bsg-stack`) contain deliberate pattern examples
+in `claude-skills/skills/security-report/references/**` — AWS doc
+placeholder keys, sample tokens used to illustrate the patterns the
+secrets scanner looks for. A tick that flags these and nothing else
+is *not* a silence-breaker. If the repo does not yet have a
+`.securityignore`, bootstrap one with that reference path on the
+first tick and note it in the report.
+
 ## How to improve this skill
 
 This file is a cached copy of `claude-skills/agents/security.md` in
