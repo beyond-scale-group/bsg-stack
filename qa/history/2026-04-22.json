@@ -1,6 +1,6 @@
 {
-  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-aadfab69",
-  "generatedAt": "2026-04-22T22:00:16Z",
+  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-a5acd786",
+  "generatedAt": "2026-04-22T22:23:32Z",
   "windowDays": 30,
   "flakeWindowDays": 14,
   "coverage": {
@@ -91,11 +91,23 @@
       "commits": 3
     },
     {
+      "path": "seo/reports/2026-04-22-audit.md",
+      "commits": 2
+    },
+    {
+      "path": "security/reports/2026-04-22-audit.md",
+      "commits": 2
+    },
+    {
       "path": "renovate/scala_config.json",
       "commits": 2
     },
     {
       "path": "renovate/react_config.json",
+      "commits": 2
+    },
+    {
+      "path": "marketing/reports/2026-04-22-audit.md",
       "commits": 2
     },
     {
@@ -112,6 +124,10 @@
     },
     {
       "path": "docs/known-false-positives.md",
+      "commits": 2
+    },
+    {
+      "path": "comms/reports/2026-04-22-events.md",
       "commits": 2
     },
     {
@@ -187,14 +203,6 @@
       "commits": 1
     },
     {
-      "path": "seo/reports/2026-04-22-audit.md",
-      "commits": 1
-    },
-    {
-      "path": "security/reports/2026-04-22-audit.md",
-      "commits": 1
-    },
-    {
       "path": "renovate/scala.json",
       "commits": 1
     },
@@ -203,11 +211,19 @@
       "commits": 1
     },
     {
-      "path": "po/reports/2026-04-20-status.md",
+      "path": "qa/reports/2026-04-22-audit.md",
       "commits": 1
     },
     {
-      "path": "marketing/reports/2026-04-22-audit.md",
+      "path": "qa/history/2026-04-22.json",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-04-23-status.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-04-20-status.md",
       "commits": 1
     },
     {
@@ -216,10 +232,6 @@
     },
     {
       "path": "docs/claude-skills.md",
-      "commits": 1
-    },
-    {
-      "path": "comms/reports/2026-04-22-events.md",
       "commits": 1
     },
     {
@@ -1323,6 +1335,18 @@
       "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/24451768399"
     }
   ],
-  "previous": null,
+  "previous": {
+    "date": "2026-04-22",
+    "coverage": {
+      "found": false,
+      "format": "none",
+      "perFile": [],
+      "overall": {
+        "line": null,
+        "branch": null,
+        "zeroCoverage": null
+      }
+    }
+  },
   "testSuiteFound": true
 }
