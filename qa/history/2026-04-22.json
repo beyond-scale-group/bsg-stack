@@ -1,6 +1,6 @@
 {
-  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-a7e33715",
-  "generatedAt": "2026-04-22T23:31:53Z",
+  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-acf37d1a",
+  "generatedAt": "2026-04-22T23:36:26Z",
   "windowDays": 30,
   "flakeWindowDays": 14,
   "coverage": {
@@ -20,11 +20,11 @@
     },
     {
       "path": "qa/history/2026-04-22.json",
-      "commits": 10
+      "commits": 11
     },
     {
       "path": "qa/reports/2026-04-22-audit.md",
-      "commits": 9
+      "commits": 10
     },
     {
       "path": "claude-skills/agents/po-manager.md",
