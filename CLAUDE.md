@@ -136,6 +136,49 @@ output: chat      # agents that only return a chat summary (no persisted artifac
 A unit test in `claude-skills/tests/test_skills.py` enforces that every agent
 declares a valid `output` field.
 
+### Label `needs-human-review` for human-gated items
+
+Anything that requires a human decision — triage, merge, or scope — must carry
+the `needs-human-review` label. This makes the triage queue a single filter:
+
+```
+is:open label:needs-human-review
+```
+
+When to add it:
+
+- **Always** on an issue filed by an agent (bug, enhancement, audit finding).
+  The person who merges or closes the issue removes the label as part of
+  acting on it.
+- **Always** on a PR that does not auto-merge — contentful code changes,
+  docs PRs, convention updates. Report PRs opened via
+  `open-report-pr.sh` skip the label because they auto-merge.
+- **Never** removed automatically. Humans own the transition out of
+  "needs review."
+
+Filing an issue from a skill:
+
+```bash
+gh issue create \
+  --title "<short title>" \
+  --label "bug,needs-human-review" \
+  --body "..."
+```
+
+Opening a non-report PR:
+
+```bash
+gh pr create ... && gh pr edit <n> --add-label "needs-human-review"
+```
+
+If the label doesn't exist in a repo, create it once:
+
+```bash
+gh label create "needs-human-review" \
+  --color fbca04 \
+  --description "Awaiting a human decision (triage, merge, or scope)"
+```
+
 ### Scripts before LLM
 
 Inside a skill, deterministic bash + jq scripts do the aggregation and
