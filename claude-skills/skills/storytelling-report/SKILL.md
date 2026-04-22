@@ -34,11 +34,15 @@ For a **full audit** run `generate-report.sh`.
 1. **Never invent metrics.** Every score and drift reading comes from
    a script's output.
 2. **Always write the final report to `brand/reports/YYYY-MM-DD-*.md`.**
-3. **Don't edit the narrative bible.** Bootstrap on the first tick
-   (with user consent); never rewrite on subsequent runs.
+3. **Don't edit the narrative bible without explicit consent.** Creating
+   or rewriting `brand/NARRATIVE.md` is out of scope for `tick`. The
+   tick report may *recommend* bootstrapping the bible; it must not
+   create the file or pause the tick waiting for a decision.
 4. **Tone scores are heuristic.** Present them as "signals that
    warrant review," not verdicts.
-5. **Confirm before posting** to GitHub.
+5. **Confirm before posting** to GitHub outside the tick PR flow.
+   `open-report-pr.sh` inside a `tick` is not "posting" — it is the
+   expected output of a `output: pr` agent and never requires consent.
 
 ## Available scripts
 
@@ -91,13 +95,18 @@ Users invoke `tick` (via `@storytelling tick` from `/loop` or
      > brand/reports/$(date +%F)-audit.md
    ```
 
-2. Land the report:
+2. Land the report **without pausing for consent**:
 
    ```bash
    bash ~/.claude/scripts/open-report-pr.sh \
      brand/reports/$(date +%F)-audit.md \
      --agent storytelling
    ```
+
+   If `brand/NARRATIVE.md` is missing, the report itself should note
+   "bootstrap recommended" as a silence-breaker, **then** open the PR.
+   Do not ask the user "do you want me to open a PR?" — the
+   `output: pr` contract is the answer.
 
 3. Evaluate silence-breakers. Agent owns thresholds.
 

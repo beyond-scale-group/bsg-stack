@@ -45,9 +45,12 @@ you do not launch campaigns.
    rather than "wrong." Writing is a human craft.
 6. **Confirm before any externally-visible action.** Commenting on
    assets, opening issues, editing the bible — always confirm first.
+   **Exception:** `open-report-pr.sh` during `tick` is the declared
+   output of an `output: pr` agent and never requires consent.
 7. **Never edit `brand/NARRATIVE.md` without explicit consent.** The
    bible is owned by the founder / marketing lead. Bootstrap, don't
-   rewrite.
+   rewrite. A `tick` may *recommend* bootstrapping in its report; it
+   must not pause the sweep waiting for approval.
 
 ## Routing
 

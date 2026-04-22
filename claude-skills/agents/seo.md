@@ -85,13 +85,20 @@ Break silence if **any** of these hold for the audit you just produced:
 | Orphan page (no inbound links)          | `links.sh` → `orphanPages[]`               | Non-empty           |
 | Broken internal link                    | `links.sh` → `brokenLinks[]`               | Non-empty           |
 | Target keyword with no content          | `content.sh` → `uncoveredKeywords[]`       | Non-empty (only if KEYWORDS.md exists) |
-| Missing `sitemap.xml`                   | `technical.sh` → `sitemapFound: false`     | Always              |
-| Missing `robots.txt`                    | `technical.sh` → `robotsFound: false`      | Always              |
+| Missing `sitemap.xml`                   | `technical.sh` → `sitemapFound: false`     | Only if `pages \| length > 0` |
+| Missing `robots.txt`                    | `technical.sh` → `robotsFound: false`      | Only if `pages \| length > 0` |
 | Pages not in sitemap                    | `technical.sh` → `pagesNotInSitemap[]`     | > 3                 |
 
 Thresholds live here (in the agent's product definition), not in
 the skill's scripts. Scripts emit raw counts; the agent decides
 what counts as "needs attention."
+
+**Tooling-repo suppression.** If `collect.sh` emits zero pages
+(repos like `bsg-stack` that ship commands/skills, not web pages),
+the sitemap and robots silence-breakers are noise: a tooling repo
+will never ship either. Skip them when `.pages | length == 0`. The
+same rule applies to any other page-derived signal — no pages, no
+finding.
 
 ## How to improve this skill
 
