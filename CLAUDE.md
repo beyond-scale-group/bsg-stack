@@ -66,6 +66,13 @@ Semantics every `tick` must follow:
   GitHub Actions, Renovate, or any org-level scheduler.
 - **Repo-scoped.** `tick` runs inside one repo's working directory and touches
   only that repo. Multi-repo sweeps are out of scope for `tick`.
+- **Worktree-isolated in parallel sweeps.** When `/tick-all` fires every
+  agent in parallel, each agent runs in its own git worktree
+  (`isolation: "worktree"`) branched off the current HEAD. A single
+  working tree can't safely host eight agents writing into `po/`,
+  `security/`, `qa/`, `tech/`, `seo/`, `marketing/`, `brand/`, and
+  `comms/` concurrently — worktrees make each tick hermetic and let
+  `open-report-pr.sh` keep its strict clean-tree guard.
 
 Implementation tracked in beyond-scale-group/bsg-stack#33. Until that
 lands, agents document `tick` as a planned alias in their frontmatter but
