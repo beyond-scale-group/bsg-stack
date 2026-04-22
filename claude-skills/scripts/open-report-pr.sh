@@ -77,23 +77,25 @@ if [[ ! -f "$FILE" ]]; then
   exit 2
 fi
 
-# Guard: only <file> may have *tracked* uncommitted changes. Untracked
-# paths are safe — `git checkout -B` carries them along and `git add
-# "$FILE"` only stages the named path, so they cannot be pulled into
-# the report branch by accident. Allowing them matters during a
-# `/tick-all` sweep: sibling agents write their own untracked report
-# dirs (`marketing/`, `qa/`, `security/`…) in parallel, and rejecting
-# those would break the sweep for no real safety gain.
+# Guard: only <file> may be dirty in any way — tracked or untracked.
+# Other entries would be pulled into the branch by accident (either
+# `git checkout -B` carries them along, or a stray later `git add`
+# stages unintended content).
+#
+# Under `/tick-all`, sibling agents used to write their output dirs
+# (`marketing/`, `qa/`, `security/`…) into the same working tree in
+# parallel, tripping this guard. The dispatcher now spawns each
+# agent with `isolation: "worktree"` so siblings can't contaminate
+# this tree — the strict guard is safe again.
 other_dirty=$(
   git status --porcelain -- . \
-  | grep -v '^??' \
   | awk '{print substr($0, 4)}' \
   | grep -v -F -x "$FILE" \
   || true
 )
 if [[ -n "$other_dirty" ]]; then
   echo "open-report-pr.sh: refusing to proceed — working tree has other" >&2
-  echo "tracked uncommitted changes besides $FILE:" >&2
+  echo "uncommitted changes besides $FILE:" >&2
   printf '  %s\n' $other_dirty >&2
   echo "Commit or stash them first." >&2
   exit 2

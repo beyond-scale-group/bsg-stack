@@ -34,13 +34,17 @@ moving the row to a "Resolved" subsection with the PR that fixed it.
   whole technical section when no pages are scanned so the agent
   doesn't have to filter after the fact.
 
+## Resolved
+
 ### open-report-pr.sh rejected sibling-agent untracked dirs
 
 - **Where:** Any `/tick-all` sweep where multiple report agents ran in
   parallel and wrote their output directories (`marketing/`, `qa/`,
   `security/`, …) before the helper ran.
-- **Why it fired:** the "clean working tree" guard treated untracked
-  paths the same as modified tracked files.
-- **Fix:** `claude-skills/scripts/open-report-pr.sh` now only guards
-  against tracked uncommitted changes; untracked files ride along
-  safely.
+- **Why it fired:** sibling agents shared a single working tree, so
+  untracked output dirs collided with each other's clean-tree checks.
+- **Resolution:** `/tick-all` now spawns each agent with
+  `isolation: "worktree"`, so siblings run in separate trees and
+  can't contaminate each other at all. The strict clean-tree guard
+  in `open-report-pr.sh` has been restored — tracked *and*
+  untracked stragglers now fail the guard.

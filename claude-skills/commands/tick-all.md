@@ -17,11 +17,31 @@ each agent's own responsibility.
    If `claude-skills/agents/registry.json` is absent, fall back to the
    hardcoded default list at the bottom of this file.
 
-2. **Fire each agent's tick in parallel.**
+2. **Fire each agent's tick in parallel — each in its own git worktree.**
 
-   Spawn one Agent tool call per entry with `prompt: "tick"` and
-   `subagent_type: "<name>"`. Do **not** wait for one to finish before
-   starting the next — send all calls in the same tool-use block.
+   Spawn one Agent tool call per entry with:
+
+   - `prompt: "tick"`
+   - `subagent_type: "<name>"`
+   - `isolation: "worktree"`
+
+   Do **not** wait for one to finish before starting the next — send
+   all calls in the same tool-use block.
+
+   The `isolation: "worktree"` flag is essential: it gives each agent
+   its own git worktree branched off the current HEAD. Without it,
+   eight parallel agents writing `po/`, `security/`, `qa/`,
+   `tech/`, `seo/`, `marketing/`, `brand/`, and `comms/` into the
+   same working tree produce cross-contamination — a sibling's
+   untracked output dir can block another agent's
+   `open-report-pr.sh` call, and race conditions on
+   `git checkout -B` are real. With worktrees, each tick is
+   hermetic: writes stay local, the report branch is created off a
+   clean tree, and the PR merges back into `main` the normal way.
+
+   Clean-up is automatic: the Agent runtime tears down the worktree
+   once the agent returns (unless it made unstaged changes, in
+   which case the runtime reports the worktree path for inspection).
 
 3. **Collect results.**
 
@@ -62,8 +82,11 @@ See `docs/label-taxonomy.md` for the full label schema and
 
 ## Rules
 
-- **Repo-scoped.** Each agent's tick runs inside the current repo's working
-  directory and touches only that repo.
+- **Repo-scoped.** Each agent's tick runs inside the current repo —
+  specifically inside its own worktree of the repo — and touches only
+  that repo.
+- **Worktree-isolated.** Every agent gets `isolation: "worktree"`.
+  Parallel ticks must never share a working tree.
 - **Human-initiated.** For recurring sweeps, use `/loop 30m /tick-all` or
   `/schedule` — never a GitHub Actions cron.
 - **Idempotent.** Re-running is safe: `open-report-pr.sh` reuses existing
