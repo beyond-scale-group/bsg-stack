@@ -140,4 +140,15 @@ fi
 git checkout "$original" >/dev/null 2>&1 || true
 git pull --ff-only >/dev/null 2>&1 || true
 
+# If we're running inside an agent worktree under .claude/worktrees/agent-*,
+# release the lock so the dispatcher-level prune (or the Agent runtime)
+# can reclaim this worktree. The PR has landed; nothing in this tree needs
+# to be preserved "for inspection." Safe-no-op outside an agent worktree.
+repo_root="$(git rev-parse --show-toplevel)"
+case "$repo_root" in
+  */.claude/worktrees/agent-*)
+    git worktree unlock "$repo_root" >/dev/null 2>&1 || true
+    ;;
+esac
+
 echo "$pr_url"
