@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "description": "Registry of BSG agents that participate in /tick-all sweeps and the GitHub coordination bus. See docs/label-taxonomy.md for the full label schema.",
+  "agents": [
+    { "name": "po-manager",   "bus_label": "po",          "output": "pr" },
+    { "name": "security",     "bus_label": "security",    "output": "pr" },
+    { "name": "qa",           "bus_label": "qa",          "output": "pr" },
+    { "name": "tech-lead",    "bus_label": "tech",        "output": "pr" },
+    { "name": "seo",          "bus_label": "seo",         "output": "pr" },
+    { "name": "marketing",    "bus_label": "marketing",   "output": "pr" },
+    { "name": "storytelling", "bus_label": "storytelling","output": "pr" },
+    { "name": "pr-comms",     "bus_label": "pr-comms",    "output": "pr" }
+  ]
+}
