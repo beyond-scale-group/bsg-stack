@@ -54,6 +54,18 @@ Semantics every `tick` must follow:
   (`po/reports/YYYY-MM-DD-*.md`, `compliance/reports/...`), commit it, and
   return a short summary only if something needs human attention (risk flag,
   drift crossing a threshold, new blocker). No news = no chat noise.
+- **One-line tick receipt.** The in-chat return value of a `tick` is a
+  single line of ≤~160 chars: `Tick: <state> — <PR url>` when green, or
+  `⚠️ <N> sb: <shortlist> — <PR url>` when silence-breakers fire.
+  Detailed narrative belongs in the committed report file, never duplicated
+  in chat. Multi-line receipts break `/tick-all`'s summary format and leak
+  tokens at scale (8 agents × recurring `/loop` cadence).
+- **Short-circuit on same-day idempotency.** When today's report for the
+  same agent is already merged and inputs haven't changed, the tick must
+  skip its full aggregation and return `Tick: unchanged — see PR #NN`.
+  Re-running the entire audit pipeline to produce a byte-identical PR is a
+  pure token leak on recurring sweeps. `security` and `pr-comms` already
+  implement this check — other agents should follow.
 - **Never pause for consent.** A `tick` on an `output: pr` agent must open
   the report PR without asking. If a silence-breaker requires a human
   decision, the report documents it and the PR *is* the consent surface —
