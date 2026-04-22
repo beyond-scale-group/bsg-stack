@@ -65,6 +65,28 @@ each agent's own responsibility.
    Prefix: ✅ green (no silence-breaker), ⚠️ silence-breaker fired, ❌ error.
    Total elapsed time on the last line.
 
+5. **Prune stale agent worktrees.**
+
+   After the summary prints, call the shared cleanup helper:
+
+   ```bash
+   bash claude-skills/scripts/prune-agent-worktrees.sh
+   ```
+
+   Why this exists: the Agent runtime auto-removes a worktree only when
+   its working tree is clean. Every tick that commits a report leaves a
+   non-clean worktree behind (the report commit itself), which the
+   runtime then preserves locked "for inspection." Those pile up across
+   sweeps — 8 per sweep, hundreds per day at a `/loop 5m /tick-all`
+   cadence.
+
+   The helper removes any `.claude/worktrees/agent-*` worktree whose
+   branch is either a pure scratch branch (`worktree-agent-*`) or a
+   `reports/*` branch whose PR is already MERGED or CLOSED. It leaves
+   everything else alone — live branches, dirty trees with
+   unrecognized names, main, other worktrees — so it's safe to run
+   at every tick. It emits a one-line `pruned=N kept=M` summary.
+
 ## GitHub bus inbox processing
 
 Agents that implement the GitHub coordination bus additionally process their
