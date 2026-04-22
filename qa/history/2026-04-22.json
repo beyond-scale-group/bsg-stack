@@ -1,6 +1,6 @@
 {
-  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-a75b4118",
-  "generatedAt": "2026-04-22T22:33:43Z",
+  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-ae96611c",
+  "generatedAt": "2026-04-22T22:38:28Z",
   "windowDays": 30,
   "flakeWindowDays": 14,
   "coverage": {
@@ -27,6 +27,10 @@
       "commits": 7
     },
     {
+      "path": "seo/reports/2026-04-22-audit.md",
+      "commits": 5
+    },
+    {
       "path": "INSTALL.md",
       "commits": 5
     },
@@ -47,7 +51,7 @@
       "commits": 4
     },
     {
-      "path": "seo/reports/2026-04-22-audit.md",
+      "path": "marketing/reports/2026-04-22-audit.md",
       "commits": 4
     },
     {
@@ -67,11 +71,19 @@
       "commits": 3
     },
     {
-      "path": "po/reports/2026-04-22-status.md",
+      "path": "qa/reports/2026-04-22-audit.md",
       "commits": 3
     },
     {
-      "path": "marketing/reports/2026-04-22-audit.md",
+      "path": "qa/history/2026-04-22.json",
+      "commits": 3
+    },
+    {
+      "path": "po/reports/2026-04-23-status.md",
+      "commits": 3
+    },
+    {
+      "path": "po/reports/2026-04-22-status.md",
       "commits": 3
     },
     {
@@ -116,18 +128,6 @@
     },
     {
       "path": "renovate/react_config.json",
-      "commits": 2
-    },
-    {
-      "path": "qa/reports/2026-04-22-audit.md",
-      "commits": 2
-    },
-    {
-      "path": "qa/history/2026-04-22.json",
-      "commits": 2
-    },
-    {
-      "path": "po/reports/2026-04-23-status.md",
       "commits": 2
     },
     {
@@ -236,6 +236,10 @@
     },
     {
       "path": "docs/claude-skills.md",
+      "commits": 1
+    },
+    {
+      "path": "comms/reports/2026-04-22-events-4.md",
       "commits": 1
     },
     {
@@ -808,6 +812,10 @@
     },
     {
       "path": "claude-skills/agents/marketing.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-04-22-audit-a2452778.md",
       "commits": 1
     },
     {
