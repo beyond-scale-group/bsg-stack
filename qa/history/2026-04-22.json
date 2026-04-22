@@ -1,6 +1,6 @@
 {
-  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-a345fb53",
-  "generatedAt": "2026-04-22T22:44:25Z",
+  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-ae96611c",
+  "generatedAt": "2026-04-22T22:38:28Z",
   "windowDays": 30,
   "flakeWindowDays": 14,
   "coverage": {
@@ -51,19 +51,7 @@
       "commits": 4
     },
     {
-      "path": "qa/reports/2026-04-22-audit.md",
-      "commits": 4
-    },
-    {
-      "path": "qa/history/2026-04-22.json",
-      "commits": 4
-    },
-    {
       "path": "marketing/reports/2026-04-22-audit.md",
-      "commits": 4
-    },
-    {
-      "path": "comms/reports/2026-04-22-events.md",
       "commits": 4
     },
     {
@@ -75,15 +63,19 @@
       "commits": 4
     },
     {
-      "path": "brand/reports/2026-04-22-audit.md",
-      "commits": 4
-    },
-    {
       "path": "security/reports/2026-04-22-audit.md",
       "commits": 3
     },
     {
       "path": "renovate/README.md",
+      "commits": 3
+    },
+    {
+      "path": "qa/reports/2026-04-22-audit.md",
+      "commits": 3
+    },
+    {
+      "path": "qa/history/2026-04-22.json",
       "commits": 3
     },
     {
@@ -103,6 +95,10 @@
       "commits": 3
     },
     {
+      "path": "comms/reports/2026-04-22-events.md",
+      "commits": 3
+    },
+    {
       "path": "claude-skills/skills/po-report/scripts/generate-report.sh",
       "commits": 3
     },
@@ -112,6 +108,10 @@
     },
     {
       "path": "claude-skills/scripts/open-report-pr.sh",
+      "commits": 3
+    },
+    {
+      "path": "brand/reports/2026-04-22-audit.md",
       "commits": 3
     },
     {
@@ -224,10 +224,6 @@
     },
     {
       "path": "renovate/react.json",
-      "commits": 1
-    },
-    {
-      "path": "po/reports/2026-04-23-status-tick3.md",
       "commits": 1
     },
     {
