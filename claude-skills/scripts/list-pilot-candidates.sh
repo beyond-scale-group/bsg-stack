@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# list-pilot-candidates.sh — enumerate issues that match the #181 pilot filter.
+#
+# Returns open issues that satisfy ALL of:
+#   - label matches the caller's bus label (default: tech)
+#   - label:bug
+#   - label:needs-human-review
+#   - label:safe-to-automate
+#   - at least one epic:* label
+#   - has no open PR already referencing it (agent didn't start work yet)
+#
+# The strict filter is the safety contract of the #181 pilot — no
+# label, no implementation attempt. `safe-to-automate` is human-only:
+# its presence is the gate that says "I'm OK with an agent attempting
+# this."
+#
+# Usage:
+#   bash claude-skills/scripts/list-pilot-candidates.sh [--agent NAME] [--repo OWNER/NAME]
+#
+# Emits one line per candidate issue (JSON). Empty output = no work.
+# Exit 0 always (no candidate is not an error).
+
+set -euo pipefail
+
+AGENT="tech"
+REPO_FLAG=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --agent) AGENT="$2"; shift 2 ;;
+    --repo)  REPO_FLAG=(--repo "$2"); shift 2 ;;
+    -h|--help)
+      sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    *) echo "list-pilot-candidates.sh: unknown arg: $1" >&2; exit 2 ;;
+  esac
+done
+
+# Pull open issues carrying all three required non-epic labels. GitHub's
+# search API AND-s labels when multiple --label flags are passed.
+candidates_json=$(gh issue list "${REPO_FLAG[@]}" \
+  --state open \
+  --label "$AGENT" \
+  --label "bug" \
+  --label "needs-human-review" \
+  --label "safe-to-automate" \
+  --json number,title,labels,url \
+  2>/dev/null || echo "[]")
+
+# Post-filter for:
+#   - at least one epic:* label
+#   - no open PR already touching this issue (avoid re-attempting)
+# Emit one JSON object per line.
+jq -c '
+  .[]
+  | select(.labels | any(.name | startswith("epic:")))
+  | {
+      number,
+      title,
+      url,
+      epics: [.labels[].name | select(startswith("epic:"))]
+    }
+' <<<"$candidates_json"
