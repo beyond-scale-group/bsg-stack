@@ -14,15 +14,27 @@ All helpers accept `--format json|table|yaml|csv` and `--dry-run`.
 ```
 --to <EMAILS>          (required) comma-separated
 --subject <SUBJECT>    (required)
---body <TEXT>          (required) plain text, or HTML with --html
+--body <TEXT>          (required) HTML content (always use --html)
 --cc <EMAILS>          comma-separated
 --bcc <EMAILS>         comma-separated
---html                 treat --body as HTML
+--html                 treat --body as HTML (**always pass this flag**)
+--draft                save as draft instead of sending
+--from <EMAIL>         sender address (for send-as/alias)
 ```
 
+**Always use `--html`** for all emails (send and draft). HTML gives proper
+formatting: clickable links, inline images, paragraphs, bold/italic. Plain
+text renders poorly in modern email clients. Structure the body with `<p>`,
+`<a href>`, `<img>`, `<strong>` tags.
+
 ```bash
-gws gmail +send --to alice@x.com --subject 'Hi' --body 'Hello Alice'
-gws gmail +send --to a@x.com --cc b@x.com --subject 'Report' --body '<b>done</b>' --html
+# Send (always --html)
+gws gmail +send --to alice@x.com --subject 'Hi' \
+  --body '<p>Hello Alice,</p><p>See the <a href="https://example.com">report</a>.</p>' --html
+
+# Draft (always --html)
+gws gmail +send --to alice@x.com --subject 'Review' \
+  --body '<p>Please review the attached.</p><p><strong>Thanks!</strong></p>' --html --draft
 ```
 
 No attachment support — use raw API (`gws gmail users messages send --json`)
