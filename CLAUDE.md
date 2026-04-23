@@ -156,14 +156,20 @@ When to add it:
 - **Never** removed automatically. Humans own the transition out of
   "needs review."
 
-Filing an issue from a skill:
+Filing an issue from a skill — use the shared helper:
 
 ```bash
-gh issue create \
+claude-skills/scripts/file-issue.sh \
   --title "<short title>" \
-  --label "bug,needs-human-review" \
+  --label "bug" \
   --body "..."
 ```
+
+The helper always appends `needs-human-review` to the caller's `--label`
+list and creates the label on the target repo if missing. Every other flag
+is forwarded to `gh issue create` unchanged. This makes the convention
+org-wide: any repo that has the BSG skills cached gets the behavior
+without per-repo setup.
 
 Opening a non-report PR:
 
@@ -171,13 +177,8 @@ Opening a non-report PR:
 gh pr create ... && gh pr edit <n> --add-label "needs-human-review"
 ```
 
-If the label doesn't exist in a repo, create it once:
-
-```bash
-gh label create "needs-human-review" \
-  --color fbca04 \
-  --description "Awaiting a human decision (triage, merge, or scope)"
-```
+A `file-pr.sh` wrapper for non-report PRs can be added later if the
+pattern shows up often enough to warrant the abstraction.
 
 ### Scripts before LLM
 
