@@ -103,6 +103,7 @@ that most repos already have.
 | `bug` | `d73a4a` (red) | Agents and humans | Standard GitHub label for defects. |
 | `enhancement` | `a2eeef` (cyan) | Agents and humans | Standard GitHub label for feature requests and improvements. |
 | `po`, `security`, `qa`, `tech`, `seo`, `marketing`, `storytelling`, `pr-comms` | `5319e7` (purple) | `file-issue.sh` with `--agent <name>`; agents apply their own on hand-off via `github-bus.sh` | The **bus label** for each agent — one label per agent, sourced from `claude-skills/agents/registry.json`. Every open issue carries exactly one. Enables filtering by ownership (`label:security` = "all security's inbox") and is what `bus_claim` keys off of. |
+| `safe-to-automate` | `c2e0c6` (light green) | **Humans only** | Gate for the `output: commit` pilot (#181). A human has reviewed the issue and declared: "I'm OK with an agent attempting this fix automatically on its next tick." Without this label, agents in `output: commit` mode must not touch the issue. Absence = default-safe. |
 
 Invariant every open item must satisfy — enforced by
 `claude-skills/scripts/audit-labels.sh`:
@@ -133,6 +134,10 @@ for bus in $(jq -r '.agents[].bus_label' claude-skills/agents/registry.json); do
     --color 5319e7 \
     --description "Owned by @$bus (agent bus label from registry.json)"
 done
+
+gh label create safe-to-automate \
+  --color c2e0c6 \
+  --description "Human-applied: this item is safe for an agent's output:commit tick to attempt"
 ```
 
 To verify compliance on any repo:
