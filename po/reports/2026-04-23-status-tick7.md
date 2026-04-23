@@ -1,0 +1,78 @@
+# PO Report — beyond-scale-group/bsg-stack
+
+_Generated: 2026-04-23T00:10:34Z_
+
+## Plan adherence
+
+| Plan item | Bindings | Status | Evidence |
+| --- | --- | --- | --- |
+| Drive a no-change `/tick-all` sweep below 10 k tokens and enforce one-line receipts | #90, #91, #97 | **in_progress** | 3 open issue(s) |
+| Keep `update-bsg-skills.py` resilient so every agent lands on every developer machine | #67 | **in_progress** | 1 open issue(s) |
+| Make every reporting agent's tick receipt a GitHub PR URL, never a local worktree path | #84 | **in_progress** | 1 open issue(s) |
+| Grow the catalog with backlog-hygiene, intent-file, and smarter-bootstrap capabilities | #62, #63, #115 | **in_progress** | 3 open issue(s) |
+| Stop `/learn` from regenerating identical proposals on unchanged sessions | #104 | **in_progress** | 1 open issue(s) |
+| Fix the silent parse-plan.sh failure and ship a plan validator | #128 | **in_progress** | 1 open issue(s) |
+| **E1 tick-hygiene** — make every agent tick cheap, one-line, and idempotent | #90, #91, #97, label:enhancement | **in_progress** | 12 open issue(s), 7 closed issue(s) |
+| **E2 install-reliability** — the updater must never abort mid-sync; every agent must land on every developer machine | #67, label:bug | **in_progress** | 7 open issue(s), 1 closed issue(s) |
+| **E3 agent-pr-contract** — every reporting agent opens a PR via `open-report-pr.sh`; tick receipts contain a GitHub URL, never a local path | #84, label:bug | **in_progress** | 7 open issue(s), 1 closed issue(s) |
+| **E4 catalog-growth** — grow the catalog with `@cleaner`, per-domain intent files, and a smarter `bootstrap-plan.sh` | #62, #63, #115, label:enhancement | **in_progress** | 12 open issue(s), 7 closed issue(s) |
+| **E5 learn-skill-dedup** — the `/learn` skill should short-circuit when no new signal since the prior iteration | #104, label:enhancement | **in_progress** | 10 open issue(s), 7 closed issue(s) |
+| **E6 plan-schema-hygiene** — surface format-mismatch errors from `parse-plan.sh` instead of silently emitting `[]`, and add a plan validator | #128, label:bug | **in_progress** | 7 open issue(s), 1 closed issue(s) |
+| 2026-04-23: Plan bootstrapped from `@po-manager propose plan` session output; first version used `###` headers + narrative paragraphs which `parse-plan.sh` couldn't parse. Rewrote to the bullet-with-inline-tags schema defined in `references/plan-schema.md`. | — | **not_started** | — |
+| 2026-04-23: Established the two-layer worktree cleanup (per-agent unlock in `open-report-pr.sh` + dispatcher-level prune in `/tick-all`) via PR #120 after observing 30+ stale worktrees accumulated across one `/loop 5m /tick-all` session. | — | **not_started** | — |
+| `/tick-all` at a 5-minute `/loop` cadence currently burns ~45 M tokens/day on unchanged state. If E1 is not closed within two weeks, the default recommended cadence in `claude-skills/commands/tick-all.md` should be raised to `30m`. | — | **not_started** | — |
+| `qa` subagent tokens have trended 18 k → 37 k per tick over one session on identical findings; root cause (likely growing report-archive scan) is embedded in E1 but should not be missed. | — | **not_started** | — |
+
+### Summary
+
+- **16** plan items: 0 done · 12 in progress · 0 at-risk · 4 not-started
+- **4** unplanned open issues/PRs (scope creep)
+
+### Scope creep — unplanned in-flight work
+
+- [#159](https://github.com/beyond-scale-group/bsg-stack/pull/159) — report(storytelling): 2026-04-22-audit
+- [#167](https://github.com/beyond-scale-group/bsg-stack/pull/167) — docs: add human-reviewed label + document full BSG label set
+- [#153](https://github.com/beyond-scale-group/bsg-stack/pull/153) — feat(scripts): file-issue.sh — org-wide needs-human-review label
+- [#92](https://github.com/beyond-scale-group/bsg-stack/pull/92) — docs(claude): codify one-line tick receipt + same-day short-circuit
+
+## At a glance
+
+| Metric                         | Value |
+| ------------------------------ | ----- |
+| Open issues                    | 13 |
+| Closed issues                  | 13 |
+| Open PRs                       | 4 |
+| Draft PRs                      | 0 |
+| PRs awaiting review            | 4 |
+| PRs with failing checks        | 0 |
+| Oldest open PR (days)          | 0 |
+| Avg time to first review (h)   | — |
+
+## Top labels (open issues)
+
+| Label | Count |
+| --- | --- |
+| needs-human-review | 13 |
+| human-reviewed | 11 |
+| enhancement | 9 |
+| bug | 6 |
+
+## Open issues by assignee
+
+| Assignee | Open |
+| --- | --- |
+| unassigned | 13 |
+
+## Milestone progress
+
+_No open milestones._
+
+## Stale open issues (no comment activity > 14 days)
+
+_None._
+
+
+
+## Oldest open PR
+
+- [#92](https://github.com/beyond-scale-group/bsg-stack/pull/92) — docs(claude): codify one-line tick receipt + same-day short-circuit _(opened 2026-04-22T22:27:24Z; review: pending; checks: —)_
