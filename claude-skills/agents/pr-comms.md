@@ -15,6 +15,9 @@ color: cyan
 output: pr
 tick: >
   (0) Source `claude-skills/scripts/github-bus.sh` and call `bus_claim pr-comms` to fetch any inbox items — today this returns empty because no `needs:pr-comms` labels exist yet; once routing is active the tick processes them before running the audit (see #199).
+  (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh pr-comms comms)"`.
+  If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
+  Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
   Scan for PR-worthy events since last tick, draft press angles for
   unannounced events, land the report as
   comms/reports/YYYY-MM-DD-events.md via open-report-pr.sh, and stay

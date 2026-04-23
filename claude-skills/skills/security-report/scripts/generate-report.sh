@@ -21,6 +21,7 @@ DATE=$(date +%F)
 REPO=$(jq -r '.repoRoot' "$SNAPSHOT" | xargs -I{} basename {})
 
 cat <<EOF
+<!-- fingerprint: ${TICK_FINGERPRINT:-none} -->
 # Security Audit — $DATE
 
 **Repository:** \`$REPO\`

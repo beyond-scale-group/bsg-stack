@@ -18,6 +18,9 @@ color: purple
 output: pr
 tick: >
   (0) Source `claude-skills/scripts/github-bus.sh` and call `bus_claim po` to fetch any inbox items — today this returns empty because no `needs:po` labels exist yet; once routing is active the tick processes them before running the audit (see #199).
+  (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh po-manager po)"`.
+  If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
+  Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
   (1) Run `reconcile-labels.sh` to project po/PLAN.md bindings onto GitHub
   labels — epic:<slug> on bound issues/PRs, scope-creep on unbound ones
   (idempotent; skip silently if the plan is missing or unparseable).

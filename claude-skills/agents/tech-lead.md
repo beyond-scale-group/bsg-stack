@@ -14,6 +14,9 @@ color: blue
 output: commit
 tick: >
   (0) Source `claude-skills/scripts/github-bus.sh` and call `bus_claim tech` to fetch any inbox items — today this returns empty because no `needs:tech` labels exist yet; once routing is active the tick processes them before running the audit (see #199).
+  (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh tech-lead tech)"`.
+  If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
+  Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
   (A) Run the full architecture health check (deps + quality + debt + ADR gap
   detection). Write the detailed report to tech/reports/YYYY-MM-DD-health.md
   and land it on main via `claude-skills/scripts/open-report-pr.sh`.

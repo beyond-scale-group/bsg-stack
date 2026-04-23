@@ -19,6 +19,7 @@ REPO=$(jq -r '.repoRoot' "$SNAPSHOT" | xargs -I{} basename {})
 TEST_SUITE_FOUND=$(jq -r '.testSuiteFound' "$SNAPSHOT")
 
 cat <<EOF
+<!-- fingerprint: ${TICK_FINGERPRINT:-none} -->
 # QA Audit — $DATE
 
 **Repository:** \`$REPO\`
