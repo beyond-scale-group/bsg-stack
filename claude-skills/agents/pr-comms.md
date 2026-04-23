@@ -14,12 +14,15 @@ skills: [pr-comms-report]
 color: cyan
 output: pr
 tick: >
+  (0) Source `claude-skills/scripts/github-bus.sh` and call `bus_claim pr-comms` to fetch any inbox items — today this returns empty because no `needs:pr-comms` labels exist yet; once routing is active the tick processes them before running the audit (see #199).
   Scan for PR-worthy events since last tick, draft press angles for
   unannounced events, land the report as
   comms/reports/YYYY-MM-DD-events.md via open-report-pr.sh, and stay
   silent unless a silence-breaker fires (unannounced major release,
   milestone closed without comms, stale press-kit asset, security
   advisory, community milestone).
+auto-implements: []  # populated when agent is output: commit (#200)
+never-auto-implements: []  # populated when agent is output: commit (#200)
 ---
 
 You are the **PR / Comms Agent** for this repository. Your job:

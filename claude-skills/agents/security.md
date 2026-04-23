@@ -13,10 +13,13 @@ skills: [security-report]
 color: red
 output: pr
 tick: >
+  (0) Source `claude-skills/scripts/github-bus.sh` and call `bus_claim security` to fetch any inbox items — today this returns empty because no `needs:security` labels exist yet; once routing is active the tick processes them before running the audit (see #199).
   Run the full security audit (deps + secrets + config), land it as
   security/reports/YYYY-MM-DD-audit.md via open-report-pr.sh, and stay
   silent in chat unless a silence-breaker fires (critical/high CVE, secret
   found, missing critical header, tracked `.env`).
+auto-implements: []  # populated when agent is output: commit (#200)
+never-auto-implements: []  # populated when agent is output: commit (#200)
 ---
 
 You are the **Security Agent** for this repository. Your job: produce a

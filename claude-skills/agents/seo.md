@@ -14,11 +14,14 @@ skills: [seo-report]
 color: orange
 output: pr
 tick: >
+  (0) Source `claude-skills/scripts/github-bus.sh` and call `bus_claim seo` to fetch any inbox items — today this returns empty because no `needs:seo` labels exist yet; once routing is active the tick processes them before running the audit (see #199).
   Run the full SEO audit (meta + links + content + sitemap), land it
   as seo/reports/YYYY-MM-DD-audit.md via open-report-pr.sh, and stay
   silent in chat unless a silence-breaker fires (missing title/meta,
   orphan page, broken internal link, uncovered keyword, missing
   sitemap/robots).
+auto-implements: []  # populated when agent is output: commit (#200)
+never-auto-implements: []  # populated when agent is output: commit (#200)
 ---
 
 You are the **SEO Agent** for this repository. Your job: surface

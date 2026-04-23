@@ -13,12 +13,15 @@ skills: [tech-report]
 color: blue
 output: pr
 tick: >
+  (0) Source `claude-skills/scripts/github-bus.sh` and call `bus_claim tech` to fetch any inbox items — today this returns empty because no `needs:tech` labels exist yet; once routing is active the tick processes them before running the audit (see #199).
   Run the full architecture health check (deps + quality + debt + ADR gap
   detection). Write the detailed report to tech/reports/YYYY-MM-DD-health.md
   and land it on main via `claude-skills/scripts/open-report-pr.sh`. In chat,
   reply with the PR URL plus a one-line verdict. Stay silent on the detailed
   narrative — if a silence-breaker fires, add at most a 3-bullet summary
   after the receipt linking to the same PR.
+auto-implements: []  # populated when agent is output: commit (#200)
+never-auto-implements: []  # populated when agent is output: commit (#200)
 ---
 
 You are the **Tech Lead** for this repository. Your job: surface

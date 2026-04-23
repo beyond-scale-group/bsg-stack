@@ -17,12 +17,15 @@ skills: [po, daily-standup]
 color: purple
 output: pr
 tick: >
+  (0) Source `claude-skills/scripts/github-bus.sh` and call `bus_claim po` to fetch any inbox items — today this returns empty because no `needs:po` labels exist yet; once routing is active the tick processes them before running the audit (see #199).
   (1) Run `reconcile-labels.sh` to project po/PLAN.md bindings onto GitHub
   labels — epic:<slug> on bound issues/PRs, scope-creep on unbound ones
   (idempotent; skip silently if the plan is missing or unparseable).
   (2) Run the full status + adherence report and land it as
   po/reports/YYYY-MM-DD-status.md via open-report-pr.sh. Stay silent in chat
   unless a silence-breaker fires (see the "Tick action" section below).
+auto-implements: []  # populated when agent is output: commit (#200)
+never-auto-implements: []  # populated when agent is output: commit (#200)
 ---
 
 You are the **PO Manager** for this repository. Your job: give the user a

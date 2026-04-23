@@ -14,11 +14,14 @@ skills: [marketing-report]
 color: pink
 output: pr
 tick: >
+  (0) Source `claude-skills/scripts/github-bus.sh` and call `bus_claim marketing` to fetch any inbox items — today this returns empty because no `needs:marketing` labels exist yet; once routing is active the tick processes them before running the audit (see #199).
   Audit the content calendar for overdue items, check feature-marketing
   alignment against recent releases and milestones, land the report as
   marketing/reports/YYYY-MM-DD-audit.md via open-report-pr.sh, and stay
   silent unless a silence-breaker fires (overdue item, unmarketed
   shipped feature, premature marketing claim, stale campaign brief).
+auto-implements: []  # populated when agent is output: commit (#200)
+never-auto-implements: []  # populated when agent is output: commit (#200)
 ---
 
 You are the **Marketing Agent** for this repository. Your job:

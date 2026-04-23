@@ -253,6 +253,79 @@ class TestSharedSkills(unittest.TestCase):
                     f"Allowed values: {sorted(ALLOWED_OUTPUT_MODES)}.",
                 )
 
+    # -------------------------------------------------- scope contract (#200)
+
+    def test_every_agent_declares_scope_contract_fields(self) -> None:
+        """Every agent frontmatter must carry `auto-implements` and
+        `never-auto-implements` lists (may be empty for output: pr agents).
+
+        For `output: commit` agents the contract is additionally enforced —
+        both lists must be non-empty so the reviewer can see exactly what
+        the agent will (and won't) attempt automatically. See CLAUDE.md →
+        "Per-agent scope contract" and ticket #200.
+        """
+        agents = list_agents()
+        for path in agents:
+            with self.subTest(agent=path.stem):
+                text = path.read_text()
+                fm_match = FRONTMATTER_RE.match(text)
+                self.assertIsNotNone(fm_match)
+                frontmatter = fm_match.group(1)
+                keys = set(TOP_LEVEL_KEY_RE.findall(frontmatter))
+
+                self.assertIn(
+                    "auto-implements",
+                    keys,
+                    f"{path.relative_to(REPO_ROOT)}: missing `auto-implements:` "
+                    f"in frontmatter. Add an empty list `auto-implements: []` "
+                    f"for output: pr agents; see #200 for the schema.",
+                )
+                self.assertIn(
+                    "never-auto-implements",
+                    keys,
+                    f"{path.relative_to(REPO_ROOT)}: missing "
+                    f"`never-auto-implements:` in frontmatter. Add an empty "
+                    f"list for output: pr agents; see #200 for the schema.",
+                )
+
+                # output: commit tightens the rule — both lists must be
+                # non-empty so the contract is explicit.
+                scalars = dict(FRONTMATTER_SCALAR_RE.findall(frontmatter))
+                if scalars.get("output") == "commit":
+                    auto_line = re.search(
+                        r"^auto-implements:\s*(.*)$", frontmatter, re.MULTILINE
+                    )
+                    never_line = re.search(
+                        r"^never-auto-implements:\s*(.*)$", frontmatter, re.MULTILINE
+                    )
+                    # An empty list is either `[]` on the same line or
+                    # nothing below. If a block form follows, look for a
+                    # `- ` bullet below the key line.
+                    auto_empty = (
+                        auto_line is not None
+                        and auto_line.group(1).strip().startswith("[]")
+                    ) or not re.search(
+                        r"^auto-implements:\s*\n\s*-\s+", frontmatter, re.MULTILINE
+                    )
+                    never_empty = (
+                        never_line is not None
+                        and never_line.group(1).strip().startswith("[]")
+                    ) or not re.search(
+                        r"^never-auto-implements:\s*\n\s*-\s+",
+                        frontmatter,
+                        re.MULTILINE,
+                    )
+                    self.assertFalse(
+                        auto_empty,
+                        f"{path.relative_to(REPO_ROOT)}: output: commit agents "
+                        f"must list at least one `auto-implements` clause.",
+                    )
+                    self.assertFalse(
+                        never_empty,
+                        f"{path.relative_to(REPO_ROOT)}: output: commit agents "
+                        f"must list at least one `never-auto-implements` clause.",
+                    )
+
     # ----------------------------------------------------------- catalog sync
 
     def test_install_md_commands_catalog_in_sync(self) -> None:
