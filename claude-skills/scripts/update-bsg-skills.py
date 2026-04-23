@@ -62,7 +62,7 @@ SCRIPT_NAME = "update-bsg-skills.py"
 BSG_MANAGED_SETTINGS_KEYS = ["autoMemoryEnabled"]
 # Sub-keys under `mcpServers` that the updater owns. Other MCP servers the
 # user has configured are preserved.
-BSG_MANAGED_MCP_SERVERS = ["context7"]
+BSG_MANAGED_MCP_SERVERS = ["context7", "claude-in-chrome"]
 
 CLAUDE_DIR = Path(os.environ.get("CLAUDE_CONFIG_DIR", str(Path.home() / ".claude")))
 COMMANDS_DIR = CLAUDE_DIR / "commands"

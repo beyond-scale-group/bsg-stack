@@ -76,6 +76,7 @@ Currently-managed keys:
 |---|---|
 | `autoMemoryEnabled` | Set to `false` — disables the Claude Code auto-memory system globally so durable context lives in project `CLAUDE.md` files and committed agent outputs (`po/`, reports, etc.) instead of per-project memory stores. |
 | `mcpServers.context7` | Pre-registers the [Context7](https://context7.com) MCP server so documentation lookups (React, Next.js, library APIs, …) are available in every session with no per-session setup. Honors `CONTEXT7_API_KEY` if set; works on the public-rate tier otherwise. |
+| `mcpServers.claude-in-chrome` | Pre-registers the [Chrome MCP](https://www.npmjs.com/package/@anthropic-ai/claude-code-chrome-mcp) server as a fallback when `agent-browser` gets blocked by anti-bot detection, CAPTCHAs, or device-trust checks (LinkedIn, Pappers, Gmail passkey flows, etc.). Connects to the user's real Chrome instance with existing sessions and extensions. |
 
 The merge is **idempotent** and **narrow**:
 
