@@ -102,6 +102,13 @@ that most repos already have.
 | `human-reviewed` | `0e8a16` (green) | **Humans only — agents forbidden** | A human has made a disposition decision on the item: merged, closed, bound to a plan item, or commented with a decision. Proves the audit trail. Only a human GitHub account may apply this label; if a non-human actor ever applies it, that is a bug. |
 | `bug` | `d73a4a` (red) | Agents and humans | Standard GitHub label for defects. |
 | `enhancement` | `a2eeef` (cyan) | Agents and humans | Standard GitHub label for feature requests and improvements. |
+| `po`, `security`, `qa`, `tech`, `seo`, `marketing`, `storytelling`, `pr-comms` | `5319e7` (purple) | `file-issue.sh` with `--agent <name>`; agents apply their own on hand-off via `github-bus.sh` | The **bus label** for each agent — one label per agent, sourced from `claude-skills/agents/registry.json`. Every open issue carries exactly one. Enables filtering by ownership (`label:security` = "all security's inbox") and is what `bus_claim` keys off of. |
+
+Invariant every open item must satisfy — enforced by
+`claude-skills/scripts/audit-labels.sh`:
+
+1. Exactly one bus label (ambiguous ownership = fail)
+2. Exactly one of `needs-human-review` **or** `human-reviewed` (both = forgot to clean up, neither = not triaged)
 
 Why `human-reviewed` matters: agents operate under the developer's own `gh`
 credentials, so GitHub records every agent-driven merge/close/comment under
@@ -110,7 +117,7 @@ the human's account. The label is the one signal that cleanly distinguishes
 apply it as part of the action — `gh pr edit <n> --add-label human-reviewed`
 when they merge — and agents treat its absence as "still unverified."
 
-To bootstrap the two BSG labels on a new repo (one-time, idempotent):
+To bootstrap every BSG label on a new repo (one-time, idempotent):
 
 ```bash
 gh label create needs-human-review \
@@ -120,6 +127,19 @@ gh label create needs-human-review \
 gh label create human-reviewed \
   --color 0e8a16 \
   --description "A human has reviewed and validated this item (agents MUST NOT apply)"
+
+for bus in $(jq -r '.agents[].bus_label' claude-skills/agents/registry.json); do
+  gh label create "$bus" \
+    --color 5319e7 \
+    --description "Owned by @$bus (agent bus label from registry.json)"
+done
+```
+
+To verify compliance on any repo:
+
+```bash
+bash claude-skills/scripts/audit-labels.sh --repo OWNER/NAME
+# → prints each non-compliant item or "audit-labels: PASS"
 ```
 
 ## How it works under the hood
