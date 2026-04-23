@@ -225,15 +225,23 @@ this label under any circumstance. If a non-human actor ever applies it,
 that is a bug in the applying automation. The label marks the *fact* of
 review, not the outcome — merge, close, and defer all count.
 
-How a human applies it, as part of the action:
+How a human applies it — use the shared helper so the merge and the
+label swap are one atomic action:
 
 ```bash
-# When merging a PR
-gh pr merge <n> --squash && gh pr edit <n> --add-label human-reviewed
+claude-skills/scripts/mark-reviewed.sh <pr-number>
 
-# When closing or deciding on an issue
+# Equivalent manual flow (error-prone; session 2026-04-23 left 11 items
+# with both labels because the --remove step was skipped):
+gh pr merge <n> --squash
+gh pr edit <n> --add-label human-reviewed --remove-label needs-human-review
+```
+
+For issues (close + relabel):
+
+```bash
 gh issue close <n> --reason completed
-gh issue edit <n> --add-label human-reviewed
+gh issue edit <n> --add-label human-reviewed --remove-label needs-human-review
 ```
 
 Bootstrap the label once per repo — see `claude-skills/INSTALL.md#github-labels-used-by-bsg-agents`
