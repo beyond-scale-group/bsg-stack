@@ -45,12 +45,18 @@ if [[ -z "$snapshot" ]]; then
 fi
 
 # --- plan items ---
+# Call parse-plan.sh in --typed mode so we can distinguish three cases
+# (#128): file missing, file present but unparseable, ok. Then feed jq
+# the items array plus the plan status separately.
 if [[ -z "$PLAN_PATH" ]]; then
   plan_args=()
 else
   plan_args=(--plan "$PLAN_PATH")
 fi
-plan_json=$(bash "$HERE/parse-plan.sh" "${plan_args[@]}")
+plan_envelope=$(bash "$HERE/parse-plan.sh" --typed "${plan_args[@]}")
+plan_status=$(jq -r '.status' <<<"$plan_envelope")
+plan_reason=$(jq -r '.reason // ""' <<<"$plan_envelope")
+plan_json=$(jq '.items' <<<"$plan_envelope")
 
 # --- milestone risk flags (reuse existing script) ---
 milestones_json=$(printf '%s' "$snapshot" | bash "$HERE/milestone-progress.sh")
@@ -61,10 +67,14 @@ milestones_json=$(printf '%s' "$snapshot" | bash "$HERE/milestone-progress.sh")
 printf '%s' "$snapshot" | jq \
   --argjson plan "$plan_json" \
   --argjson milestones "$milestones_json" \
-  --arg planPath "${PLAN_PATH:-po/PLAN.md}" '
+  --arg planPath "${PLAN_PATH:-po/PLAN.md}" \
+  --arg planStatus "$plan_status" \
+  --arg planReason "$plan_reason" '
   . as $snap
   | $plan as $planItems
-  | ($planItems | length > 0) as $planFound
+  | ($planStatus == "ok") as $planFound
+  | ($planStatus == "missing") as $planMissing
+  | ($planStatus == "unparseable") as $planFormatDrift
 
   # --- per-item status --------------------------------------------------
   | ($planItems | map(
@@ -162,7 +172,11 @@ printf '%s' "$snapshot" | jq \
 
   | {
       planPath: $planPath,
+      planStatus: $planStatus,
       planFound: $planFound,
+      planMissing: $planMissing,
+      planFormatDrift: $planFormatDrift,
+      planReason: $planReason,
       generatedAt: $snap.generatedAt,
       repo: $snap.repo,
       items: $scored,
