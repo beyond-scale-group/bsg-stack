@@ -180,6 +180,46 @@ gh pr create ... && gh pr edit <n> --add-label "needs-human-review"
 A `file-pr.sh` wrapper for non-report PRs can be added later if the
 pattern shows up often enough to warrant the abstraction.
 
+### Label `human-reviewed` — proof a human touched it
+
+Reciprocal to `needs-human-review`. Marks items where a human has made a
+disposition decision: merged, closed, bound to a plan item, or commented
+with a disposition. Because agents operate under the developer's own `gh`
+credentials, GitHub records every agent-driven action under the human's
+account. This label is the one signal that cleanly distinguishes "a human
+actually looked at this" from "Claude ran `gh` as me."
+
+**What counts as review.** A human has reviewed an item when they made a
+disposition call on it:
+
+| Action | Counts as review? |
+|---|---|
+| Read the diff / issue, then merge, close, or bind to a plan item | ✅ Yes |
+| Remove `needs-human-review` as part of acting | ✅ Yes |
+| Comment with a decision (e.g. "defer to Q3", "wontfix", "merge after CI") | ✅ Yes |
+| Glance at a GitHub notification | ❌ No |
+| An agent auto-applies a label | ❌ No |
+| Automation (CI bots, Renovate, Dependabot) | ❌ No |
+
+**Hard rule: only a human may apply `human-reviewed`.** Agents MUST NOT add
+this label under any circumstance. If a non-human actor ever applies it,
+that is a bug in the applying automation. The label marks the *fact* of
+review, not the outcome — merge, close, and defer all count.
+
+How a human applies it, as part of the action:
+
+```bash
+# When merging a PR
+gh pr merge <n> --squash && gh pr edit <n> --add-label human-reviewed
+
+# When closing or deciding on an issue
+gh issue close <n> --reason completed
+gh issue edit <n> --add-label human-reviewed
+```
+
+Bootstrap the label once per repo — see `claude-skills/INSTALL.md#github-labels-used-by-bsg-agents`
+for the full label table and bootstrap commands.
+
 ### Scripts before LLM
 
 Inside a skill, deterministic bash + jq scripts do the aggregation and
