@@ -1,6 +1,6 @@
 {
-  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-a49516b1",
-  "generatedAt": "2026-04-23T00:00:40Z",
+  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-a8b92abd",
+  "generatedAt": "2026-04-23T00:05:30Z",
   "windowDays": 30,
   "flakeWindowDays": 14,
   "coverage": {
@@ -20,11 +20,15 @@
     },
     {
       "path": "qa/history/2026-04-22.json",
-      "commits": 13
+      "commits": 14
     },
     {
       "path": "qa/reports/2026-04-22-audit.md",
-      "commits": 12
+      "commits": 13
+    },
+    {
+      "path": "seo/reports/2026-04-22-audit.md",
+      "commits": 11
     },
     {
       "path": "security/reports/2026-04-22-audit.md",
@@ -35,7 +39,7 @@
       "commits": 11
     },
     {
-      "path": "seo/reports/2026-04-22-audit.md",
+      "path": "marketing/reports/2026-04-22-audit.md",
       "commits": 10
     },
     {
@@ -43,19 +47,15 @@
       "commits": 9
     },
     {
-      "path": "marketing/reports/2026-04-22-audit.md",
-      "commits": 9
-    },
-    {
       "path": "claude-skills/agents/po-manager.md",
       "commits": 9
     },
     {
-      "path": "README.md",
-      "commits": 7
+      "path": "comms/reports/2026-04-22-events.md",
+      "commits": 8
     },
     {
-      "path": "comms/reports/2026-04-22-events.md",
+      "path": "README.md",
       "commits": 7
     },
     {
