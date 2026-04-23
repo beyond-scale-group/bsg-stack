@@ -20,6 +20,7 @@ REPO=$(jq -r '.repoRoot' "$SNAPSHOT" | xargs -I{} basename {})
 TOTAL_PAGES=$(jq '.pages | length' "$SNAPSHOT")
 
 cat <<EOF
+<!-- fingerprint: ${TICK_FINGERPRINT:-none} -->
 # SEO Audit — $DATE
 
 **Repository:** \`$REPO\`

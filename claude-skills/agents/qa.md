@@ -14,6 +14,9 @@ color: green
 output: pr
 tick: >
   (0) Source `claude-skills/scripts/github-bus.sh` and call `bus_claim qa` to fetch any inbox items — today this returns empty because no `needs:qa` labels exist yet; once routing is active the tick processes them before running the audit (see #199).
+  (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh qa qa)"`.
+  If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
+  Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
   Run the full QA audit (coverage + risk + flaky), archive the snapshot to
   qa/history/, land the report as qa/reports/YYYY-MM-DD-audit.md via
   open-report-pr.sh, and stay silent in chat unless a silence-breaker

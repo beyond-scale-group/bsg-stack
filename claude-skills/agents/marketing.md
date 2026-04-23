@@ -15,6 +15,9 @@ color: pink
 output: pr
 tick: >
   (0) Source `claude-skills/scripts/github-bus.sh` and call `bus_claim marketing` to fetch any inbox items — today this returns empty because no `needs:marketing` labels exist yet; once routing is active the tick processes them before running the audit (see #199).
+  (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh marketing marketing)"`.
+  If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
+  Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
   Audit the content calendar for overdue items, check feature-marketing
   alignment against recent releases and milestones, land the report as
   marketing/reports/YYYY-MM-DD-audit.md via open-report-pr.sh, and stay
