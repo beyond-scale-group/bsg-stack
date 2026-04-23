@@ -13,10 +13,13 @@ skills: [qa-report]
 color: green
 output: pr
 tick: >
+  (0) Source `claude-skills/scripts/github-bus.sh` and call `bus_claim qa` to fetch any inbox items — today this returns empty because no `needs:qa` labels exist yet; once routing is active the tick processes them before running the audit (see #199).
   Run the full QA audit (coverage + risk + flaky), archive the snapshot to
   qa/history/, land the report as qa/reports/YYYY-MM-DD-audit.md via
   open-report-pr.sh, and stay silent in chat unless a silence-breaker
   fires (coverage drop > 5%, new high-risk file, new flaky test).
+auto-implements: []  # populated when agent is output: commit (#200)
+never-auto-implements: []  # populated when agent is output: commit (#200)
 ---
 
 You are the **QA Agent** for this repository. Your job: surface quality

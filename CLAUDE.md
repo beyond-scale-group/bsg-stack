@@ -155,6 +155,42 @@ output: chat      # agents that only return a chat summary (no persisted artifac
 A unit test in `claude-skills/tests/test_skills.py` enforces that every agent
 declares a valid `output` field.
 
+### Per-agent scope contract
+
+Every agent frontmatter carries two lists that declare what it will
+and won't attempt automatically when running in `output: commit` mode:
+
+```yaml
+auto-implements:
+  - "label:bug + label:epic:* + label:safe-to-automate"
+  - "LOC estimate <= 30"
+never-auto-implements:
+  - "files under security/*"
+  - "dependency version bumps (belongs to Renovate)"
+```
+
+For today's `output: pr` agents both lists are empty (`[]`) — the
+contract is structural scaffolding for the #181 pilot. When an agent
+flips to `output: commit`, `test_skills.py` requires both lists to
+carry at least one clause so the scope decision is explicit in the
+diff, not implicit in the agent's narrative.
+
+### Coordination bus (GitHub labels as queues)
+
+`claude-skills/scripts/github-bus.sh` exposes `bus_claim`, `bus_lock`,
+`bus_handoff`, `bus_unlock` primitives. The label schema is:
+
+- `needs:<agent>` — inbox item waiting for that agent
+- `agent:lock:<agent>` — mutex held while a tick works on the issue
+- `agent:done` / `agent:blocked` — terminal pipeline states
+
+Every agent's `tick:` starts with step 0: `source github-bus.sh`
+then `bus_claim <name>`. Today the inbox is empty for every agent
+(no `needs:*` labels have been applied yet), so the call is defensive
+plumbing — it runs without effect. Ticket #199 tracks the rest: each
+agent needs a per-role handler that decides what to do with a claimed
+issue. Until that lands, tick behavior is unchanged — audit only.
+
 ### Label `needs-human-review` for human-gated items
 
 Anything that requires a human decision — triage, merge, or scope — must carry
