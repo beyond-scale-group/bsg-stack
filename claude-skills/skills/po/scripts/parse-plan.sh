@@ -6,14 +6,31 @@
 # at least one binding tag. See `references/plan-schema.md` for the
 # grammar.
 #
-# If PLAN.md is missing, emits an empty array "[]" — NOT an error —
-# so downstream adherence can still run and surface "no plan found".
+# Default output (backward-compatible):
+#
+#   [{"raw": "...", "bindings": {...}, ...}, ...]
+#
+# With `--typed`, output is an object that distinguishes three states:
+#
+#   {"status": "ok",          "items": [ ... ]}
+#   {"status": "missing",     "items": [], "reason": "..."}
+#   {"status": "unparseable", "items": [], "reason": "..."}
+#
+# `missing`     — PLAN.md does not exist
+# `unparseable` — PLAN.md exists but contains zero bullets with binding tags
+#                 (format drift — was masquerading as "planFound: false" per #128)
+# `ok`          — at least one bound plan item parsed
+#
+# If PLAN.md is missing in default mode, emits an empty array "[]" —
+# NOT an error — so legacy downstream adherence can still run.
 set -euo pipefail
 
 PLAN_PATH=""
+TYPED=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --plan) PLAN_PATH="$2"; shift 2 ;;
+    --plan)  PLAN_PATH="$2"; shift 2 ;;
+    --typed) TYPED=1; shift ;;
     *) echo "parse-plan.sh: unknown arg: $1" >&2; exit 2 ;;
   esac
 done
@@ -23,19 +40,28 @@ if [[ -z "$PLAN_PATH" ]]; then
 fi
 
 if [[ ! -f "$PLAN_PATH" ]]; then
-  echo '[]'
+  if [[ $TYPED -eq 1 ]]; then
+    jq -n --arg path "$PLAN_PATH" '{
+      status: "missing",
+      items: [],
+      reason: ($path + " does not exist")
+    }'
+  else
+    echo '[]'
+  fi
   exit 0
 fi
 
 # We do the parse in python3 — the tag grammar involves nested brackets
 # and multiple bindings per bullet, which gets fiddly in pure bash.
-python3 - "$PLAN_PATH" <<'PY'
+python3 - "$PLAN_PATH" "$TYPED" <<'PY'
 import json
 import re
 import sys
 from pathlib import Path
 
 path = Path(sys.argv[1])
+typed = sys.argv[2] == "1"
 text = path.read_text()
 
 # One tag: [kind:value]. Kinds we recognise; everything else is preserved
@@ -106,6 +132,20 @@ for lineno, raw_line in enumerate(text.splitlines(), start=1):
         }
     )
 
-json.dump(items, sys.stdout, indent=2)
+if typed:
+    if not items:
+        out = {
+            "status": "unparseable",
+            "items": [],
+            "reason": (
+                f"{path} exists but contains zero bullets with recognised "
+                "binding tags. See references/plan-schema.md for the grammar."
+            ),
+        }
+    else:
+        out = {"status": "ok", "items": items}
+    json.dump(out, sys.stdout, indent=2)
+else:
+    json.dump(items, sys.stdout, indent=2)
 sys.stdout.write("\n")
 PY
