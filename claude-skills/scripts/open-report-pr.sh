@@ -87,10 +87,24 @@ fi
 # parallel, tripping this guard. The dispatcher now spawns each
 # agent with `isolation: "worktree"` so siblings can't contaminate
 # this tree — the strict guard is safe again.
+#
+# `git status --porcelain` emits repo-relative paths. Callers may pass
+# $FILE as an absolute path, so normalise to the same form before
+# comparing. Without this the grep excludes nothing and the guard
+# spuriously fires on the caller's own report file (see #137).
+repo_root="$(git rev-parse --show-toplevel)"
+file_rel="$(python3 -c '
+import os, sys
+# Resolve symlinks on both sides so /tmp vs /private/tmp (macOS) and
+# similar path aliases do not produce a bogus ../../../ relpath.
+f = os.path.realpath(sys.argv[1])
+r = os.path.realpath(sys.argv[2])
+print(os.path.relpath(f, r))
+' "$FILE" "$repo_root")"
 other_dirty=$(
   git status --porcelain -- . \
   | awk '{print substr($0, 4)}' \
-  | grep -v -F -x "$FILE" \
+  | grep -v -F -x "$file_rel" \
   || true
 )
 if [[ -n "$other_dirty" ]]; then
