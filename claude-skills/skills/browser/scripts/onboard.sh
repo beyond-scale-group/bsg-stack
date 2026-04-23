@@ -21,6 +21,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SERVICES=(
   "google|google|https://accounts.google.com|**/myaccount.google.com/**|Google (Gmail, Drive, GCP Console)"
   "github|github|https://github.com/login|**/github.com|GitHub"
+  "hubspot|hubspot|https://app.hubspot.com/login|**/app.hubspot.com/**|HubSpot (CRM, Marketing, Sales)"
+  "yousign|yousign|https://yousign.app/login|**/yousign.app/**|Yousign (e-signatures)"
 )
 
 TIMEOUT=120000  # 2 minutes per login
