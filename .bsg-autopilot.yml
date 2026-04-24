@@ -1,8 +1,12 @@
 # BSG Autopilot — repo-level opt-in for autonomous agent development.
 #
-# When enabled, output:commit agents (tech-lead, seo, qa) pick up
-# eligible issues without requiring per-issue safe-to-automate labels.
-# Agents still open PRs with needs-human-review — they never self-merge.
+# bsg-stack is the demonstrator repo: all agents are active here to
+# showcase the full autonomy pipeline end-to-end.
+#
+# output:commit agents (tech-lead, seo, qa) auto-implement fixes.
+# output:pr agents (po-manager, security, marketing, storytelling,
+# pr-comms) run audits and peer review.
+# Agents never self-merge — every PR carries needs-human-review.
 #
 # See CLAUDE.md → "Autopilot mode" and README.md for the full spec.
 
@@ -10,22 +14,29 @@ enabled: true
 
 agents:
   - tech
+  - seo
   - qa
 
 budget:
   max_prs_per_tick: 1
-  max_prs_per_day: 3
+  max_prs_per_day: 5
   max_loc_per_issue: 30
   max_files_per_issue: 3
   max_issues_per_tick: 3
 
 peer_review:
   tech:
-    reviews: [qa]
+    reviews: [qa, seo]
     criteria: [code-quality, architecture-fit, naming]
   qa:
-    reviews: [tech]
+    reviews: [tech, seo]
     criteria: [test-coverage, regression-risk]
-  security:
+  seo:
     reviews: [tech, qa]
+    criteria: [seo-regression, meta-tag-removal, structured-data]
+  security:
+    reviews: [tech, qa, seo]
     criteria: [secret-patterns, injection-risk, dependency-safety]
+  po:
+    reviews: [tech, qa, seo]
+    criteria: [plan-alignment, scope-creep, epic-binding]
