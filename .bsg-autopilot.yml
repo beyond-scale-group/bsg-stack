@@ -4,8 +4,10 @@
 # showcase the full autonomy pipeline end-to-end.
 #
 # output:commit agents (tech-lead, seo, qa) auto-implement fixes.
-# output:pr agents (po-manager, security, marketing, storytelling,
-# pr-comms) run audits and peer review.
+# output:pr agents with delegates-to (po-manager) file issues for
+# output:commit agents — the PO routes work, others implement.
+# Remaining output:pr agents (security, marketing, storytelling,
+# pr-comms) run audits and peer review only.
 # Agents never self-merge — every PR carries needs-human-review.
 #
 # See CLAUDE.md → "Autopilot mode" and README.md for the full spec.
@@ -16,6 +18,7 @@ agents:
   - tech
   - seo
   - qa
+  - po
 
 budget:
   max_prs_per_tick: 1
