@@ -35,6 +35,12 @@ tick: >
   Otherwise attempt exactly ONE issue per sweep (rank by oldest, tie-break
   by lowest number); see the "Implementation pilot" section below for the
   full procedure. Never self-merge the implementation PR.
+  (C) Peer review (#222 phase 3b): if .bsg-autopilot.yml has a peer_review
+  section listing tech, run `peer-review-candidates.sh --reviewer tech`.
+  For each candidate PR (max 2 per tick): read the diff, check for code
+  quality issues, architecture fit, and naming conventions. Add a review
+  comment and apply `peer-reviewed:tech` label. If issues found, also apply
+  `needs-rework`. Never merge, never apply `human-reviewed`.
   In chat, reply with one line: audit PR URL + pilot outcome (attempted / skipped / blocked).
 auto-implements:
   - "label:bug + label:tech + label:needs-human-review + label:epic:* + (label:safe-to-automate OR .bsg-autopilot.yml authorizes tech)"

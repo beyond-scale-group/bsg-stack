@@ -17,10 +17,16 @@ tick: >
   (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh security security)"`.
   If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
   Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
-  Run the full security audit (deps + secrets + config), land it as
+  (A) Run the full security audit (deps + secrets + config), land it as
   security/reports/YYYY-MM-DD-audit.md via open-report-pr.sh, and stay
   silent in chat unless a silence-breaker fires (critical/high CVE, secret
   found, missing critical header, tracked `.env`).
+  (C) Peer review (#222 phase 3b): if .bsg-autopilot.yml has a peer_review
+  section listing security, run `peer-review-candidates.sh --reviewer security`.
+  For each candidate PR (max 2 per tick): scan the diff for secret patterns,
+  injection risk, and dependency safety. Add a review comment and apply
+  `peer-reviewed:security` label. If issues found, also apply `needs-rework`.
+  Never merge, never apply `human-reviewed`, never auto-approve.
 auto-implements: []
 never-auto-implements:
   - "security fixes must be written and reviewed by humans — never by an agent"

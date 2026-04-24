@@ -306,6 +306,47 @@ The tick gains a phase **(A.5)** between audit and implementation:
 - Every agent-filed issue carries `needs-human-review`
 - `filed-by:*` label distinguishes agent-filed from human-filed
 
+### Peer review (#222 phase 3b)
+
+In autopilot repos, agents can review each other's implementation PRs.
+The tick gains a phase **(C)** after implementation:
+
+1. Agent runs `peer-review-candidates.sh --reviewer <bus_label>`
+2. The script reads the review matrix from `.bsg-autopilot.yml`:
+
+   ```yaml
+   peer_review:
+     tech:
+       reviews: [qa, seo]
+       criteria: [code-quality, architecture-fit, naming]
+     qa:
+       reviews: [tech, seo]
+       criteria: [test-coverage, regression-risk]
+     security:
+       reviews: [tech, qa, seo]
+       criteria: [secret-patterns, injection-risk, dependency-safety]
+   ```
+
+3. For each eligible PR (max 2 per tick): read the diff, evaluate
+   against the agent's criteria, post a review comment
+4. Apply `peer-reviewed:<reviewer>` label after review
+5. If issues found, also apply `needs-rework`
+
+**Hard rules for peer review:**
+- Agents NEVER merge PRs — only comment and label
+- Agents NEVER apply `human-reviewed` — only humans can
+- Security agent NEVER auto-approves — only flags concerns
+- Peer review is advisory, not dispositive
+- A PR with all peer reviews + `needs-human-review` is ready for
+  quick human disposition in the weekly review
+
+**Labels used by peer review:**
+
+| Label | Applied by | Meaning |
+|---|---|---|
+| `peer-reviewed:<agent>` | Reviewing agent | This agent has reviewed the PR |
+| `needs-rework` | Reviewing agent | Issues found — author should address before human review |
+
 ### Coordination bus (GitHub labels as queues)
 
 `claude-skills/scripts/github-bus.sh` exposes `bus_claim`, `bus_lock`,
