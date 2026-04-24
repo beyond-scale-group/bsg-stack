@@ -1,0 +1,31 @@
+# BSG Autopilot — repo-level opt-in for autonomous agent development.
+#
+# When enabled, output:commit agents (tech-lead, seo, qa) pick up
+# eligible issues without requiring per-issue safe-to-automate labels.
+# Agents still open PRs with needs-human-review — they never self-merge.
+#
+# See CLAUDE.md → "Autopilot mode" and README.md for the full spec.
+
+enabled: true
+
+agents:
+  - tech
+  - qa
+
+budget:
+  max_prs_per_tick: 1
+  max_prs_per_day: 3
+  max_loc_per_issue: 30
+  max_files_per_issue: 3
+  max_issues_per_tick: 3
+
+peer_review:
+  tech:
+    reviews: [qa]
+    criteria: [code-quality, architecture-fit, naming]
+  qa:
+    reviews: [tech]
+    criteria: [test-coverage, regression-risk]
+  security:
+    reviews: [tech, qa]
+    criteria: [secret-patterns, injection-risk, dependency-safety]
