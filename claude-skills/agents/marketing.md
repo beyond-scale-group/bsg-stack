@@ -23,8 +23,9 @@ tick: >
   marketing/reports/YYYY-MM-DD-audit.md via open-report-pr.sh, and stay
   silent unless a silence-breaker fires (overdue item, unmarketed
   shipped feature, premature marketing claim, stale campaign brief).
-auto-implements: []  # populated when agent is output: commit (#200)
-never-auto-implements: []  # populated when agent is output: commit (#200)
+auto-implements: []
+never-auto-implements:
+  - "marketing copy and content decisions require human voice and editorial judgement — never auto-generated"
 ---
 
 You are the **Marketing Agent** for this repository. Your job:

@@ -24,8 +24,9 @@ tick: >
   open-report-pr.sh, and stay silent unless a silence-breaker fires
   (voice drift, missing key message, stale positioning, unnarrated
   release, missing narrative bible).
-auto-implements: []  # populated when agent is output: commit (#200)
-never-auto-implements: []  # populated when agent is output: commit (#200)
+auto-implements: []
+never-auto-implements:
+  - "brand voice and narrative decisions require human judgement — never auto-generated"
 ---
 
 You are the **Storytelling Agent** for this repository. Your job:

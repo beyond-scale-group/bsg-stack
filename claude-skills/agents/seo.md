@@ -23,13 +23,30 @@ tick: >
   silent in chat unless a silence-breaker fires (missing title/meta,
   orphan page, broken internal link, uncovered keyword, missing
   sitemap/robots).
-  (B) #216 implementation pilot: run `list-pilot-candidates.sh --agent seo`.
-  If the output is empty, stop. Otherwise attempt exactly ONE issue per sweep
-  (rank by oldest, tie-break by lowest number); see the "Implementation pilot"
-  section below for the full procedure. Never self-merge the implementation PR.
+  (A.5) Audit-to-issue (#222): if .bsg-autopilot.yml lists seo and the audit
+  produced mechanically-fixable findings (missing canonical tag, missing meta
+  description, missing alt text, missing structured data), file up to
+  max_issues_per_tick (default 3) GitHub issues via
+  `file-issue.sh --agent seo --filed-by seo --dedup <fingerprint>`.
+  Each issue carries label:bug + label:seo + label:epic:<plan-item>.
+  Skip if autopilot is not enabled or if the finding doesn't match
+  auto-implements.
+  (B) Implementation pilot (#216, autopilot #221): first run
+  `bash claude-skills/scripts/pilot-circuit-breaker.sh` — if it exits 1,
+  skip phase (B) entirely (daily PR cap reached). Then run
+  `list-pilot-candidates.sh --agent seo`. If the output is empty, stop.
+  Otherwise attempt exactly ONE issue per sweep (rank by oldest, tie-break
+  by lowest number); see the "Implementation pilot" section below for the
+  full procedure. Never self-merge the implementation PR.
+  (C) Peer review (#222 phase 3b): if .bsg-autopilot.yml has a peer_review
+  section listing seo, run `peer-review-candidates.sh --reviewer seo`.
+  For each candidate PR (max 2 per tick): read the diff, check for SEO
+  regressions (removed meta tags, broken canonical, dropped structured data).
+  Add a review comment and apply `peer-reviewed:seo` label. If issues found,
+  also apply `needs-rework`. Never merge, never apply `human-reviewed`.
   In chat, reply with one line: audit PR URL + pilot outcome (attempted / skipped / blocked).
 auto-implements:
-  - "label:bug + label:seo + label:needs-human-review + label:safe-to-automate + label:epic:*"
+  - "label:bug + label:seo + label:needs-human-review + label:epic:* + (label:safe-to-automate OR .bsg-autopilot.yml authorizes seo)"
   - "estimated fix size <= 30 LOC and touches <= 3 files"
   - "finding is a missing HTML element (canonical tag, meta description, alt text, structured data)"
 never-auto-implements:
@@ -115,14 +132,42 @@ Thresholds live here (in the agent's product definition), not in
 the skill's scripts. Scripts emit raw counts; the agent decides
 what counts as "needs attention."
 
-## Implementation pilot (#216)
+## Audit-to-issue pipeline (#222)
+
+When `.bsg-autopilot.yml` lists `seo` and the audit produced
+mechanically-fixable findings, phase (A.5) files GitHub issues.
+
+**Eligible findings** (must match `auto-implements`):
+
+| Finding | Fingerprint | Issue title pattern |
+|---|---|---|
+| Page missing meta description | `seo:missing-meta:<path>` | `Add meta description to <path>` |
+| Page missing canonical tag | `seo:missing-canonical:<path>` | `Add canonical tag to <path>` |
+| Image missing alt text | `seo:missing-alt:<path>:<img>` | `Add alt text to image in <path>` |
+| Missing structured data | `seo:missing-jsonld:<path>` | `Add JSON-LD structured data to <path>` |
+
+**Not eligible** (silence-breaker only):
+- Missing `<title>` (usually structural, not a one-line fix)
+- Orphan pages, broken links (require content/routing decisions)
+- Uncovered keywords (content strategy, not mechanical)
+
+**Procedure:** same as qa — see qa.md "Audit-to-issue pipeline" for
+the numbered steps. Filed issues become phase (B) candidates on the
+next tick.
+
+## Implementation pilot (#216, autopilot #221)
 
 When the tick's phase (B) runs, the procedure is:
+
+0. **Circuit-breaker check.** Run
+   `bash claude-skills/scripts/pilot-circuit-breaker.sh`. If it exits 1
+   (daily PR cap reached), skip phase (B) entirely.
 
 1. **Enumerate candidates** with
    `bash claude-skills/scripts/list-pilot-candidates.sh --agent seo`.
    The script enforces the label filter
-   (`label:bug + label:seo + label:needs-human-review + label:safe-to-automate + label:epic:*`).
+   (`label:bug + label:seo + label:needs-human-review + label:epic:*`
+   plus `label:safe-to-automate` unless `.bsg-autopilot.yml` authorizes seo).
    Empty output → stop.
 
 2. **Pick exactly one candidate** — oldest-first, tie-break by lowest

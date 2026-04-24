@@ -27,8 +27,15 @@ tick: >
   (2) Run the full status + adherence report and land it as
   po/reports/YYYY-MM-DD-status.md via open-report-pr.sh. Stay silent in chat
   unless a silence-breaker fires (see the "Tick action" section below).
-auto-implements: []  # populated when agent is output: commit (#200)
-never-auto-implements: []  # populated when agent is output: commit (#200)
+  (C) Peer review (#222 phase 3b): if .bsg-autopilot.yml has a peer_review
+  section listing po, run `peer-review-candidates.sh --reviewer po`.
+  For each candidate PR (max 2 per tick): check plan alignment, scope-creep
+  risk, and epic binding. Add a review comment and apply `peer-reviewed:po`
+  label. If the PR implements work outside the current plan, also apply
+  `needs-rework`. Never merge, never apply `human-reviewed`.
+auto-implements: []
+never-auto-implements:
+  - "triage and plan decisions require human judgement — no mechanical fix corpus exists"
 ---
 
 You are the **PO Manager** for this repository. Your job: give the user a

@@ -169,11 +169,183 @@ never-auto-implements:
   - "dependency version bumps (belongs to Renovate)"
 ```
 
-For today's `output: pr` agents both lists are empty (`[]`) — the
-contract is structural scaffolding for the #181 pilot. When an agent
-flips to `output: commit`, `test_skills.py` requires both lists to
-carry at least one clause so the scope decision is explicit in the
-diff, not implicit in the agent's narrative.
+Three agents are now `output: commit` with live auto-implementation
+pilots: **tech-lead** (#181), **seo** (#216), and **qa** (#219). Each
+one picks up at most one `safe-to-automate` issue per tick, applies a
+scoped fix (≤ 30 LOC / ≤ 3 files), and opens a PR with
+`needs-human-review` — never self-merging. The remaining five agents
+(`po-manager`, `security`, `marketing`, `storytelling`, `pr-comms`)
+stay `output: pr` with explicit `never-auto-implements` clauses
+documenting *why* auto-implementation is out of scope for their domain.
+
+When an agent is `output: commit`, `test_skills.py` requires both lists
+to carry at least one clause so the scope decision is explicit in the
+diff, not implicit in the agent's narrative. When an agent is
+`output: pr`, `auto-implements` stays empty and `never-auto-implements`
+carries at least one clause explaining the exclusion.
+
+### Enabling auto-implementation on a target repository
+
+To let `output: commit` agents (tech-lead, seo, qa) auto-implement
+fixes in a repository, a human must:
+
+1. **Bootstrap the required labels** (one-time, idempotent):
+
+   ```bash
+   # Inside the target repo:
+   gh label create safe-to-automate \
+     --color c2e0c6 \
+     --description "Human-applied: this item is safe for an agent's output:commit tick to attempt"
+
+   # Plus the standard BSG labels if not already present:
+   gh label create needs-human-review \
+     --color fbca04 \
+     --description "Awaiting a human decision (triage, merge, or scope)"
+
+   for bus in $(jq -r '.agents[].bus_label' claude-skills/agents/registry.json); do
+     gh label create "$bus" \
+       --color 5319e7 \
+       --description "Owned by @$bus (agent bus label from registry.json)"
+   done
+   ```
+
+2. **Feed the backlog.** File or label issues with:
+   - `label:bug` — only bugs are eligible today
+   - The agent's bus label (`tech`, `seo`, or `qa`)
+   - `label:needs-human-review`
+   - `label:safe-to-automate` — **human-only gate** (unless autopilot
+     mode is enabled, see below)
+   - At least one `epic:*` label binding the issue to a plan item
+
+3. **Run the tick** (or let `/loop` / `/schedule` drive it):
+
+   ```bash
+   # Single agent:
+   claude -p "@tech-lead tick"
+
+   # All agents in parallel:
+   /tick-all
+   ```
+
+   The agent's phase (B) calls `list-pilot-candidates.sh --agent <name>`
+   to find eligible issues. If a candidate exists, the agent attempts
+   exactly one fix per sweep, opens a PR with `Fixes #NN` and
+   `needs-human-review`, and reports a one-line receipt.
+
+4. **Review and merge.** The human reviews the PR, merges (or closes),
+   and applies `human-reviewed` via `mark-reviewed.sh <pr-number>`.
+
+The `--repo OWNER/NAME` flag on `list-pilot-candidates.sh` allows
+running against a different repository than the current working
+directory — useful for cross-repo sweeps from a central session.
+
+### Autopilot mode (`.bsg-autopilot.yml`) — #221
+
+For repos with a steady stream of labeled issues, the per-issue
+`safe-to-automate` gate adds friction. **Autopilot mode** replaces the
+per-issue gate with a repo-level opt-in.
+
+Drop a `.bsg-autopilot.yml` at the repo root:
+
+```yaml
+enabled: true
+agents:
+  - tech
+  - seo
+  - qa
+budget:
+  max_prs_per_tick: 1
+  max_prs_per_day: 3
+  max_loc_per_issue: 30
+  max_files_per_issue: 3
+```
+
+When this file exists, is `enabled: true`, and lists the calling agent
+in `agents:`, `list-pilot-candidates.sh` drops the `safe-to-automate`
+label filter. Issues only need `label:bug` + bus label +
+`label:needs-human-review` + `label:epic:*` to be eligible.
+
+The `safe-to-automate` label still works as a per-issue override on
+repos without the file or for agents not listed in `agents:`.
+
+**Daily circuit-breaker.** `pilot-circuit-breaker.sh` counts
+implementation PRs opened today and compares against `max_prs_per_day`
+(default: 3). When the cap is reached, phase (B) is skipped entirely —
+preventing a runaway `/loop` from flooding the repo.
+
+**What stays the same in autopilot mode:**
+- Agents still open PRs with `needs-human-review` — a human merges
+- `never-auto-implements` deny-list still applies
+- 30 LOC / 3 files budget still applies
+- One issue per agent per tick
+- `output: pr` agents are unaffected
+
+### Audit-to-issue pipeline (#222)
+
+In autopilot repos, `output: commit` agents can file GitHub issues
+from their own audit findings — closing the loop from audit to
+implementation without human issue-creation.
+
+The tick gains a phase **(A.5)** between audit and implementation:
+
+1. After phase (A) completes, the agent scans its audit for
+   mechanically-fixable findings that match `auto-implements`
+2. For each finding, it computes a dedup fingerprint
+   (`<agent>:<finding-type>:<path>`) and calls `file-issue.sh` with
+   `--filed-by <agent> --dedup <fingerprint>`
+3. `file-issue.sh` checks for existing open issues with the same
+   fingerprint (idempotent — won't create duplicates)
+4. Filed issues carry `filed-by:<agent>` for traceability
+5. Max `max_issues_per_tick` issues per agent per tick (default 3)
+6. The filed issues become phase (B) candidates on the *next* tick
+
+**Guard rails:**
+- Only findings matching `auto-implements` are eligible
+- Dedup by fingerprint prevents flooding
+- Rate-limited per tick
+- Every agent-filed issue carries `needs-human-review`
+- `filed-by:*` label distinguishes agent-filed from human-filed
+
+### Peer review (#222 phase 3b)
+
+In autopilot repos, agents can review each other's implementation PRs.
+The tick gains a phase **(C)** after implementation:
+
+1. Agent runs `peer-review-candidates.sh --reviewer <bus_label>`
+2. The script reads the review matrix from `.bsg-autopilot.yml`:
+
+   ```yaml
+   peer_review:
+     tech:
+       reviews: [qa, seo]
+       criteria: [code-quality, architecture-fit, naming]
+     qa:
+       reviews: [tech, seo]
+       criteria: [test-coverage, regression-risk]
+     security:
+       reviews: [tech, qa, seo]
+       criteria: [secret-patterns, injection-risk, dependency-safety]
+   ```
+
+3. For each eligible PR (max 2 per tick): read the diff, evaluate
+   against the agent's criteria, post a review comment
+4. Apply `peer-reviewed:<reviewer>` label after review
+5. If issues found, also apply `needs-rework`
+
+**Hard rules for peer review:**
+- Agents NEVER merge PRs — only comment and label
+- Agents NEVER apply `human-reviewed` — only humans can
+- Security agent NEVER auto-approves — only flags concerns
+- Peer review is advisory, not dispositive
+- A PR with all peer reviews + `needs-human-review` is ready for
+  quick human disposition in the weekly review
+
+**Labels used by peer review:**
+
+| Label | Applied by | Meaning |
+|---|---|---|
+| `peer-reviewed:<agent>` | Reviewing agent | This agent has reviewed the PR |
+| `needs-rework` | Reviewing agent | Issues found — author should address before human review |
 
 ### Coordination bus (GitHub labels as queues)
 

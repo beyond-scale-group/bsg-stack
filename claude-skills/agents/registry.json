@@ -4,8 +4,8 @@
   "agents": [
     { "name": "po-manager",   "bus_label": "po",          "output": "pr" },
     { "name": "security",     "bus_label": "security",    "output": "pr" },
-    { "name": "qa",           "bus_label": "qa",          "output": "pr" },
-    { "name": "tech-lead",    "bus_label": "tech",        "output": "pr" },
+    { "name": "qa",           "bus_label": "qa",          "output": "commit" },
+    { "name": "tech-lead",    "bus_label": "tech",        "output": "commit" },
     { "name": "seo",          "bus_label": "seo",         "output": "commit" },
     { "name": "marketing",    "bus_label": "marketing",   "output": "pr" },
     { "name": "storytelling", "bus_label": "storytelling","output": "pr" },
