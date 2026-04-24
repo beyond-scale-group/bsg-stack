@@ -240,13 +240,12 @@ running against a different repository than the current working
 directory — useful for cross-repo sweeps from a central session.
 
 **No repo-level "autopilot" flag exists yet.** Today, the gate is
-per-issue (`safe-to-automate`). A future enhancement could introduce a
-repo-level marker (e.g. a `.bsg-autopilot` file or a GitHub topic) that
-tells agents "this repo opts in to auto-implementation — treat all
-eligible issues as if `safe-to-automate` were present." That would make
-the human's role shift from per-issue labeling to backlog curation:
-file the issues with the right epic + bus label, and agents do the rest.
-Tracked as a future enhancement.
+per-issue (`safe-to-automate`). A planned enhancement (#221) introduces
+a repo-level marker (`.bsg-autopilot.yml`) that tells agents "this repo
+opts in to auto-implementation — treat all eligible issues as if
+`safe-to-automate` were present." That shifts the human's role from
+per-issue labeling to backlog curation: file the issues with the right
+epic + bus label, and agents do the rest.
 
 ### Coordination bus (GitHub labels as queues)
 
