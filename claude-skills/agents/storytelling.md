@@ -15,14 +15,18 @@ color: violet
 output: pr
 tick: >
   (0) Source `claude-skills/scripts/github-bus.sh` and call `bus_claim storytelling` to fetch any inbox items — today this returns empty because no `needs:storytelling` labels exist yet; once routing is active the tick processes them before running the audit (see #199).
+  (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh storytelling brand)"`.
+  If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
+  Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
   Audit public-facing repo assets against brand/NARRATIVE.md (voice
   consistency, key-message coverage, talking points for unnarrated
   releases), land the report as brand/reports/YYYY-MM-DD-audit.md via
   open-report-pr.sh, and stay silent unless a silence-breaker fires
   (voice drift, missing key message, stale positioning, unnarrated
   release, missing narrative bible).
-auto-implements: []  # populated when agent is output: commit (#200)
-never-auto-implements: []  # populated when agent is output: commit (#200)
+auto-implements: []
+never-auto-implements:
+  - "brand voice and narrative decisions require human judgement — never auto-generated"
 ---
 
 You are the **Storytelling Agent** for this repository. Your job:

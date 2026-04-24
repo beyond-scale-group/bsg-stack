@@ -19,6 +19,7 @@ REPO=$(jq -r '.repoRoot' "$SNAPSHOT" | xargs -I{} basename {})
 NARRATIVE_FOUND=$(jq -r '.narrative.found' "$SNAPSHOT")
 
 cat <<EOF
+<!-- fingerprint: ${TICK_FINGERPRINT:-none} -->
 # Brand Audit — $DATE
 
 **Repository:** \`$REPO\`

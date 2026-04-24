@@ -79,13 +79,108 @@ Shareable dependency management presets in [`renovate/`](renovate/) — see
 - `scala.json` — sbt projects (automerge patch/minor, manual major)
 - `react.json` — npm projects (automerge patch/minor, manual major)
 
-### Claude Code Skills
+### Claude Code Skills & Autonomous Agents
 
 Shared [Claude Code](https://claude.com/claude-code) slash commands,
 skills, and subagents live under [`claude-skills/`](claude-skills/) — see
 [`claude-skills/README.md`](claude-skills/README.md) for the component
 overview and [`claude-skills/INSTALL.md`](claude-skills/INSTALL.md) for
 the Claude-driven installer and current catalog.
+
+#### The Autonomy Pipeline
+
+Eight specialized agents audit, implement, and peer-review code across
+every repo in the portfolio. The system runs on a single loop
+(`/tick-all`) and scales from manual per-issue control to full autopilot.
+
+```
+                    Human curates plan & backlog
+                              |
+                              v
+              +-------------------------------+
+              |       po-manager tick          |
+              |  reconcile labels, track plan  |
+              +-------------------------------+
+                              |
+          +-------------------+-------------------+
+          |                   |                   |
+          v                   v                   v
+   +-----------+       +-----------+       +-----------+
+   | tech-lead |       |    seo    |       |    qa     |
+   |   tick    |       |   tick    |       |   tick    |
+   +-----------+       +-----------+       +-----------+
+          |                   |                   |
+    (A) Audit           (A) Audit           (A) Audit
+    report PR           report PR           report PR
+          |                   |                   |
+   (A.5) File issues   (A.5) File issues   (A.5) File issues
+    from findings       from findings       from findings
+          |                   |                   |
+    (B) Implement       (B) Implement       (B) Implement
+    one fix PR          one fix PR          one fix PR
+          |                   |                   |
+    (C) Peer-review     (C) Peer-review     (C) Peer-review
+    other agents' PRs   other agents' PRs   other agents' PRs
+          |                   |                   |
+          +-------------------+-------------------+
+                              |
+                              v
+              +-------------------------------+
+              |       security tick            |
+              |  audit + peer-review all PRs   |
+              +-------------------------------+
+                              |
+                              v
+                    Human reviews weekly
+```
+
+**Three operating modes**, configured per repo:
+
+| Mode | Gate | Human effort | Config |
+|------|------|-------------|--------|
+| **Pilot** | Per-issue `safe-to-automate` label | Label each issue, review each PR | Default |
+| **Autopilot** | Repo-level `.bsg-autopilot.yml` | Curate backlog, review PRs | Drop config file in repo |
+| **Full autonomy** | Agents file + implement + peer-review | Set objectives, review weekly | Enable `peer_review:` in config |
+
+**Autopilot config** (`.bsg-autopilot.yml` at repo root):
+
+```yaml
+enabled: true
+agents: [tech, seo, qa]
+budget:
+  max_prs_per_day: 3
+  max_issues_per_tick: 3
+peer_review:
+  tech:
+    reviews: [qa, seo]
+    criteria: [code-quality, architecture-fit]
+  qa:
+    reviews: [tech, seo]
+    criteria: [test-coverage, regression-risk]
+  security:
+    reviews: [tech, qa, seo]
+    criteria: [secret-patterns, injection-risk]
+```
+
+**Safety invariants that never change:**
+- Agents open PRs with `needs-human-review` — they never self-merge
+- `never-auto-implements` deny-list always applies (30 LOC / 3 files max)
+- Security agent never auto-approves — only flags
+- `human-reviewed` label can only be applied by a human
+- Daily circuit-breaker caps total implementation PRs
+
+**The eight agents:**
+
+| Agent | Role | Output mode |
+|-------|------|-------------|
+| `po-manager` | Plan adherence, backlog triage, sprint health | Report PR |
+| `tech-lead` | Architecture health, dependency lag, tech debt | Implements fixes |
+| `qa` | Test coverage, regression risk, flaky tests | Implements tests |
+| `seo` | Meta tags, internal links, structured data | Implements HTML fixes |
+| `security` | Vulnerabilities, secrets, OWASP gaps | Report PR + peer review |
+| `marketing` | Content calendar, feature-marketing alignment | Report PR |
+| `storytelling` | Brand voice, narrative consistency | Report PR |
+| `pr-comms` | Press-worthy events, announcement drafts | Report PR |
 
 ---
 

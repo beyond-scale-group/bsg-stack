@@ -55,9 +55,9 @@ No git clone, no script to run, no cron to set up.
 |------|-------------|
 | `po-manager` | Product owner / project manager orchestrator subagent. Delegated to for plan adherence, backlog triage, milestone progress, sprint health, stale ticket detection, standup summaries. Uses the `po` skill and `daily-standup` for meeting parsing. Does not implement features. |
 | `security` | Security posture auditor subagent. Delegated to for "security audit", "vulnerability scan", "secret scan", "OWASP check", "are we secure". Uses the `security-report` skill for deps / secrets / headers / OWASP heuristics. Reports only — does not remediate, upgrade packages, or edit source. |
-| `qa` | Quality-assurance auditor subagent. Delegated to for "test coverage", "regression risk", "flaky tests", "QA audit", "quality report". Uses the `qa-report` skill for coverage / risk / flake analysis. Reports only — does not write tests or execute the test suite. |
-| `tech-lead` | Virtual senior developer / CTO subagent. Delegated to for "architecture review", "dependency health", "tech debt", "code quality", "ADR", "complexity". Uses the `tech-report` skill for deps / quality / debt / ADR gap detection. Reports only — does not refactor or choose frameworks. |
-| `seo` | SEO auditor subagent. Delegated to for "SEO audit", "meta tags", "sitemap", "internal links", "content gaps", "structured data". Uses the `seo-report` skill for meta / links / content / technical / structured-data analysis. Reports only — does not write meta tags or author content. |
+| `qa` | Quality-assurance auditor subagent (`output: commit`). Delegated to for "test coverage", "regression risk", "flaky tests", "QA audit", "quality report". Uses the `qa-report` skill for coverage / risk / flake analysis. Auto-implements missing regression tests for issues labeled `bug + qa + safe-to-automate + epic:*` (#219 pilot). |
+| `tech-lead` | Virtual senior developer / CTO subagent (`output: commit`). Delegated to for "architecture review", "dependency health", "tech debt", "code quality", "ADR", "complexity". Uses the `tech-report` skill for deps / quality / debt / ADR gap detection. Auto-implements scoped bug fixes for issues labeled `bug + tech + safe-to-automate + epic:*` (#181 pilot). |
+| `seo` | SEO auditor subagent (`output: commit`). Delegated to for "SEO audit", "meta tags", "sitemap", "internal links", "content gaps", "structured data". Uses the `seo-report` skill for meta / links / content / technical / structured-data analysis. Auto-implements mechanical HTML fixes for issues labeled `bug + seo + safe-to-automate + epic:*` (#216 pilot). |
 | `marketing` | Marketing auditor subagent. Delegated to for "marketing audit", "content calendar", "campaign brief", "feature alignment", "landing page check". Uses the `marketing-report` skill to detect overdue content, unmarketed releases, premature claims, and stale campaign briefs. Reports and drafts brief stubs only — does not write copy or launch campaigns. |
 | `storytelling` | Brand narrative auditor subagent. Delegated to for "brand audit", "narrative check", "voice consistency", "talking points", "positioning", "tone of voice". Uses the `storytelling-report` skill for voice scoring, key-message alignment, positioning staleness, and talking-point drafting. Reports only — never edits the narrative bible or final copy. |
 | `pr-comms` | PR / communications subagent. Delegated to for "press release", "announcement draft", "PR events", "press kit", "communication plan", "newsworthy". Uses the `pr-comms-report` skill for event classification, press-kit freshness, and draft-stub generation. Drafts only — never publishes, contacts journalists, or responds to security incidents. |
@@ -147,6 +147,61 @@ To verify compliance on any repo:
 bash claude-skills/scripts/audit-labels.sh --repo OWNER/NAME
 # → prints each non-compliant item or "audit-labels: PASS"
 ```
+
+## Enabling auto-implementation on a target repository
+
+Three agents — `tech-lead`, `seo`, and `qa` — run in `output: commit`
+mode: alongside their normal audit, their tick's phase (B) picks up
+human-gated issues and attempts a scoped fix (≤ 30 LOC, ≤ 3 files),
+opening a PR with `needs-human-review` for a human to merge or close.
+
+**Prerequisites for the target repo:**
+
+1. The BSG labels must exist (see bootstrap commands above) — in
+   particular `safe-to-automate` and the bus labels (`tech`, `seo`,
+   `qa`).
+
+2. Issues must carry the full label set to be eligible:
+   `label:bug` + agent bus label + `label:needs-human-review` +
+   `label:safe-to-automate` + at least one `label:epic:*`.
+
+3. The `safe-to-automate` label is the human gate — only a human may
+   apply it. Its presence on an issue is the signal "I'm OK with an
+   agent attempting this fix."
+
+**Enumeration script:**
+
+```bash
+# List candidates for a specific agent (defaults to current repo):
+bash claude-skills/scripts/list-pilot-candidates.sh --agent qa
+
+# Cross-repo usage:
+bash claude-skills/scripts/list-pilot-candidates.sh --agent tech --repo OWNER/NAME
+```
+
+**What the agent does per tick:**
+
+- Calls `list-pilot-candidates.sh --agent <name>`
+- Picks exactly one candidate (oldest first, tie-break by lowest number)
+- Checks the issue against its `auto-implements` allow-list and
+  `never-auto-implements` deny-list
+- Creates branch `reports/<agent>/#NN-attempt`, applies the fix
+- Opens a PR titled `fix(<agent>-pilot): <title> (#NN)` with
+  `Fixes #NN` and `needs-human-review`
+- Never auto-merges; never applies `human-reviewed`
+
+**Agents that do NOT auto-implement** (and why):
+
+| Agent | Reason |
+|---|---|
+| `po-manager` | Triage and plan decisions require human judgement |
+| `security` | Security fixes must be written and reviewed by humans |
+| `marketing` | Copywriting and content decisions require human voice |
+| `storytelling` | Brand voice decisions require human judgement |
+| `pr-comms` | Press copy requires human approval by definition |
+
+Each of these carries an explicit `never-auto-implements` clause in
+frontmatter so the exclusion is a documented decision, not a TODO.
 
 ## How it works under the hood
 

@@ -19,6 +19,7 @@ REPO=$(jq -r '.repoRoot' "$SNAPSHOT" | xargs -I{} basename {})
 VIS=$(jq -r '.visibility' "$SNAPSHOT")
 
 cat <<EOF
+<!-- fingerprint: ${TICK_FINGERPRINT:-none} -->
 # PR / Comms Events — $DATE
 
 **Repository:** \`$REPO\` (visibility: $VIS)

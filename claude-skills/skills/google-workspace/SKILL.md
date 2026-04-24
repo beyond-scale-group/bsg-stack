@@ -196,7 +196,8 @@ Quick taste:
 
 ```bash
 gws gmail +triage --max 10 --format table
-gws gmail +send --to alice@x.com --subject 'Ping' --body 'hi'
+gws gmail +send --to alice@x.com --subject 'Ping' \
+  --body '<p>Hi Alice!</p>' --html
 gws calendar +agenda --today --format table
 gws calendar +insert --summary 'Review' \
   --start '2026-04-17T10:00:00+02:00' --end '2026-04-17T10:30:00+02:00' \
@@ -245,6 +246,10 @@ discover via `gws <svc> --help` and `gws schema <svc.res.method>`.
 
 ## Agent-friendly conventions
 
+- **`--html` on all emails** — always pass `--html` to `gws gmail +send`
+  (both send and `--draft`). Compose the `--body` as HTML (`<p>`, `<a>`,
+  `<img>`, `<strong>`). HTML renders clickable links, inline images, and
+  proper formatting. Plain text looks broken in modern email clients.
 - **`--dry-run`** validates the request locally without calling Google. Use
   it to verify shape before any mutating call.
 - **`--format json`** (default) for parsing; `--format table` for humans;

@@ -14,16 +14,36 @@ color: blue
 output: commit
 tick: >
   (0) Source `claude-skills/scripts/github-bus.sh` and call `bus_claim tech` to fetch any inbox items — today this returns empty because no `needs:tech` labels exist yet; once routing is active the tick processes them before running the audit (see #199).
+  (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh tech-lead tech)"`.
+  If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
+  Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
   (A) Run the full architecture health check (deps + quality + debt + ADR gap
   detection). Write the detailed report to tech/reports/YYYY-MM-DD-health.md
   and land it on main via `claude-skills/scripts/open-report-pr.sh`.
-  (B) #181 implementation pilot: run `list-pilot-candidates.sh --agent tech`.
-  If the output is empty, stop. Otherwise attempt exactly ONE issue per sweep
-  (rank by oldest, tie-break by lowest number); see the "Implementation pilot"
-  section below for the full procedure. Never self-merge the implementation PR.
+  (A.5) Audit-to-issue (#222): if .bsg-autopilot.yml lists tech and the audit
+  produced mechanically-fixable findings (stale TODO with clear fix, oversized
+  file with obvious split point, missing ADR for a new dependency), file up to
+  max_issues_per_tick (default 3) GitHub issues via
+  `file-issue.sh --agent tech-lead --filed-by tech --dedup <fingerprint>`.
+  Each issue carries label:bug + label:tech + label:epic:<plan-item>.
+  Skip if autopilot is not enabled or if the finding doesn't match
+  auto-implements.
+  (B) Implementation pilot (#181, autopilot #221): first run
+  `bash claude-skills/scripts/pilot-circuit-breaker.sh` — if it exits 1,
+  skip phase (B) entirely (daily PR cap reached). Then run
+  `list-pilot-candidates.sh --agent tech`. If the output is empty, stop.
+  Otherwise attempt exactly ONE issue per sweep (rank by oldest, tie-break
+  by lowest number); see the "Implementation pilot" section below for the
+  full procedure. Never self-merge the implementation PR.
+  (C) Peer review (#222 phase 3b): if .bsg-autopilot.yml has a peer_review
+  section listing tech, run `peer-review-candidates.sh --reviewer tech`.
+  For each candidate PR (max 2 per tick): read the diff, check for code
+  quality issues, architecture fit, and naming conventions. Add a review
+  comment and apply `peer-reviewed:tech` label. If issues found, also apply
+  `needs-rework`. Never merge, never apply `human-reviewed`.
   In chat, reply with one line: audit PR URL + pilot outcome (attempted / skipped / blocked).
 auto-implements:
-  - "label:bug + label:tech + label:needs-human-review + label:safe-to-automate + label:epic:*"
+  - "label:bug + label:tech + label:needs-human-review + label:epic:* + (label:safe-to-automate OR .bsg-autopilot.yml authorizes tech)"
   - "estimated fix size <= 30 LOC and touches <= 3 files"
   - "bug description contains reproducible failure case or explicit expected/actual behaviour"
 never-auto-implements:
@@ -112,14 +132,40 @@ Thresholds live here (in the agent's product definition), not in
 the skill's scripts. The scripts emit raw counts; the agent decides
 what counts as "needs attention."
 
-## Implementation pilot (#181)
+## Audit-to-issue pipeline (#222)
+
+When `.bsg-autopilot.yml` lists `tech` and the audit produced
+mechanically-fixable findings, phase (A.5) files GitHub issues.
+
+**Eligible findings** (must match `auto-implements`):
+
+| Finding | Fingerprint | Issue title pattern |
+|---|---|---|
+| Stale TODO with clear fix | `tech:stale-todo:<path>:<line>` | `Resolve stale TODO in <path>:<line>` |
+| Oversized file (>500 LOC, obvious split) | `tech:oversized:<path>` | `Split oversized file <path> (N LOC)` |
+
+**Not eligible** (silence-breaker only):
+- Dependencies behind (owned by Renovate)
+- Circular deps (architectural decision)
+- Undocumented ADR (requires human design input)
+
+**Procedure:** same as qa — see qa.md "Audit-to-issue pipeline" for
+the numbered steps. Filed issues become phase (B) candidates on the
+next tick.
+
+## Implementation pilot (#181, autopilot #221)
 
 When the tick's phase (B) runs, the procedure is:
 
+0. **Circuit-breaker check.** Run
+   `bash claude-skills/scripts/pilot-circuit-breaker.sh`. If it exits 1
+   (daily PR cap reached), skip phase (B) entirely.
+
 1. **Enumerate candidates** with
    `bash claude-skills/scripts/list-pilot-candidates.sh --agent tech`.
-   The script enforces the triple-label filter
-   (`label:bug + label:tech + label:needs-human-review + label:safe-to-automate + label:epic:*`).
+   The script enforces the label filter
+   (`label:bug + label:tech + label:needs-human-review + label:epic:*`
+   plus `label:safe-to-automate` unless `.bsg-autopilot.yml` authorizes tech).
    Empty output → stop.
 
 2. **Pick exactly one candidate** — oldest-first, tie-break by lowest

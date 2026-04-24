@@ -326,6 +326,59 @@ class TestSharedSkills(unittest.TestCase):
                         f"must list at least one `never-auto-implements` clause.",
                     )
 
+    # ---------------------------------------- registry/frontmatter alignment
+
+    def test_registry_output_matches_frontmatter(self) -> None:
+        """registry.json output field must match the agent's frontmatter."""
+        import json
+
+        registry_path = SKILLS_DIR / "agents" / "registry.json"
+        if not registry_path.is_file():
+            self.skipTest("registry.json not found")
+        registry = json.loads(registry_path.read_text())
+        agent_map = {a["name"]: a["output"] for a in registry["agents"]}
+
+        for path in list_agents():
+            name = path.stem
+            if name not in agent_map:
+                continue
+            with self.subTest(agent=name):
+                text = path.read_text()
+                fm_match = FRONTMATTER_RE.match(text)
+                self.assertIsNotNone(fm_match)
+                scalars = dict(FRONTMATTER_SCALAR_RE.findall(fm_match.group(1)))
+                self.assertEqual(
+                    scalars.get("output"),
+                    agent_map[name],
+                    f"{name}: registry.json says output={agent_map[name]} but "
+                    f"frontmatter says output={scalars.get('output')}.",
+                )
+
+    # ----------------------------------------- output:pr agents have exclusions
+
+    def test_pr_agents_have_never_auto_implements_clauses(self) -> None:
+        """output: pr agents must carry at least one never-auto-implements clause."""
+        for path in list_agents():
+            with self.subTest(agent=path.stem):
+                text = path.read_text()
+                fm_match = FRONTMATTER_RE.match(text)
+                self.assertIsNotNone(fm_match)
+                frontmatter = fm_match.group(1)
+                scalars = dict(FRONTMATTER_SCALAR_RE.findall(frontmatter))
+                if scalars.get("output") != "pr":
+                    continue
+                never_has_items = re.search(
+                    r"^never-auto-implements:\s*\n\s*-\s+",
+                    frontmatter,
+                    re.MULTILINE,
+                )
+                self.assertTrue(
+                    never_has_items,
+                    f"{path.relative_to(REPO_ROOT)}: output: pr agents must "
+                    f"carry at least one never-auto-implements clause "
+                    f"explaining why auto-implementation is out of scope.",
+                )
+
     # ----------------------------------------------------------- catalog sync
 
     def test_install_md_commands_catalog_in_sync(self) -> None:

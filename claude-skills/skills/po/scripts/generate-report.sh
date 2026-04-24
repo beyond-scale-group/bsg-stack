@@ -38,6 +38,7 @@ oldest_pr_age=$(printf '%s' "$status_json"    | jq -r '.pullRequests.oldestOpenA
 avg_review_h=$(printf '%s' "$status_json"     | jq -r '.pullRequests.avgTimeToFirstReviewHours // "—"')
 
 cat <<MD
+<!-- fingerprint: ${TICK_FINGERPRINT:-none} -->
 # PO Report — ${repo}
 
 _Generated: ${generated_at}_
