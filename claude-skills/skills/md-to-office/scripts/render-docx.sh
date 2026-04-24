@@ -40,8 +40,6 @@ fi
 args=(-f markdown -t docx -o "$output")
 if [[ -n "$template" && -f "$template" ]]; then
   args+=(--reference-doc="$template")
-else
-  echo "⚠️  no brand template found — rendering unbranded DOCX" >&2
 fi
 
 pandoc "${args[@]}" "$input"

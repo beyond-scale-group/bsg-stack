@@ -3,10 +3,13 @@
 #
 # Usage:
 #   md-to-office.sh <input.md> [--target docx] [--template <path>] [--out <path>] [--force]
+#   md-to-office.sh --init [--force] [--tokens-only]
 #   md-to-office.sh --install [--dry-run]
 #
-# PR #1 scope: DOCX only. PPTX and XLSX renderers land in follow-up
-# PRs per PRD-008 §12.
+# --init scans this repo for brand signals (CSS variables, Tailwind config,
+#   package.json, README…) and generates brand/templates/ so future renders
+#   are automatically branded. Safe to re-run with --force after editing
+#   brand/tokens.json.
 #
 # Writes <input>.docx next to the source by default (or --out if given).
 # Idempotent: if output exists and is newer than input, skip unless
@@ -30,6 +33,11 @@ force=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help) usage 0 ;;
+    --init)
+      shift
+      bash "$here/init-brand.sh" "$@"
+      exit $?
+      ;;
     --install)
       shift
       bash "$here/install-local.sh" "$@"
@@ -85,6 +93,20 @@ if [[ -n "$template" ]]; then
   resolve_args+=(--override "$template")
 fi
 resolved="$(bash "$here/resolve-template.sh" "${resolve_args[@]}")"
+
+# No template found: show contextual onboarding message.
+if [[ -z "$resolved" ]]; then
+  if [[ ! -d "./brand" && ! -d "./brand/templates" ]]; then
+    echo "" >&2
+    echo "ℹ️  No brand standard found for this repo." >&2
+    echo "   Run once to analyse it and generate branded templates:" >&2
+    echo "   md-to-office.sh --init" >&2
+    echo "   Rendering unbranded for now." >&2
+    echo "" >&2
+  else
+    echo "⚠️  brand/templates/ not found. Run 'md-to-office.sh --init' to generate templates." >&2
+  fi
+fi
 
 render_args=("$src" "$out")
 if [[ -n "$resolved" ]]; then

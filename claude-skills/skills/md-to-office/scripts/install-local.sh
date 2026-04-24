@@ -4,8 +4,8 @@
 # Usage:
 #   install-local.sh [--dry-run]
 #
-# PR #1 scope: pandoc only. python-pptx and openpyxl install lines will
-# be added by the PPTX / XLSX PRs per PRD-008 §12.
+# Installs: pandoc (DOCX renderer) + python-docx, python-pptx, openpyxl
+# (brand template generation via --init).
 
 set -euo pipefail
 
@@ -47,4 +47,21 @@ if ! command -v pandoc >/dev/null 2>&1; then
   esac
 else
   echo "pandoc already installed: $(pandoc --version | head -n1)"
+fi
+
+# Python packages for brand template generation (--init).
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "python3 not found — skipping Python deps (install python3 to enable --init)" >&2
+else
+  PYTHON_DEPS=(python-docx python-pptx openpyxl)
+  missing=()
+  for dep in "${PYTHON_DEPS[@]}"; do
+    pkg="${dep//-/_}"  # pip name → importable name heuristic
+    python3 -c "import ${pkg%%[<>=]*}" 2>/dev/null || missing+=("$dep")
+  done
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    run python3 -m pip install --quiet "${missing[@]}"
+  else
+    echo "Python deps already installed: ${PYTHON_DEPS[*]}"
+  fi
 fi
