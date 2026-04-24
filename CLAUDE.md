@@ -169,11 +169,84 @@ never-auto-implements:
   - "dependency version bumps (belongs to Renovate)"
 ```
 
-For today's `output: pr` agents both lists are empty (`[]`) — the
-contract is structural scaffolding for the #181 pilot. When an agent
-flips to `output: commit`, `test_skills.py` requires both lists to
-carry at least one clause so the scope decision is explicit in the
-diff, not implicit in the agent's narrative.
+Three agents are now `output: commit` with live auto-implementation
+pilots: **tech-lead** (#181), **seo** (#216), and **qa** (#219). Each
+one picks up at most one `safe-to-automate` issue per tick, applies a
+scoped fix (≤ 30 LOC / ≤ 3 files), and opens a PR with
+`needs-human-review` — never self-merging. The remaining five agents
+(`po-manager`, `security`, `marketing`, `storytelling`, `pr-comms`)
+stay `output: pr` with explicit `never-auto-implements` clauses
+documenting *why* auto-implementation is out of scope for their domain.
+
+When an agent is `output: commit`, `test_skills.py` requires both lists
+to carry at least one clause so the scope decision is explicit in the
+diff, not implicit in the agent's narrative. When an agent is
+`output: pr`, `auto-implements` stays empty and `never-auto-implements`
+carries at least one clause explaining the exclusion.
+
+### Enabling auto-implementation on a target repository
+
+To let `output: commit` agents (tech-lead, seo, qa) auto-implement
+fixes in a repository, a human must:
+
+1. **Bootstrap the required labels** (one-time, idempotent):
+
+   ```bash
+   # Inside the target repo:
+   gh label create safe-to-automate \
+     --color c2e0c6 \
+     --description "Human-applied: this item is safe for an agent's output:commit tick to attempt"
+
+   # Plus the standard BSG labels if not already present:
+   gh label create needs-human-review \
+     --color fbca04 \
+     --description "Awaiting a human decision (triage, merge, or scope)"
+
+   for bus in $(jq -r '.agents[].bus_label' claude-skills/agents/registry.json); do
+     gh label create "$bus" \
+       --color 5319e7 \
+       --description "Owned by @$bus (agent bus label from registry.json)"
+   done
+   ```
+
+2. **Feed the backlog.** File or label issues with:
+   - `label:bug` — only bugs are eligible today
+   - The agent's bus label (`tech`, `seo`, or `qa`)
+   - `label:needs-human-review`
+   - `label:safe-to-automate` — **human-only gate**; its presence is the
+     signal "I'm OK with an agent attempting this"
+   - At least one `epic:*` label binding the issue to a plan item
+
+3. **Run the tick** (or let `/loop` / `/schedule` drive it):
+
+   ```bash
+   # Single agent:
+   claude -p "@tech-lead tick"
+
+   # All agents in parallel:
+   /tick-all
+   ```
+
+   The agent's phase (B) calls `list-pilot-candidates.sh --agent <name>`
+   to find eligible issues. If a candidate exists, the agent attempts
+   exactly one fix per sweep, opens a PR with `Fixes #NN` and
+   `needs-human-review`, and reports a one-line receipt.
+
+4. **Review and merge.** The human reviews the PR, merges (or closes),
+   and applies `human-reviewed` via `mark-reviewed.sh <pr-number>`.
+
+The `--repo OWNER/NAME` flag on `list-pilot-candidates.sh` allows
+running against a different repository than the current working
+directory — useful for cross-repo sweeps from a central session.
+
+**No repo-level "autopilot" flag exists yet.** Today, the gate is
+per-issue (`safe-to-automate`). A future enhancement could introduce a
+repo-level marker (e.g. a `.bsg-autopilot` file or a GitHub topic) that
+tells agents "this repo opts in to auto-implementation — treat all
+eligible issues as if `safe-to-automate` were present." That would make
+the human's role shift from per-issue labeling to backlog curation:
+file the issues with the right epic + bus label, and agents do the rest.
+Tracked as a future enhancement.
 
 ### Coordination bus (GitHub labels as queues)
 
