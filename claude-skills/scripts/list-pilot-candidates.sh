@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
-# list-pilot-candidates.sh — enumerate issues that match the #181 pilot filter.
+# list-pilot-candidates.sh — enumerate issues eligible for auto-implementation.
 #
 # Returns open issues that satisfy ALL of:
 #   - label matches the caller's bus label (default: tech)
 #   - label:bug
 #   - label:needs-human-review
-#   - label:safe-to-automate
+#   - label:safe-to-automate  (skipped when .bsg-autopilot.yml authorizes the agent)
 #   - at least one epic:* label
 #   - has no open PR already referencing it (agent didn't start work yet)
 #
-# The strict filter is the safety contract of the #181 pilot — no
-# label, no implementation attempt. `safe-to-automate` is human-only:
-# its presence is the gate that says "I'm OK with an agent attempting
-# this."
+# When .bsg-autopilot.yml exists, is enabled, and lists the calling agent,
+# the safe-to-automate label filter is dropped — the repo-level marker
+# replaces the per-issue gate. See #221.
 #
 # Usage:
 #   bash claude-skills/scripts/list-pilot-candidates.sh [--agent NAME] [--repo OWNER/NAME]
@@ -36,14 +35,28 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Pull open issues carrying all three required non-epic labels. GitHub's
-# search API AND-s labels when multiple --label flags are passed.
+# Determine whether to require safe-to-automate or use autopilot mode.
+REQUIRE_SAFE_TO_AUTOMATE=true
+if [[ -f .bsg-autopilot.yml ]]; then
+  enabled=$(grep -E '^\s*enabled\s*:' .bsg-autopilot.yml 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
+  if [[ "$enabled" == "true" ]]; then
+    # Check if this agent is in the agents list.
+    if grep -qE "^\s*-\s+$AGENT\s*$" .bsg-autopilot.yml 2>/dev/null; then
+      REQUIRE_SAFE_TO_AUTOMATE=false
+    fi
+  fi
+fi
+
+LABEL_FLAGS=(--label "$AGENT" --label "bug" --label "needs-human-review")
+if [[ "$REQUIRE_SAFE_TO_AUTOMATE" == "true" ]]; then
+  LABEL_FLAGS+=(--label "safe-to-automate")
+fi
+
+# Pull open issues carrying all required labels. GitHub's search API
+# AND-s labels when multiple --label flags are passed.
 candidates_json=$(gh issue list "${REPO_FLAG[@]}" \
   --state open \
-  --label "$AGENT" \
-  --label "bug" \
-  --label "needs-human-review" \
-  --label "safe-to-automate" \
+  "${LABEL_FLAGS[@]}" \
   --json number,title,labels,url \
   2>/dev/null || echo "[]")
 

@@ -21,13 +21,16 @@ tick: >
   qa/history/, land the report as qa/reports/YYYY-MM-DD-audit.md via
   open-report-pr.sh, and stay silent in chat unless a silence-breaker
   fires (coverage drop > 5%, new high-risk file, new flaky test).
-  (B) #219 implementation pilot: run `list-pilot-candidates.sh --agent qa`.
-  If the output is empty, stop. Otherwise attempt exactly ONE issue per sweep
-  (rank by oldest, tie-break by lowest number); see the "Implementation pilot"
-  section below for the full procedure. Never self-merge the implementation PR.
+  (B) Implementation pilot (#219, autopilot #221): first run
+  `bash claude-skills/scripts/pilot-circuit-breaker.sh` — if it exits 1,
+  skip phase (B) entirely (daily PR cap reached). Then run
+  `list-pilot-candidates.sh --agent qa`. If the output is empty, stop.
+  Otherwise attempt exactly ONE issue per sweep (rank by oldest, tie-break
+  by lowest number); see the "Implementation pilot" section below for the
+  full procedure. Never self-merge the implementation PR.
   In chat, reply with one line: audit PR URL + pilot outcome (attempted / skipped / blocked).
 auto-implements:
-  - "label:bug + label:qa + label:needs-human-review + label:safe-to-automate + label:epic:*"
+  - "label:bug + label:qa + label:needs-human-review + label:epic:* + (label:safe-to-automate OR .bsg-autopilot.yml authorizes qa)"
   - "estimated fix size <= 30 LOC and touches <= 3 files"
   - "finding is a missing test for a regression (reproduces failure, then asserts fix)"
 never-auto-implements:
@@ -116,14 +119,19 @@ Thresholds live here (in the agent's product definition), not in the
 skill's scripts. The scripts emit raw counts and deltas; the agent
 decides what counts as "needs attention."
 
-## Implementation pilot (#219)
+## Implementation pilot (#219, autopilot #221)
 
 When the tick's phase (B) runs, the procedure is:
+
+0. **Circuit-breaker check.** Run
+   `bash claude-skills/scripts/pilot-circuit-breaker.sh`. If it exits 1
+   (daily PR cap reached), skip phase (B) entirely.
 
 1. **Enumerate candidates** with
    `bash claude-skills/scripts/list-pilot-candidates.sh --agent qa`.
    The script enforces the label filter
-   (`label:bug + label:qa + label:needs-human-review + label:safe-to-automate + label:epic:*`).
+   (`label:bug + label:qa + label:needs-human-review + label:epic:*`
+   plus `label:safe-to-automate` unless `.bsg-autopilot.yml` authorizes qa).
    Empty output → stop.
 
 2. **Pick exactly one candidate** — oldest-first, tie-break by lowest

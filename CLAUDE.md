@@ -213,8 +213,8 @@ fixes in a repository, a human must:
    - `label:bug` — only bugs are eligible today
    - The agent's bus label (`tech`, `seo`, or `qa`)
    - `label:needs-human-review`
-   - `label:safe-to-automate` — **human-only gate**; its presence is the
-     signal "I'm OK with an agent attempting this"
+   - `label:safe-to-automate` — **human-only gate** (unless autopilot
+     mode is enabled, see below)
    - At least one `epic:*` label binding the issue to a plan item
 
 3. **Run the tick** (or let `/loop` / `/schedule` drive it):
@@ -239,13 +239,46 @@ The `--repo OWNER/NAME` flag on `list-pilot-candidates.sh` allows
 running against a different repository than the current working
 directory — useful for cross-repo sweeps from a central session.
 
-**No repo-level "autopilot" flag exists yet.** Today, the gate is
-per-issue (`safe-to-automate`). A planned enhancement (#221) introduces
-a repo-level marker (`.bsg-autopilot.yml`) that tells agents "this repo
-opts in to auto-implementation — treat all eligible issues as if
-`safe-to-automate` were present." That shifts the human's role from
-per-issue labeling to backlog curation: file the issues with the right
-epic + bus label, and agents do the rest.
+### Autopilot mode (`.bsg-autopilot.yml`) — #221
+
+For repos with a steady stream of labeled issues, the per-issue
+`safe-to-automate` gate adds friction. **Autopilot mode** replaces the
+per-issue gate with a repo-level opt-in.
+
+Drop a `.bsg-autopilot.yml` at the repo root:
+
+```yaml
+enabled: true
+agents:
+  - tech
+  - seo
+  - qa
+budget:
+  max_prs_per_tick: 1
+  max_prs_per_day: 3
+  max_loc_per_issue: 30
+  max_files_per_issue: 3
+```
+
+When this file exists, is `enabled: true`, and lists the calling agent
+in `agents:`, `list-pilot-candidates.sh` drops the `safe-to-automate`
+label filter. Issues only need `label:bug` + bus label +
+`label:needs-human-review` + `label:epic:*` to be eligible.
+
+The `safe-to-automate` label still works as a per-issue override on
+repos without the file or for agents not listed in `agents:`.
+
+**Daily circuit-breaker.** `pilot-circuit-breaker.sh` counts
+implementation PRs opened today and compares against `max_prs_per_day`
+(default: 3). When the cap is reached, phase (B) is skipped entirely —
+preventing a runaway `/loop` from flooding the repo.
+
+**What stays the same in autopilot mode:**
+- Agents still open PRs with `needs-human-review` — a human merges
+- `never-auto-implements` deny-list still applies
+- 30 LOC / 3 files budget still applies
+- One issue per agent per tick
+- `output: pr` agents are unaffected
 
 ### Coordination bus (GitHub labels as queues)
 
