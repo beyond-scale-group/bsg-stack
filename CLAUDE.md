@@ -177,6 +177,9 @@ scoped fix (≤ 30 LOC / ≤ 3 files), and opens a PR with
 (`po-manager`, `security`, `marketing`, `storytelling`, `pr-comms`)
 stay `output: pr` with explicit `never-auto-implements` clauses
 documenting *why* auto-implementation is out of scope for their domain.
+**po-manager** additionally carries a `delegates-to: [tech, qa, seo]`
+field — it files issues routed to `output: commit` agents during its
+tick (phase A.5), acting as the project's task router.
 
 When an agent is `output: commit`, `test_skills.py` requires both lists
 to carry at least one clause so the scope decision is explicit in the
@@ -282,14 +285,28 @@ preventing a runaway `/loop` from flooding the repo.
 
 ### Audit-to-issue pipeline (#222)
 
-In autopilot repos, `output: commit` agents can file GitHub issues
-from their own audit findings — closing the loop from audit to
-implementation without human issue-creation.
+In autopilot repos, agents can file GitHub issues from their audit
+findings — closing the loop from audit to implementation without
+human issue-creation.
+
+Two patterns exist:
+
+1. **Self-filing** (`output: commit` agents): tech-lead, seo, qa scan
+   their own audit for mechanically-fixable findings that match
+   `auto-implements`. Filed issues become phase (B) candidates on the
+   *next* tick.
+
+2. **Delegation** (`output: pr` agents with `delegates-to`): po-manager
+   scans the project state and files issues routed to the appropriate
+   `output: commit` agent's bus label. The PO sees the whole picture —
+   stale bugs, regression risk hotspots, plan items at risk — and
+   creates targeted issues that tech/qa/seo pick up on the next sweep.
 
 The tick gains a phase **(A.5)** between audit and implementation:
 
 1. After phase (A) completes, the agent scans its audit for
-   mechanically-fixable findings that match `auto-implements`
+   actionable findings (self-filing: must match `auto-implements`;
+   delegation: must be mechanically routable to a target agent)
 2. For each finding, it computes a dedup fingerprint
    (`<agent>:<finding-type>:<path>`) and calls `file-issue.sh` with
    `--filed-by <agent> --dedup <fingerprint>`
@@ -297,10 +314,14 @@ The tick gains a phase **(A.5)** between audit and implementation:
    fingerprint (idempotent — won't create duplicates)
 4. Filed issues carry `filed-by:<agent>` for traceability
 5. Max `max_issues_per_tick` issues per agent per tick (default 3)
-6. The filed issues become phase (B) candidates on the *next* tick
+6. The filed issues become phase (B) candidates for the target
+   agent on the *next* tick
 
 **Guard rails:**
-- Only findings matching `auto-implements` are eligible
+- Self-filing: only findings matching `auto-implements` are eligible
+- Delegation: only mechanically-actionable findings are eligible
+  (scope creep, abandoned items, and milestones stay as
+  silence-breakers requiring human judgment)
 - Dedup by fingerprint prevents flooding
 - Rate-limited per tick
 - Every agent-filed issue carries `needs-human-review`
