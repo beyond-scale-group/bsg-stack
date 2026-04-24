@@ -4,14 +4,14 @@
 # Returns open issues that satisfy ALL of:
 #   - label matches the caller's bus label (default: tech)
 #   - label:bug
-#   - label:needs-human-review
-#   - label:safe-to-automate  (skipped when .bsg-autopilot.yml authorizes the agent)
+#   - label:human-reviewed       (skipped when .bsg-autopilot.yml authorizes the agent)
+#   - label:safe-to-automate     (skipped when .bsg-autopilot.yml authorizes the agent)
 #   - at least one epic:* label
 #   - has no open PR already referencing it (agent didn't start work yet)
 #
 # When .bsg-autopilot.yml exists, is enabled, and lists the calling agent,
-# the safe-to-automate label filter is dropped — the repo-level marker
-# replaces the per-issue gate. See #221.
+# both human-reviewed and safe-to-automate label filters are dropped —
+# the repo-level marker replaces per-issue gates. See #221.
 #
 # Usage:
 #   bash claude-skills/scripts/list-pilot-candidates.sh [--agent NAME] [--repo OWNER/NAME]
@@ -35,21 +35,24 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Determine whether to require safe-to-automate or use autopilot mode.
-REQUIRE_SAFE_TO_AUTOMATE=true
+# Determine whether autopilot mode is active for this agent.
+AUTOPILOT=false
 if [[ -f .bsg-autopilot.yml ]]; then
   enabled=$(grep -E '^\s*enabled\s*:' .bsg-autopilot.yml 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
   if [[ "$enabled" == "true" ]]; then
-    # Check if this agent is in the agents list.
     if grep -qE "^\s*-\s+$AGENT\s*$" .bsg-autopilot.yml 2>/dev/null; then
-      REQUIRE_SAFE_TO_AUTOMATE=false
+      AUTOPILOT=true
     fi
   fi
 fi
 
-LABEL_FLAGS=(--label "$AGENT" --label "bug" --label "needs-human-review")
-if [[ "$REQUIRE_SAFE_TO_AUTOMATE" == "true" ]]; then
-  LABEL_FLAGS+=(--label "safe-to-automate")
+LABEL_FLAGS=(--label "$AGENT" --label "bug")
+if [[ "$AUTOPILOT" == "false" ]]; then
+  LABEL_FLAGS+=(--label "human-reviewed" --label "safe-to-automate")
+else
+  # Autopilot: human-reviewed and safe-to-automate are optional.
+  # The repo-level opt-in replaces per-issue gates.
+  :
 fi
 
 # Pull open issues carrying all required labels. GitHub's search API

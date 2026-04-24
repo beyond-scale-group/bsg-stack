@@ -215,7 +215,8 @@ fixes in a repository, a human must:
 2. **Feed the backlog.** File or label issues with:
    - `label:bug` — only bugs are eligible today
    - The agent's bus label (`tech`, `seo`, or `qa`)
-   - `label:needs-human-review`
+   - `label:human-reviewed` — proves a human triaged this (unless
+     autopilot mode is enabled, see below)
    - `label:safe-to-automate` — **human-only gate** (unless autopilot
      mode is enabled, see below)
    - At least one `epic:*` label binding the issue to a plan item
@@ -264,12 +265,12 @@ budget:
 ```
 
 When this file exists, is `enabled: true`, and lists the calling agent
-in `agents:`, `list-pilot-candidates.sh` drops the `safe-to-automate`
-label filter. Issues only need `label:bug` + bus label +
-`label:needs-human-review` + `label:epic:*` to be eligible.
+in `agents:`, `list-pilot-candidates.sh` drops both the `human-reviewed`
+and `safe-to-automate` label filters. Issues only need `label:bug` +
+bus label + `label:epic:*` to be eligible.
 
-The `safe-to-automate` label still works as a per-issue override on
-repos without the file or for agents not listed in `agents:`.
+The per-issue labels (`human-reviewed`, `safe-to-automate`) still work
+as gates on repos without the file or for agents not listed in `agents:`.
 
 **Daily circuit-breaker.** `pilot-circuit-breaker.sh` counts
 implementation PRs opened today and compares against `max_prs_per_day`
