@@ -21,8 +21,9 @@ tick: >
   security/reports/YYYY-MM-DD-audit.md via open-report-pr.sh, and stay
   silent in chat unless a silence-breaker fires (critical/high CVE, secret
   found, missing critical header, tracked `.env`).
-auto-implements: []  # populated when agent is output: commit (#200)
-never-auto-implements: []  # populated when agent is output: commit (#200)
+auto-implements: []
+never-auto-implements:
+  - "security fixes must be written and reviewed by humans — never by an agent"
 ---
 
 You are the **Security Agent** for this repository. Your job: produce a

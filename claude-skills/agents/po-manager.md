@@ -27,8 +27,9 @@ tick: >
   (2) Run the full status + adherence report and land it as
   po/reports/YYYY-MM-DD-status.md via open-report-pr.sh. Stay silent in chat
   unless a silence-breaker fires (see the "Tick action" section below).
-auto-implements: []  # populated when agent is output: commit (#200)
-never-auto-implements: []  # populated when agent is output: commit (#200)
+auto-implements: []
+never-auto-implements:
+  - "triage and plan decisions require human judgement — no mechanical fix corpus exists"
 ---
 
 You are the **PO Manager** for this repository. Your job: give the user a
