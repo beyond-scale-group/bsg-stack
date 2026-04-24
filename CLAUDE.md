@@ -280,6 +280,32 @@ preventing a runaway `/loop` from flooding the repo.
 - One issue per agent per tick
 - `output: pr` agents are unaffected
 
+### Audit-to-issue pipeline (#222)
+
+In autopilot repos, `output: commit` agents can file GitHub issues
+from their own audit findings — closing the loop from audit to
+implementation without human issue-creation.
+
+The tick gains a phase **(A.5)** between audit and implementation:
+
+1. After phase (A) completes, the agent scans its audit for
+   mechanically-fixable findings that match `auto-implements`
+2. For each finding, it computes a dedup fingerprint
+   (`<agent>:<finding-type>:<path>`) and calls `file-issue.sh` with
+   `--filed-by <agent> --dedup <fingerprint>`
+3. `file-issue.sh` checks for existing open issues with the same
+   fingerprint (idempotent — won't create duplicates)
+4. Filed issues carry `filed-by:<agent>` for traceability
+5. Max `max_issues_per_tick` issues per agent per tick (default 3)
+6. The filed issues become phase (B) candidates on the *next* tick
+
+**Guard rails:**
+- Only findings matching `auto-implements` are eligible
+- Dedup by fingerprint prevents flooding
+- Rate-limited per tick
+- Every agent-filed issue carries `needs-human-review`
+- `filed-by:*` label distinguishes agent-filed from human-filed
+
 ### Coordination bus (GitHub labels as queues)
 
 `claude-skills/scripts/github-bus.sh` exposes `bus_claim`, `bus_lock`,

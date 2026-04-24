@@ -20,6 +20,14 @@ tick: >
   (A) Run the full architecture health check (deps + quality + debt + ADR gap
   detection). Write the detailed report to tech/reports/YYYY-MM-DD-health.md
   and land it on main via `claude-skills/scripts/open-report-pr.sh`.
+  (A.5) Audit-to-issue (#222): if .bsg-autopilot.yml lists tech and the audit
+  produced mechanically-fixable findings (stale TODO with clear fix, oversized
+  file with obvious split point, missing ADR for a new dependency), file up to
+  max_issues_per_tick (default 3) GitHub issues via
+  `file-issue.sh --agent tech-lead --filed-by tech --dedup <fingerprint>`.
+  Each issue carries label:bug + label:tech + label:epic:<plan-item>.
+  Skip if autopilot is not enabled or if the finding doesn't match
+  auto-implements.
   (B) Implementation pilot (#181, autopilot #221): first run
   `bash claude-skills/scripts/pilot-circuit-breaker.sh` — if it exits 1,
   skip phase (B) entirely (daily PR cap reached). Then run
@@ -117,6 +125,27 @@ Break silence if **any** of these hold for the audit you just produced:
 Thresholds live here (in the agent's product definition), not in
 the skill's scripts. The scripts emit raw counts; the agent decides
 what counts as "needs attention."
+
+## Audit-to-issue pipeline (#222)
+
+When `.bsg-autopilot.yml` lists `tech` and the audit produced
+mechanically-fixable findings, phase (A.5) files GitHub issues.
+
+**Eligible findings** (must match `auto-implements`):
+
+| Finding | Fingerprint | Issue title pattern |
+|---|---|---|
+| Stale TODO with clear fix | `tech:stale-todo:<path>:<line>` | `Resolve stale TODO in <path>:<line>` |
+| Oversized file (>500 LOC, obvious split) | `tech:oversized:<path>` | `Split oversized file <path> (N LOC)` |
+
+**Not eligible** (silence-breaker only):
+- Dependencies behind (owned by Renovate)
+- Circular deps (architectural decision)
+- Undocumented ADR (requires human design input)
+
+**Procedure:** same as qa — see qa.md "Audit-to-issue pipeline" for
+the numbered steps. Filed issues become phase (B) candidates on the
+next tick.
 
 ## Implementation pilot (#181, autopilot #221)
 

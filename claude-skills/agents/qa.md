@@ -21,6 +21,13 @@ tick: >
   qa/history/, land the report as qa/reports/YYYY-MM-DD-audit.md via
   open-report-pr.sh, and stay silent in chat unless a silence-breaker
   fires (coverage drop > 5%, new high-risk file, new flaky test).
+  (A.5) Audit-to-issue (#222): if .bsg-autopilot.yml lists qa and the audit
+  produced mechanically-fixable findings (coverage drop on a specific file,
+  high-risk file with zero coverage), file up to max_issues_per_tick (default 3)
+  GitHub issues via `file-issue.sh --agent qa --filed-by qa --dedup <fingerprint>`.
+  Each issue carries label:bug + label:qa + label:epic:<plan-item> where the
+  epic is inferred from po/PLAN.md bindings. Skip if autopilot is not enabled
+  or if the finding doesn't match auto-implements.
   (B) Implementation pilot (#219, autopilot #221): first run
   `bash claude-skills/scripts/pilot-circuit-breaker.sh` — if it exits 1,
   skip phase (B) entirely (daily PR cap reached). Then run
@@ -118,6 +125,35 @@ Break silence if **any** of these hold for the audit you just produced:
 Thresholds live here (in the agent's product definition), not in the
 skill's scripts. The scripts emit raw counts and deltas; the agent
 decides what counts as "needs attention."
+
+## Audit-to-issue pipeline (#222)
+
+When `.bsg-autopilot.yml` lists `qa` and the audit produced
+mechanically-fixable findings, phase (A.5) files GitHub issues
+automatically. This closes the loop: audit → issue → implementation
+→ PR → human review.
+
+**Eligible findings** (must match `auto-implements`):
+
+| Finding | Fingerprint | Issue title pattern |
+|---|---|---|
+| Coverage drop > 5% on specific file | `qa:coverage-drop:<path>` | `Missing regression test for <path> (coverage dropped N%)` |
+| High-risk file (>10 commits, 0% coverage) | `qa:high-risk:<path>` | `Add test coverage for high-risk file <path>` |
+
+**Not eligible** (silence-breaker only, not auto-issuable):
+- New flaky test (needs investigation, not a missing test)
+- Coverage report missing (meta-issue, not a code fix)
+- Test suite not found (repo-level decision)
+
+**Procedure:**
+
+1. After phase (A) completes, scan the audit for eligible findings
+2. For each finding, compute the dedup fingerprint
+3. Call `file-issue.sh --agent qa --filed-by qa --dedup <fingerprint>
+   --label bug --title "<title>" --body "<details>"`
+4. Stop after `max_issues_per_tick` issues (default 3 from
+   `.bsg-autopilot.yml`, budget section)
+5. The filed issues become candidates for phase (B) on the *next* tick
 
 ## Implementation pilot (#219, autopilot #221)
 
