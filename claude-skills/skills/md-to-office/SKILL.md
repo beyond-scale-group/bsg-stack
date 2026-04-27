@@ -77,7 +77,40 @@ prefer it over calling the renderers directly.
 | `md-to-office.sh` | Orchestrator. `md-to-office.sh <file> [--target docx] [--template <path>] [--force]`. |
 | `resolve-template.sh` | Emits the resolved template path (or empty) for a given target. |
 | `render-docx.sh` | pandoc wrapper. `render-docx.sh <input.md> <output.docx> [--template <path>]`. |
+| `init-brand.sh` | Brand bootstrap. `init-brand.sh [--force] [--tokens-only] [--dry-run]`. |
+| `scan-brand.py` | Repo signal scanner → `brand/tokens.json` + optional audit. |
+| `generate-templates.py` | Reads `tokens.json`, produces `reference.docx`, `template.pptx`, `template.xlsx`. |
 | `install-local.sh` | Installs `pandoc` via brew. `--dry-run` to print-only. |
+
+## Brand initialization (`--init`)
+
+`--init` mines the repo for brand signals and synthesizes them into
+branded Office templates. Signals detected:
+
+| Signal | Where it looks |
+|---|---|
+| **Colors** | CSS custom properties, `tailwind.config.*`, design-token JSON |
+| **Typography** | CSS `--font-*` variables, `@font-face`, Google Fonts imports |
+| **Logo** | `public/`, `brand/`, `images/`, `assets/` — files with "logo" in name |
+| **Voice & identity** | `brand/NARRATIVE.md`, `DESIGN.md`, `*identity*.md` |
+| **Existing templates** | `.docx`, `.pptx`, `.xlsx` already in the repo |
+
+```bash
+md-to-office.sh --init                    # scan repo, generate templates
+md-to-office.sh --init --dry-run          # show what would be extracted
+md-to-office.sh --init --force            # overwrite existing templates
+md-to-office.sh --init --tokens-only      # scan only, skip template gen
+```
+
+Output:
+
+```
+brand/tokens.json                   ← extracted tokens (name, colors, fonts, logos, …)
+brand/templates/brand-audit.md      ← what was found and what was chosen
+brand/templates/reference.docx      ← pandoc reference-doc with brand styles
+brand/templates/template.pptx       ← PowerPoint with brand theme
+brand/templates/template.xlsx       ← Excel with brand-coloured header
+```
 
 ## Usage
 
@@ -112,8 +145,6 @@ Run `scripts/install-local.sh` to install on macOS.
 
 - **DOCX only.** PPTX and XLSX renderers land in later PRs per PRD-008
   §12.
-- **No `--init`.** The bootstrap command that scaffolds placeholder
-  templates in `brand/templates/` is a follow-up PR.
 - **No multi-file input.** One `.md` at a time; batch conversion is
   deferred.
 
