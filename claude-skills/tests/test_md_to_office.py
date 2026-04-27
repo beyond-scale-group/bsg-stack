@@ -399,6 +399,100 @@ class TestScanBrand(unittest.TestCase):
         self.assertEqual(tokens["name"], "My Project")   # from existing
         self.assertEqual(tokens["colors"]["primary"], "#aabbcc")  # from CSS
 
+    # ---- @font-face detection ------------------------------------------------
+
+    def test_font_from_font_face(self) -> None:
+        css = self.tmp / "fonts.css"
+        css.write_text(
+            "@font-face {\n"
+            "  font-family: 'Cabinet Grotesk';\n"
+            "  src: url('cabinet.woff2');\n"
+            "}\n"
+        )
+        self.assertEqual(self._scan()["fonts"]["primary"], "Cabinet Grotesk")
+
+    def test_font_from_google_fonts_import(self) -> None:
+        css = self.tmp / "global.css"
+        css.write_text(
+            "@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700');\n"
+        )
+        self.assertEqual(self._scan()["fonts"]["primary"], "Poppins")
+
+    def test_css_variable_font_wins_over_font_face(self) -> None:
+        css = self.tmp / "all.css"
+        css.write_text(
+            ":root { --font-family-primary: 'Manrope', sans-serif; }\n"
+            "@font-face { font-family: 'Cabinet Grotesk'; src: url('c.woff2'); }\n"
+        )
+        self.assertIn("Manrope", self._scan()["fonts"]["primary"])
+
+    # ---- logo detection ------------------------------------------------------
+
+    def test_logos_found_in_public_dir(self) -> None:
+        pub = self.tmp / "public"
+        pub.mkdir()
+        (pub / "logo.svg").write_text("<svg/>")
+        (pub / "logo-dark.png").write_bytes(b"\x89PNG")
+        tokens = self._scan()
+        self.assertIn("logos", tokens)
+        self.assertEqual(len(tokens["logos"]), 2)
+        self.assertTrue(any("logo.svg" in l for l in tokens["logos"]))
+
+    def test_logos_empty_when_none_found(self) -> None:
+        tokens = self._scan()
+        self.assertEqual(tokens["logos"], [])
+
+    # ---- identity doc detection ----------------------------------------------
+
+    def test_identity_docs_found(self) -> None:
+        brand = self.tmp / "brand"
+        brand.mkdir()
+        (brand / "NARRATIVE.md").write_text("# Brand\n\nVoice.\n")
+        (self.tmp / "DESIGN.md").write_text("# Design System\n")
+        tokens = self._scan()
+        self.assertIn("identity_docs", tokens)
+        self.assertTrue(len(tokens["identity_docs"]) >= 2)
+
+    def test_identity_docs_empty_when_none(self) -> None:
+        tokens = self._scan()
+        self.assertEqual(tokens["identity_docs"], [])
+
+    # ---- existing template detection -----------------------------------------
+
+    def test_existing_templates_found(self) -> None:
+        (self.tmp / "old-report.docx").write_bytes(b"PK\x03\x04stub")
+        tokens = self._scan()
+        self.assertIn("existing_templates", tokens)
+        self.assertTrue(any("old-report.docx" in t for t in tokens["existing_templates"]))
+
+    # ---- audit generation ----------------------------------------------------
+
+    def test_audit_flag_writes_markdown(self) -> None:
+        (self.tmp / "README.md").write_text("# Audit Test\n\nDesc.\n")
+        css = self.tmp / "style.css"
+        css.write_text(":root { --primary-color: #abcdef; }\n")
+        audit_path = self.tmp / "brand" / "templates" / "brand-audit.md"
+        result = run(
+            ["python3", str(SCAN_BRAND), "--audit", str(audit_path)],
+            cwd=self.tmp,
+        )
+        self.assertTrue(audit_path.exists(), f"audit not written; stderr={result.stderr}")
+        content = audit_path.read_text()
+        self.assertIn("# Brand Audit", content)
+        self.assertIn("Audit Test", content)
+        self.assertIn("#abcdef", content)
+        self.assertIn("Chosen tokens", content)
+        self.assertIn("Discovery details", content)
+
+    def test_audit_shows_defaults_when_empty_repo(self) -> None:
+        audit_path = self.tmp / "audit.md"
+        run(
+            ["python3", str(SCAN_BRAND), "--audit", str(audit_path)],
+            cwd=self.tmp,
+        )
+        content = audit_path.read_text()
+        self.assertIn("Defaults applied", content)
+
     # ---- orchestrator onboarding banner ------------------------------------
 
     def _make_fake_pandoc(self, bin_dir: Path) -> None:
@@ -507,7 +601,39 @@ class TestInitBrandSmoke(unittest.TestCase):
     def test_tokens_only_skips_template_generation(self) -> None:
         run(["bash", str(INIT_BRAND), "--tokens-only"], cwd=self.tmp)
         self.assertTrue((self.tmp / "brand" / "tokens.json").exists())
-        self.assertFalse((self.tmp / "brand" / "templates").exists())
+        # tokens-only should not create Office templates, but brand-audit.md is OK
+        for fname in ("reference.docx", "template.pptx", "template.xlsx"):
+            self.assertFalse(
+                (self.tmp / "brand" / "templates" / fname).exists(),
+                f"{fname} should not exist with --tokens-only",
+            )
+
+    def test_dry_run_writes_tokens_and_audit_only(self) -> None:
+        run(["bash", str(INIT_BRAND), "--dry-run"], cwd=self.tmp)
+        self.assertTrue((self.tmp / "brand" / "tokens.json").exists())
+        self.assertTrue((self.tmp / "brand" / "templates" / "brand-audit.md").exists())
+        for fname in ("reference.docx", "template.pptx", "template.xlsx"):
+            self.assertFalse(
+                (self.tmp / "brand" / "templates" / fname).exists(),
+                f"{fname} should not exist with --dry-run",
+            )
+
+    def test_dry_run_skips_idempotency_guard(self) -> None:
+        """--dry-run should work even when templates already exist."""
+        run(["bash", str(INIT_BRAND)], cwd=self.tmp)
+        # Without --force, a second full run would exit early.
+        # But --dry-run should still scan and produce the audit.
+        result = run(["bash", str(INIT_BRAND), "--dry-run"], cwd=self.tmp)
+        self.assertIn("Dry run", result.stdout)
+        self.assertTrue((self.tmp / "brand" / "templates" / "brand-audit.md").exists())
+
+    def test_init_creates_brand_audit_md(self) -> None:
+        run(["bash", str(INIT_BRAND)], cwd=self.tmp)
+        audit = self.tmp / "brand" / "templates" / "brand-audit.md"
+        self.assertTrue(audit.exists())
+        content = audit.read_text()
+        self.assertIn("Brand Audit", content)
+        self.assertIn("Init Test Repo", content)
 
 
 class TestRenderDocxSmoke(unittest.TestCase):
