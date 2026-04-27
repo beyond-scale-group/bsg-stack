@@ -20,6 +20,14 @@ jobs:
       - name: Run unit tests
         run: python3 claude-skills/tests/test_skills.py
 
+  pilot-candidates:
+    name: Pilot candidates label logic
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run pilot candidate tests
+        run: bash claude-skills/tests/test_pilot_candidates.sh
+
   integration:
     name: po integration test (edomata)
     runs-on: ubuntu-latest
