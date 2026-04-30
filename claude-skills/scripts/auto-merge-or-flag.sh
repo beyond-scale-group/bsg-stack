@@ -26,6 +26,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=claude-skills/scripts/github-bus.sh
+source "$SCRIPT_DIR/github-bus.sh"
+
 if [[ $# -lt 2 ]]; then
   echo "usage: $0 <pr-number> <agent>" >&2
   exit 2
@@ -47,12 +51,20 @@ if [[ -f "$AUTOPILOT_FILE" ]]; then
   fi
 fi
 
+# Resolve the linked issue from the PR body (Fixes/Closes/Refs #NN).
+LINKED_ISSUE=""
+LINKED_ISSUE=$(gh pr view "$PR_NUMBER" --json body --jq '.body' \
+  | grep -oE '(Fixes|Closes|Refs) #[0-9]+' | head -1 \
+  | grep -oE '[0-9]+') || true
+
 if [[ "$AUTO_MERGE" == "true" ]]; then
   echo "auto-merge-or-flag: PR #${PR_NUMBER} ← squash + human-reviewed (autopilot)"
   gh pr merge "$PR_NUMBER" --squash --delete-branch >/dev/null
   gh pr edit "$PR_NUMBER" --add-label human-reviewed >/dev/null 2>&1 || true
   gh pr edit "$PR_NUMBER" --remove-label needs-human-review >/dev/null 2>&1 || true
+  [[ -n "$LINKED_ISSUE" ]] && bus_unlock "$LINKED_ISSUE" "$AGENT" || true
 else
   echo "auto-merge-or-flag: PR #${PR_NUMBER} ← needs-human-review (default)"
   gh pr edit "$PR_NUMBER" --add-label needs-human-review >/dev/null
+  [[ -n "$LINKED_ISSUE" ]] && bus_unlock "$LINKED_ISSUE" "$AGENT" || true
 fi
