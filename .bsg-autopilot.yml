@@ -22,7 +22,7 @@ agents:
 
 budget:
   max_prs_per_tick: 1
-  max_prs_per_day: 5
+  max_prs_per_day: 50
   max_loc_per_issue: 30
   max_files_per_issue: 3
   max_issues_per_tick: 3
