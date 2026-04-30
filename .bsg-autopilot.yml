@@ -36,6 +36,19 @@ budget:
 # "Autopilot mode → auto_merge".
 auto_merge: true
 
+# bsg-stack-specific override: this is the meta-repo where agents and
+# skills are authored. The default "cannot rewrite peers" clause is a
+# safeguard for downstream consumer repos — here it actively blocks
+# the work. We override it explicitly. See #287/#288 — agent frontmatter
+# updates that an agent must perform on another agent.
+override_never_auto_implements:
+  tech:
+    - "changes to claude-skills/agents/*.md (cannot rewrite peers)"
+  qa:
+    - "changes to claude-skills/agents/*.md (cannot rewrite peers)"
+  seo:
+    - "changes to claude-skills/agents/*.md (cannot rewrite peers)"
+
 peer_review:
   tech:
     reviews: [qa, seo]
