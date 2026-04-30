@@ -7,6 +7,14 @@
 #   - at least one epic:* label
 #   - has no open PR already referencing it (agent didn't start work yet)
 #
+# Priority — needs:<agent> as PO inbox (#199, E7-bus-activation):
+# When at least one open issue carries label:needs:<agent>, only those
+# are returned (the PO has explicitly claimed which work to do next).
+# When the inbox is empty, the script falls back to the full bus
+# backlog — oldest-first by issue number — for backward compatibility
+# with repos that don't run an active PO. This activates the bus
+# routing primitive from docs/label-taxonomy.md.
+#
 # Auto-implementation is opt-in at the **repo level** via
 # .bsg-autopilot.yml. Without the file, with `enabled: false`, or when
 # the calling agent is not listed under `agents:`, no candidates are
@@ -75,8 +83,9 @@ candidates_json=$(gh issue list "${REPO_FLAG[@]}" \
 #   - label:bug OR label:enhancement (#282)
 #   - at least one epic:* label
 #   - no open PR already touching this issue (avoid re-attempting)
-# Emit one JSON object per line.
-filtered=$(jq -c '
+# Emit one JSON object per line. Each candidate carries an "inbox"
+# boolean: true when label:needs:<agent> is present (PO claim).
+filtered=$(jq -c --arg needs "needs:$AGENT" '
   .[]
   | select(.labels | any(.name == "bug" or .name == "enhancement"))
   | select(.labels | any(.name | startswith("epic:")))
@@ -84,9 +93,19 @@ filtered=$(jq -c '
       number,
       title,
       url,
-      epics: [.labels[].name | select(startswith("epic:"))]
+      epics: [.labels[].name | select(startswith("epic:"))],
+      inbox: (.labels | any(.name == $needs))
     }
 ' <<<"$candidates_json")
+
+# Inbox priority (#199): if any issue carries needs:<agent>, only emit
+# those — that's the PO claim. Otherwise fall back to the full backlog
+# (oldest-first preserved by gh issue list ordering) so repos without
+# an active PO keep the previous behavior.
+inbox_items=$(jq -c 'select(.inbox == true)' <<<"$filtered")
+if [[ -n "$inbox_items" ]]; then
+  filtered="$inbox_items"
+fi
 
 echo "$filtered"
 

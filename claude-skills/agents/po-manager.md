@@ -278,6 +278,36 @@ are **mechanically actionable** by another agent:
    on the **next** tick-all sweep
 6. Max `max_issues_per_tick` (from `.bsg-autopilot.yml`, default 3)
 
+### Inbox priority — `needs:<agent>` claim (#199, E7-bus-activation)
+
+After delegating, **the PO sets the work order** by applying
+`needs:<agent>` to the issues that should be picked up on the next
+tick. The agent's `list-pilot-candidates.sh` returns inbox issues
+(those carrying `needs:<agent>`) in priority over the rest of the
+backlog — the PO controls what the agent actually attempts, not just
+what the agent CAN attempt.
+
+```bash
+# Promote one issue to the front of the tech queue:
+gh issue edit <num> --add-label "needs:tech"
+
+# Demote / cancel the claim:
+gh issue edit <num> --remove-label "needs:tech"
+```
+
+Conventions:
+
+- When the inbox is empty for a given agent, the script falls back to
+  oldest-first across all owned (`<agent>`) issues, so repos without
+  an active PO behave as before.
+- `auto-merge-or-flag.sh` removes `needs:<agent>` after the
+  implementation PR is merged or flagged, so the inbox advances to
+  the next priority automatically.
+- Apply `needs:<agent>` only to issues that are **ready to ship** —
+  fully specified, unblocked, within budget. The PO's discipline here
+  is the difference between an agent doing the right work and an
+  agent doing the next available work.
+
 ### Receipt format
 
 When issues are delegated, append to the tick receipt:

@@ -64,8 +64,14 @@ if [[ "$AUTO_MERGE" == "true" ]]; then
   gh pr edit "$PR_NUMBER" --add-label human-reviewed --remove-label needs-human-review >/dev/null 2>&1 || true
   gh pr merge "$PR_NUMBER" --squash --delete-branch >/dev/null
   [[ -n "$LINKED_ISSUE" ]] && bus_unlock "$LINKED_ISSUE" "$AGENT" || true
+  # Advance the PO inbox: drop needs:<agent> from the linked issue so the
+  # next tick picks the next priority claim. #199 (E7-bus-activation).
+  [[ -n "$LINKED_ISSUE" ]] && gh issue edit "$LINKED_ISSUE" --remove-label "needs:$AGENT" >/dev/null 2>&1 || true
 else
   echo "auto-merge-or-flag: PR #${PR_NUMBER} ← needs-human-review (default)"
   gh pr edit "$PR_NUMBER" --add-label needs-human-review >/dev/null
   [[ -n "$LINKED_ISSUE" ]] && bus_unlock "$LINKED_ISSUE" "$AGENT" || true
+  # Drop needs:<agent> as well — once the PR is in human review, the
+  # PO inbox claim has been consumed regardless of merge state.
+  [[ -n "$LINKED_ISSUE" ]] && gh issue edit "$LINKED_ISSUE" --remove-label "needs:$AGENT" >/dev/null 2>&1 || true
 fi
