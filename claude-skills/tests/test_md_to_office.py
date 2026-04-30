@@ -619,6 +619,74 @@ class TestScanBrand(unittest.TestCase):
         self.assertTrue((self.tmp / "doc.docx").exists())
 
 
+class TestGenerateTemplatesPartialDeps(unittest.TestCase):
+    """Covers exit-code behavior of generate-templates.py when only some deps
+    are missing. Regression test for #275: the script must exit 0 when at
+    least one format succeeded, and only exit 1 when ALL formats failed.
+    """
+
+    def setUp(self) -> None:
+        # Require at least docx and openpyxl so DOCX + XLSX can succeed.
+        for dep in ("docx", "openpyxl"):
+            try:
+                __import__(dep)
+            except ImportError:
+                self.skipTest(f"'{dep}' not installed; skipping partial-dep test")
+        self.tmp = Path(tempfile.mkdtemp(prefix="bsg-gt-"))
+        brand = self.tmp / "brand"
+        brand.mkdir()
+        tokens = {"name": "Test", "colors": {"primary": "#1a1a2e"}, "fonts": {"primary": "Helvetica Neue"}}
+        (brand / "tokens.json").write_text(json.dumps(tokens))
+        # Helper wrapper that blocks pptx import then runs generate-templates.py
+        self.wrapper = self.tmp / "_block_pptx.py"
+        self.wrapper.write_text(
+            "import builtins, runpy, sys\n"
+            "_real = builtins.__import__\n"
+            "def _fake(name, *args, **kwargs):\n"
+            "    if name == 'pptx' or name.startswith('pptx.'): raise ImportError(f'No module named {name!r}')\n"
+            "    return _real(name, *args, **kwargs)\n"
+            "builtins.__import__ = _fake\n"
+            "runpy.run_path(sys.argv[1], run_name='__main__')\n"
+        )
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _run_with_pptx_blocked(self) -> subprocess.CompletedProcess[str]:
+        return run(
+            ["python3", str(self.wrapper), str(GEN_TEMPLATES)],
+            cwd=self.tmp,
+            check=False,
+        )
+
+    def test_exits_zero_when_only_pptx_dep_missing(self) -> None:
+        """#275: partial success (docx+xlsx ok, pptx skipped) must exit 0."""
+        result = self._run_with_pptx_blocked()
+        self.assertEqual(
+            result.returncode, 0,
+            f"Expected exit 0 when only pptx dep missing, got {result.returncode}.\n"
+            f"stderr={result.stderr}",
+        )
+
+    def test_summary_line_printed_on_partial_success(self) -> None:
+        """#275: a one-line summary must be printed showing per-format status."""
+        result = self._run_with_pptx_blocked()
+        combined = result.stdout + result.stderr
+        self.assertIn("templates:", combined.lower())
+        self.assertIn("pptx", combined.lower())
+
+    def test_exits_nonzero_when_all_formats_fail(self) -> None:
+        """If every format fails (bad tokens), exit 1 is still correct."""
+        # Corrupt tokens so all generators raise.
+        (self.tmp / "brand" / "tokens.json").write_text("{}")
+        result = run(
+            ["python3", str(GEN_TEMPLATES)],
+            cwd=self.tmp,
+            check=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
+
+
 class TestInitBrandSmoke(unittest.TestCase):
     """End-to-end init: scan + generate templates. Skipped when deps missing."""
 
