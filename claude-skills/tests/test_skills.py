@@ -462,6 +462,34 @@ class TestSharedSkills(unittest.TestCase):
                     f"frontmatter says output={scalars.get('output')}.",
                 )
 
+    # --------------------------------- tick short-circuit scope (#261)
+
+    def test_commit_agents_tick_does_not_short_circuit_phase_b(self) -> None:
+        """output: commit agents must not skip phase (B) on audit short-circuit.
+
+        The tick-fingerprint short-circuit only means the audit (A) is
+        unchanged. Phases (B) implementation pilot and (C) peer review have
+        independent triggers and must always run. See #261.
+        """
+        for path in list_agents():
+            with self.subTest(agent=path.stem):
+                text = path.read_text()
+                fm_match = FRONTMATTER_RE.match(text)
+                self.assertIsNotNone(fm_match)
+                frontmatter = fm_match.group(1)
+                scalars = dict(FRONTMATTER_SCALAR_RE.findall(frontmatter))
+                if scalars.get("output") != "commit":
+                    continue
+                tick_body = self._extract_tick_body(frontmatter)
+                self.assertNotRegex(
+                    tick_body,
+                    r"SHORT_CIRCUIT.*and stop",
+                    f"{path.relative_to(REPO_ROOT)}: tick field instructs a "
+                    f"full stop on audit short-circuit, which blocks phase "
+                    f"(B) implementation pilot from running. The short-circuit "
+                    f"should only skip phases (A) and (A.5). See #261.",
+                )
+
     # ----------------------------------------- output:pr agents have exclusions
 
     def test_pr_agents_have_never_auto_implements_clauses(self) -> None:
