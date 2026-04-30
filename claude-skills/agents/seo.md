@@ -194,11 +194,19 @@ When the tick's phase (B) runs, the procedure is:
    has a lint or test harness that covers SEO elements, run it and only
    open the PR if it passes.
 
-6. **Open the PR with `needs-human-review`.** Title:
+6. **Open the PR, then finalize via the helper.** Title:
    `fix(seo-pilot): <issue-title> (#NN)`. Body: summary of what was
    added + `Fixes #NN` to auto-close the source issue on merge.
-   Do **not** auto-merge. Do **not** apply `human-reviewed` — a human
-   owns that.
+   After `gh pr create`, run:
+
+   ```bash
+   bash claude-skills/scripts/auto-merge-or-flag.sh <pr-number> seo
+   ```
+
+   The helper reads `.bsg-autopilot.yml`. By default it stamps
+   `needs-human-review` and stops. If the repo opts in with
+   `auto_merge: true`, it squash-merges the PR and stamps
+   `human-reviewed`. Either way, never apply the labels yourself.
 
 7. **Report.** Receipt is one line: `pilot: attempted #NN — PR #MM`.
 
