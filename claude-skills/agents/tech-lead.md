@@ -53,6 +53,7 @@ tick: >
   outcomes in the "Phase-B pilot receipt" table below.
 auto-implements:
   - "label:bug + label:tech + label:needs-human-review + label:epic:* + (label:safe-to-automate OR .bsg-autopilot.yml authorizes tech)"
+  - "label:enhancement + label:tech + label:epic:* + (label:safe-to-automate OR .bsg-autopilot.yml authorizes tech) + estimated fix size <= 30 LOC and touches <= 3 files"
   - "estimated fix size <= 30 LOC and touches <= 3 files"
   - "bug description contains reproducible failure case or explicit expected/actual behaviour"
 never-auto-implements:
