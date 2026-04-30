@@ -8,3 +8,7 @@
 # own reference docs contain deliberate pattern *examples* (AWS doc
 # placeholder keys, sample tokens) that must never be flagged.
 claude-skills/skills/security-report/references/**
+# Previous audit reports re-echo placeholder keys from the reference docs.
+security/reports/**
+# Known-false-positives doc explains scanner examples — not real credentials.
+docs/known-false-positives.md
