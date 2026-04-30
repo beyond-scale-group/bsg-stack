@@ -26,8 +26,8 @@ tick: >
   produced mechanically-fixable findings (coverage drop on a specific file,
   high-risk file with zero coverage), file up to max_issues_per_tick (default 3)
   GitHub issues via `file-issue.sh --agent qa --filed-by qa --dedup <fingerprint>`.
-  Each issue carries label:bug + label:qa + label:epic:<plan-item> where the
-  epic is inferred from po/PLAN.md bindings. Skip if autopilot is not enabled
+  Each issue carries label:bug + label:qa + milestone:<plan-item> where the
+  milestone is inferred from po/PLAN.md bindings. Skip if autopilot is not enabled
   or if the finding doesn't match auto-implements.
   (B) Implementation pilot (#219, autopilot #221): determine the pilot
   receipt — one of seven canonical outcomes (see "Phase-B pilot receipt"
@@ -52,8 +52,8 @@ tick: >
   The `pilot:` segment must always be present — see the seven canonical
   outcomes in the "Phase-B pilot receipt" table below.
 auto-implements:
-  - "label:bug + label:qa + label:epic:* + .bsg-autopilot.yml authorizes qa"
-  - "label:enhancement + label:qa + label:epic:* + .bsg-autopilot.yml authorizes qa + fits .bsg-autopilot.yml budget"
+  - "label:bug + label:qa + milestone:* + .bsg-autopilot.yml authorizes qa"
+  - "label:enhancement + label:qa + milestone:* + .bsg-autopilot.yml authorizes qa + fits .bsg-autopilot.yml budget"
   - "fits .bsg-autopilot.yml budget (max_loc_per_issue, max_files_per_issue)"
   - "finding is a missing test for a regression (reproduces failure, then asserts fix)"
 never-auto-implements:
@@ -189,7 +189,7 @@ When the tick's phase (B) runs, the procedure is:
    `bash claude-skills/scripts/list-pilot-candidates.sh --agent qa`.
    The script enforces the label filter
    (`label:bug` or `label:enhancement` + `label:qa` + at least one
-   `label:epic:*`, only when `.bsg-autopilot.yml` authorizes qa).
+   `milestone:*`, only when `.bsg-autopilot.yml` authorizes qa).
    Empty output → stop.
 
 2. **Pick exactly one candidate** — oldest-first, tie-break by lowest

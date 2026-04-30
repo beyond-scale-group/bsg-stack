@@ -55,9 +55,9 @@ cat > "$MOCK_GH" <<'MOCK'
 # Only capture args for `gh issue list` calls.
 if [[ "${2:-}" == "list" ]]; then
   echo "$@" > "$GH_ARGS_FILE"
-  # Return one issue with an epic label so jq post-filter passes it through.
+  # Return one issue with a milestone so jq post-filter passes it through.
   cat <<'JSON'
-[{"number":67,"title":"test issue","url":"https://example.com/67","labels":[{"name":"bug"},{"name":"tech"},{"name":"epic:E2"}]}]
+[{"number":67,"title":"test issue","url":"https://example.com/67","labels":[{"name":"bug"},{"name":"tech"}],"milestone":{"title":"E2-some-epic"}}]
 JSON
 fi
 # bus_lock calls `gh issue edit` — succeed silently.
@@ -138,16 +138,16 @@ agents:
 YAML
 }
 
-# ---------- Test 5: jq post-filter requires epic:* label ----------
-echo "--- Test 5: epic filter ---"
+# ---------- Test 5: jq post-filter requires milestone (not epic label) ----------
+echo "--- Test 5: milestone filter — issue without milestone is rejected ---"
 write_autopilot_enabled
-# Mock gh returns an issue WITHOUT an epic label.
+# Mock gh returns an issue WITHOUT a milestone.
 cat > "$MOCK_GH" <<'MOCK2'
 #!/usr/bin/env bash
 if [[ "${2:-}" == "list" ]]; then
   echo "$@" > "$GH_ARGS_FILE"
   cat <<'JSON'
-[{"number":99,"title":"no epic","url":"https://example.com/99","labels":[{"name":"bug"},{"name":"tech"}]}]
+[{"number":99,"title":"no milestone","url":"https://example.com/99","labels":[{"name":"bug"},{"name":"tech"}],"milestone":null}]
 JSON
 fi
 MOCK2
@@ -158,7 +158,7 @@ if [[ -z "$OUTPUT" ]]; then
   PASS=$((PASS + 1))
 else
   FAIL=$((FAIL + 1))
-  echo "FAIL: T5: issue without epic should be filtered out, got: $OUTPUT"
+  echo "FAIL: T5: issue without milestone should be filtered out, got: $OUTPUT"
 fi
 
 # ---------- Test 6: needs-human-review must NEVER appear in label flags ----------
@@ -189,7 +189,7 @@ cat > "$MOCK_GH" <<'MOCK4'
 if [[ "${2:-}" == "list" ]]; then
   echo "$@" > "$GH_ARGS_FILE"
   cat <<'JSON'
-[{"number":42,"title":"lock me","url":"https://example.com/42","labels":[{"name":"bug"},{"name":"tech"},{"name":"epic:E1"}]}]
+[{"number":42,"title":"lock me","url":"https://example.com/42","labels":[{"name":"bug"},{"name":"tech"}],"milestone":{"title":"E1-tick-hygiene"}}]
 JSON
 elif [[ "${2:-}" == "edit" ]]; then
   echo "$@" > "$GH_LOCK_FILE"
@@ -211,7 +211,7 @@ cat > "$MOCK_GH" <<'MOCK8'
 if [[ "${2:-}" == "list" ]]; then
   echo "$@" > "$GH_ARGS_FILE"
   cat <<'JSON'
-[{"number":62,"title":"enh","url":"https://example.com/62","labels":[{"name":"enhancement"},{"name":"tech"},{"name":"epic:E1"}]}]
+[{"number":62,"title":"enh","url":"https://example.com/62","labels":[{"name":"enhancement"},{"name":"tech"}],"milestone":{"title":"E1-tick-hygiene"}}]
 JSON
 fi
 MOCK8
@@ -228,7 +228,7 @@ cat > "$MOCK_GH" <<'MOCK9'
 if [[ "${2:-}" == "list" ]]; then
   echo "$@" > "$GH_ARGS_FILE"
   cat <<'JSON'
-[{"number":77,"title":"docs","url":"https://example.com/77","labels":[{"name":"documentation"},{"name":"tech"},{"name":"epic:E1"}]}]
+[{"number":77,"title":"docs","url":"https://example.com/77","labels":[{"name":"documentation"},{"name":"tech"}],"milestone":{"title":"E1-tick-hygiene"}}]
 JSON
 fi
 MOCK9
@@ -240,6 +240,64 @@ if [[ -z "$OUTPUT" ]]; then
 else
   FAIL=$((FAIL + 1))
   echo "FAIL: T9: docs-only issue should be filtered out, got: $OUTPUT"
+fi
+
+# ---------- Test 10: milestone-based candidate emits milestone field (#287) ----------
+echo "--- Test 10: candidate with milestone emits milestone field, not epics ---"
+write_autopilot_enabled
+cat > "$MOCK_GH" <<'MOCK10'
+#!/usr/bin/env bash
+if [[ "${2:-}" == "list" ]]; then
+  echo "$@" > "$GH_ARGS_FILE"
+  cat <<'JSON'
+[{"number":100,"title":"milestone issue","url":"https://example.com/100","labels":[{"name":"bug"},{"name":"tech"}],"milestone":{"title":"E5-learn-skill-dedup"}}]
+JSON
+fi
+MOCK10
+chmod +x "$MOCK_GH"
+
+OUTPUT="$(bash "$SUT" --agent tech 2>/dev/null)"
+assert_contains "T10: candidate surfaces" "$OUTPUT" '"number":100'
+assert_contains "T10: has milestone field" "$OUTPUT" '"milestone"'
+assert_contains "T10: milestone title correct" "$OUTPUT" 'E5-learn-skill-dedup'
+assert_not_contains "T10: no epics field" "$OUTPUT" '"epics"'
+
+# ---------- Test 11: gh issue list JSON must include milestone field (#287) ----------
+echo "--- Test 11: gh issue list is called with milestone in --json fields ---"
+write_autopilot_enabled
+cat > "$MOCK_GH" <<'MOCK11'
+#!/usr/bin/env bash
+if [[ "${2:-}" == "list" ]]; then
+  echo "$@" > "$GH_ARGS_FILE"
+  echo '[]'
+fi
+MOCK11
+chmod +x "$MOCK_GH"
+
+bash "$SUT" --agent tech >/dev/null 2>&1
+ARGS="$(cat "$GH_ARGS_FILE")"
+assert_contains "T11: milestone in --json fields" "$ARGS" "milestone"
+
+# ---------- Test 12: issue with milestone=null is rejected even with epic label (#287) ----------
+echo "--- Test 12: epic label alone (no milestone) is no longer sufficient ---"
+write_autopilot_enabled
+cat > "$MOCK_GH" <<'MOCK12'
+#!/usr/bin/env bash
+if [[ "${2:-}" == "list" ]]; then
+  echo "$@" > "$GH_ARGS_FILE"
+  cat <<'JSON'
+[{"number":200,"title":"epic but no milestone","url":"https://example.com/200","labels":[{"name":"bug"},{"name":"tech"},{"name":"epic:E1-tick-hygiene"}],"milestone":null}]
+JSON
+fi
+MOCK12
+chmod +x "$MOCK_GH"
+
+OUTPUT="$(bash "$SUT" --agent tech 2>/dev/null)"
+if [[ -z "$OUTPUT" ]]; then
+  PASS=$((PASS + 1))
+else
+  FAIL=$((FAIL + 1))
+  echo "FAIL: T12: issue with epic label but no milestone should be rejected, got: $OUTPUT"
 fi
 
 # ---------- Summary ----------

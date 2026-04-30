@@ -29,7 +29,7 @@ tick: >
   description, missing alt text, missing structured data), file up to
   max_issues_per_tick (default 3) GitHub issues via
   `file-issue.sh --agent seo --filed-by seo --dedup <fingerprint>`.
-  Each issue carries label:bug + label:seo + label:epic:<plan-item>.
+  Each issue carries label:bug + label:seo + milestone:<plan-item>.
   Skip if autopilot is not enabled or if the finding doesn't match
   auto-implements.
   (B) Implementation pilot (#216, autopilot #221): determine the pilot
@@ -55,8 +55,8 @@ tick: >
   The `pilot:` segment must always be present — see the seven canonical
   outcomes in the "Phase-B pilot receipt" table below.
 auto-implements:
-  - "label:bug + label:seo + label:epic:* + .bsg-autopilot.yml authorizes seo"
-  - "label:enhancement + label:seo + label:epic:* + .bsg-autopilot.yml authorizes seo + fits .bsg-autopilot.yml budget"
+  - "label:bug + label:seo + milestone:* + .bsg-autopilot.yml authorizes seo"
+  - "label:enhancement + label:seo + milestone:* + .bsg-autopilot.yml authorizes seo + fits .bsg-autopilot.yml budget"
   - "fits .bsg-autopilot.yml budget (max_loc_per_issue, max_files_per_issue)"
   - "finding is a missing HTML element (canonical tag, meta description, alt text, structured data)"
 never-auto-implements:
@@ -183,7 +183,7 @@ When the tick's phase (B) runs, the procedure is:
    `bash claude-skills/scripts/list-pilot-candidates.sh --agent seo`.
    The script enforces the label filter
    (`label:bug` or `label:enhancement` + `label:seo` + at least one
-   `label:epic:*`, only when `.bsg-autopilot.yml` authorizes seo).
+   `milestone:*`, only when `.bsg-autopilot.yml` authorizes seo).
    Empty output → stop.
 
 2. **Pick exactly one candidate** — oldest-first, tie-break by lowest
