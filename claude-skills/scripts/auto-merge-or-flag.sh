@@ -59,9 +59,10 @@ LINKED_ISSUE=$(gh pr view "$PR_NUMBER" --json body --jq '.body' \
 
 if [[ "$AUTO_MERGE" == "true" ]]; then
   echo "auto-merge-or-flag: PR #${PR_NUMBER} ← squash + human-reviewed (autopilot)"
+  # Swap labels BEFORE merging — `gh pr edit` after `--delete-branch` can hit
+  # a transient eventual-consistency window where the edit silently no-ops.
+  gh pr edit "$PR_NUMBER" --add-label human-reviewed --remove-label needs-human-review >/dev/null 2>&1 || true
   gh pr merge "$PR_NUMBER" --squash --delete-branch >/dev/null
-  gh pr edit "$PR_NUMBER" --add-label human-reviewed >/dev/null 2>&1 || true
-  gh pr edit "$PR_NUMBER" --remove-label needs-human-review >/dev/null 2>&1 || true
   [[ -n "$LINKED_ISSUE" ]] && bus_unlock "$LINKED_ISSUE" "$AGENT" || true
 else
   echo "auto-merge-or-flag: PR #${PR_NUMBER} ← needs-human-review (default)"
