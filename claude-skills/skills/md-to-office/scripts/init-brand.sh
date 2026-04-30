@@ -2,13 +2,16 @@
 # Brand initialization orchestrator.
 #
 # Usage:
-#   init-brand.sh [--force] [--tokens-only] [--dry-run]
+#   init-brand.sh [--force] [--tokens-only] [--dry-run] [--no-scan]
 #
 # --force         Overwrite existing brand/tokens.json and templates.
 # --tokens-only   Only run the repo scan; skip template generation.
 #                 Useful to review what was detected before committing.
 # --dry-run       Scan and show what would be extracted without writing
 #                 templates. Writes tokens.json and brand-audit.md only.
+# --no-scan       Skip scan-brand.py and use the existing tokens.json as-is.
+#                 Preserves manual edits to tokens.json. Errors if tokens.json
+#                 is missing. Composes with --force (template regen only).
 #
 # Flow:
 #   1. Scan the repo for brand signals  → brand/tokens.json
@@ -27,12 +30,14 @@ here="$(cd "$(dirname "$0")" && pwd)"
 force=0
 tokens_only=0
 dry_run=0
+no_scan=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --force)       force=1;       shift ;;
     --tokens-only) tokens_only=1; shift ;;
     --dry-run)     dry_run=1;     shift ;;
+    --no-scan)     no_scan=1;     shift ;;
     -*) echo "Unknown flag: $1" >&2; exit 2 ;;
     *)  echo "Unexpected argument: $1" >&2; exit 2 ;;
   esac
@@ -57,12 +62,19 @@ fi
 
 mkdir -p "$brand_dir"
 
-echo "Scanning repo for brand signals…"
-
-scan_args=(--audit "$audit_path")
-python3 "$here/scan-brand.py" "${scan_args[@]}" > "$tokens_path"
-echo ""
-echo "Tokens written to ${tokens_path}"
+if [[ $no_scan -eq 1 ]]; then
+  if [[ ! -f "$tokens_path" ]]; then
+    echo "Error: --no-scan requires an existing ${tokens_path} but none was found." >&2
+    exit 1
+  fi
+  echo "Skipping scan — using existing ${tokens_path}"
+else
+  echo "Scanning repo for brand signals…"
+  scan_args=(--audit "$audit_path")
+  python3 "$here/scan-brand.py" "${scan_args[@]}" > "$tokens_path"
+  echo ""
+  echo "Tokens written to ${tokens_path}"
+fi
 
 if [[ $dry_run -eq 1 ]]; then
   echo ""
