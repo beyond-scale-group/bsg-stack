@@ -2,7 +2,8 @@
 # md-to-office orchestrator.
 #
 # Usage:
-#   md-to-office.sh <input.md> [--target docx] [--template <path>] [--out <path>] [--force]
+#   md-to-office.sh <input.md> [--target docx|pptx] [--template <path>] [--out <path>] [--force]
+#   md-to-office.sh <directory>  [--force]
 #   md-to-office.sh --init [--force] [--tokens-only]
 #   md-to-office.sh --install [--dry-run]
 #
@@ -11,7 +12,15 @@
 #   are automatically branded. Safe to re-run with --force after editing
 #   brand/tokens.json.
 #
-# Writes <input>.docx next to the source by default (or --out if given).
+# When --target is omitted, auto-detects from YAML frontmatter:
+#   gamma.format: presentation  ->  pptx
+#   gamma.format: document      ->  docx
+#   target: pptx                ->  pptx
+#   (no frontmatter)            ->  docx (default)
+#
+# Directory argument converts every .md file, picking format per file.
+#
+# Writes <input>.{docx,pptx} next to the source by default (or --out).
 # Idempotent: if output exists and is newer than input, skip unless
 # --force is set.
 
@@ -25,7 +34,7 @@ usage() {
 }
 
 src=""
-target="docx"
+target=""
 template=""
 out=""
 force=0
@@ -58,12 +67,61 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "$src" ]] || usage 2
+
+# Batch mode: if src is a directory, convert every .md file in it.
+if [[ -d "$src" ]]; then
+  found=0
+  errors=0
+  while IFS= read -r -d '' mdfile; do
+    found=$((found + 1))
+    batch_args=("$mdfile")
+    [[ -n "$template" ]] && batch_args+=(--template "$template")
+    [[ $force -eq 1 ]]   && batch_args+=(--force)
+    # In batch mode, --target and --out are not forwarded; each file auto-detects.
+    if bash "$0" "${batch_args[@]}"; then
+      :
+    else
+      errors=$((errors + 1))
+    fi
+  done < <(find "$src" -maxdepth 1 -name '*.md' -print0 | sort -z)
+  if [[ $found -eq 0 ]]; then
+    echo "No .md files found in $src" >&2
+    exit 2
+  fi
+  [[ $errors -eq 0 ]] && exit 0 || exit 1
+fi
+
 [[ -f "$src" ]] || { echo "File not found: $src" >&2; exit 2; }
 
+# Auto-detect target from YAML frontmatter when --target not given.
+if [[ -z "$target" ]]; then
+  target="$(python3 -c "
+import re, sys
+text = open(sys.argv[1]).read()
+if not text.startswith('---\n'): sys.exit(0)
+end = text.find('\n---\n', 4)
+if end == -1:
+    end = text.find('\n---', 4)
+    if end == -1 or end + 4 < len(text.rstrip()): sys.exit(0)
+fm = text[4:end]
+m = re.search(r'^gamma:\s*\n\s+format:\s*(\S+)', fm, re.MULTILINE)
+if m:
+    fmt = m.group(1).strip()
+    if fmt == 'presentation': print('pptx')
+    elif fmt == 'document': print('docx')
+    sys.exit(0)
+m = re.search(r'^target:\s*(\S+)', fm, re.MULTILINE)
+if m:
+    t = m.group(1).strip()
+    if t in ('docx', 'pptx', 'xlsx'): print(t)
+" "$src" 2>/dev/null)" || true
+  [[ -n "$target" ]] || target="docx"
+fi
+
 case "$target" in
-  docx) ;;
-  pptx|xlsx)
-    echo "Target '$target' is not implemented in v0.1 (PR #1 ships DOCX only). See PRD-008 §12." >&2
+  docx|pptx) ;;
+  xlsx)
+    echo "Target 'xlsx' is not implemented yet. See PRD-008 §12." >&2
     exit 4
     ;;
   *)

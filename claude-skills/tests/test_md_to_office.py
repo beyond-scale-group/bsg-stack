@@ -30,6 +30,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import textwrap
 import time
@@ -40,12 +41,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SKILL_DIR = REPO_ROOT / "claude-skills" / "skills" / "md-to-office"
 SCRIPTS = SKILL_DIR / "scripts"
 
-RESOLVE      = SCRIPTS / "resolve-template.sh"
-ORCH         = SCRIPTS / "md-to-office.sh"
-RENDER_DOCX  = SCRIPTS / "render-docx.sh"
-SCAN_BRAND   = SCRIPTS / "scan-brand.py"
+RESOLVE       = SCRIPTS / "resolve-template.sh"
+ORCH          = SCRIPTS / "md-to-office.sh"
+RENDER_DOCX   = SCRIPTS / "render-docx.sh"
+RENDER_PPTX   = SCRIPTS / "render-pptx.sh"
+RENDER_PPTX_PY = SCRIPTS / "render-pptx.py"
+SCAN_BRAND    = SCRIPTS / "scan-brand.py"
 GEN_TEMPLATES = SCRIPTS / "generate-templates.py"
-INIT_BRAND   = SCRIPTS / "init-brand.sh"
+INIT_BRAND    = SCRIPTS / "init-brand.sh"
 
 # Magic bytes of a ZIP archive — DOCX/PPTX/XLSX all use the ZIP container.
 ZIP_MAGIC = b"PK\x03\x04"
@@ -265,17 +268,94 @@ class TestOrchestrator(unittest.TestCase):
 
     # ---- target gating -----------------------------------------------------
 
-    def test_pptx_target_is_not_implemented_in_v01(self) -> None:
+    def test_pptx_target_accepted(self) -> None:
+        """pptx is now a valid target; the orchestrator should not reject it."""
+        try:
+            __import__("pptx")
+        except ImportError:
+            self.skipTest("python-pptx not installed")
         result = self._run_orch(str(self.src), "--target", "pptx", check=False)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("not implemented", result.stderr)
+        self.assertEqual(result.returncode, 0)
+        out = self.tmp / "report.pptx"
+        self.assertTrue(out.exists(), f"expected {out}; stderr={result.stderr}")
 
-    def test_xlsx_target_is_not_implemented_in_v01(self) -> None:
+    def test_xlsx_target_is_not_implemented(self) -> None:
         result = self._run_orch(str(self.src), "--target", "xlsx", check=False)
         self.assertNotEqual(result.returncode, 0)
 
     def test_unknown_target_is_error(self) -> None:
         result = self._run_orch(str(self.src), "--target", "html", check=False)
+        self.assertNotEqual(result.returncode, 0)
+
+    # ---- auto-detection from frontmatter -----------------------------------
+
+    def test_autodetect_gamma_presentation_produces_pptx(self) -> None:
+        try:
+            __import__("pptx")
+        except ImportError:
+            self.skipTest("python-pptx not installed")
+        src = self.tmp / "deck.md"
+        src.write_text("---\ngamma:\n  format: presentation\n---\n# Deck\n\nSlide content.\n")
+        result = self._run_orch(str(src), check=False)
+        self.assertEqual(result.returncode, 0, f"stderr={result.stderr}")
+        self.assertTrue((self.tmp / "deck.pptx").exists())
+
+    def test_autodetect_gamma_document_produces_docx(self) -> None:
+        src = self.tmp / "report.md"
+        src.write_text("---\ngamma:\n  format: document\n---\n# Report\n\nBody.\n")
+        result = self._run_orch(str(src))
+        self.assertTrue((self.tmp / "report.docx").exists())
+
+    def test_autodetect_target_field_in_frontmatter(self) -> None:
+        try:
+            __import__("pptx")
+        except ImportError:
+            self.skipTest("python-pptx not installed")
+        src = self.tmp / "slides.md"
+        src.write_text("---\ntarget: pptx\n---\n# Slides\n\nContent.\n")
+        result = self._run_orch(str(src), check=False)
+        self.assertEqual(result.returncode, 0, f"stderr={result.stderr}")
+        self.assertTrue((self.tmp / "slides.pptx").exists())
+
+    def test_autodetect_no_frontmatter_defaults_to_docx(self) -> None:
+        result = self._run_orch(str(self.src))
+        self.assertTrue((self.tmp / "report.docx").exists())
+
+    def test_explicit_target_overrides_frontmatter(self) -> None:
+        src = self.tmp / "deck.md"
+        src.write_text("---\ngamma:\n  format: presentation\n---\n# Deck\n")
+        result = self._run_orch(str(src), "--target", "docx")
+        self.assertTrue((self.tmp / "deck.docx").exists())
+
+    # ---- batch mode --------------------------------------------------------
+
+    def test_batch_converts_directory(self) -> None:
+        batch_dir = self.tmp / "docs"
+        batch_dir.mkdir()
+        (batch_dir / "a.md").write_text("# Doc A\n\nBody.\n")
+        (batch_dir / "b.md").write_text("# Doc B\n\nBody.\n")
+        result = self._run_orch(str(batch_dir))
+        self.assertTrue((batch_dir / "a.docx").exists())
+        self.assertTrue((batch_dir / "b.docx").exists())
+
+    def test_batch_autodetects_per_file(self) -> None:
+        try:
+            __import__("pptx")
+        except ImportError:
+            self.skipTest("python-pptx not installed")
+        batch_dir = self.tmp / "mixed"
+        batch_dir.mkdir()
+        (batch_dir / "deck.md").write_text("---\ngamma:\n  format: presentation\n---\n# Deck\n")
+        (batch_dir / "doc.md").write_text("---\ngamma:\n  format: document\n---\n# Doc\n")
+        result = self._run_orch(str(batch_dir), check=False)
+        self.assertEqual(result.returncode, 0, f"stderr={result.stderr}")
+        self.assertTrue((batch_dir / "deck.pptx").exists())
+        self.assertTrue((batch_dir / "doc.docx").exists())
+
+    def test_batch_empty_dir_is_error(self) -> None:
+        empty = self.tmp / "empty"
+        empty.mkdir()
+        result = self._run_orch(str(empty), check=False)
         self.assertNotEqual(result.returncode, 0)
 
     # ---- missing input -----------------------------------------------------
@@ -676,6 +756,176 @@ class TestRenderDocxSmoke(unittest.TestCase):
         run(["bash", str(ORCH), str(self.src)], cwd=self.tmp)
         self.assertTrue(out.exists())
         self.assertTrue(out.read_bytes().startswith(ZIP_MAGIC))
+
+
+class TestMarkdownParser(unittest.TestCase):
+    """Covers the markdown-to-slides parser in render-pptx.py. Pure Python, no deps."""
+
+    def setUp(self) -> None:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("render_pptx", str(RENDER_PPTX_PY))
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["render_pptx"] = mod
+        spec.loader.exec_module(mod)
+        self.mod = mod
+
+    def test_h1_creates_title_slide(self) -> None:
+        slides = self.mod.parse_markdown("# Hello World\n")
+        self.assertEqual(len(slides), 1)
+        self.assertEqual(slides[0].layout, "title")
+        self.assertEqual(slides[0].title, "Hello World")
+
+    def test_h2_creates_content_slide(self) -> None:
+        slides = self.mod.parse_markdown("## Section One\n\nBody text.\n")
+        self.assertEqual(len(slides), 1)
+        self.assertEqual(slides[0].layout, "content")
+        self.assertEqual(slides[0].title, "Section One")
+
+    def test_multiple_h2_create_multiple_slides(self) -> None:
+        md = "## Slide 1\n\nText.\n\n## Slide 2\n\nMore text.\n"
+        slides = self.mod.parse_markdown(md)
+        self.assertEqual(len(slides), 2)
+
+    def test_horizontal_rule_creates_slide_break(self) -> None:
+        md = "## Slide A\n\nContent.\n\n---\n\n## Slide B\n\nContent.\n"
+        slides = self.mod.parse_markdown(md)
+        self.assertEqual(len(slides), 2)
+
+    def test_bullets_parsed(self) -> None:
+        md = "## List Slide\n\n- Item one\n- Item two\n"
+        slides = self.mod.parse_markdown(md)
+        self.assertEqual(len(slides), 1)
+        bullets_block = [b for b in slides[0].blocks if b[0] == "bullets"]
+        self.assertEqual(len(bullets_block), 1)
+        self.assertEqual(len(bullets_block[0][1]), 2)
+
+    def test_nested_bullets_have_levels(self) -> None:
+        md = "## Nested\n\n- Top\n  - Nested\n"
+        slides = self.mod.parse_markdown(md)
+        bullets = [b for b in slides[0].blocks if b[0] == "bullets"][0][1]
+        self.assertEqual(bullets[0][0], 0)  # level 0
+        self.assertEqual(bullets[1][0], 1)  # level 1
+
+    def test_table_parsed(self) -> None:
+        md = "## Data\n\n| A | B |\n|---|---|\n| 1 | 2 |\n"
+        slides = self.mod.parse_markdown(md)
+        table_block = [b for b in slides[0].blocks if b[0] == "table"]
+        self.assertEqual(len(table_block), 1)
+        self.assertEqual(table_block[0][1]["headers"], ["A", "B"])
+        self.assertEqual(len(table_block[0][1]["rows"]), 1)
+
+    def test_image_parsed(self) -> None:
+        md = "## Pic\n\n![logo](img/logo.png)\n"
+        slides = self.mod.parse_markdown(md)
+        img_block = [b for b in slides[0].blocks if b[0] == "image"]
+        self.assertEqual(len(img_block), 1)
+        self.assertEqual(img_block[0][1]["path"], "img/logo.png")
+
+    def test_code_block_parsed(self) -> None:
+        md = "## Code\n\n```python\nprint('hi')\n```\n"
+        slides = self.mod.parse_markdown(md)
+        code_block = [b for b in slides[0].blocks if b[0] == "code"]
+        self.assertEqual(len(code_block), 1)
+        self.assertIn("print", code_block[0][1])
+
+    def test_frontmatter_stripped(self) -> None:
+        md = "---\ngamma:\n  format: presentation\n---\n# Title\n"
+        body = self.mod.strip_frontmatter(md)
+        self.assertNotIn("gamma", body)
+        self.assertIn("# Title", body)
+
+    def test_h3_stays_in_current_slide(self) -> None:
+        md = "## Main\n\n### Sub\n\nText.\n"
+        slides = self.mod.parse_markdown(md)
+        self.assertEqual(len(slides), 1)
+        headings = [b for b in slides[0].blocks if b[0] == "heading"]
+        self.assertEqual(len(headings), 1)
+        self.assertEqual(headings[0][1], "Sub")
+
+    def test_mixed_content_slide(self) -> None:
+        md = (
+            "# Title\n\nSubtitle.\n\n## Content\n\n"
+            "- Bullet\n\n| A |\n|---|\n| 1 |\n\nParagraph.\n"
+        )
+        slides = self.mod.parse_markdown(md)
+        self.assertEqual(len(slides), 2)
+        self.assertEqual(slides[0].layout, "title")
+        self.assertEqual(slides[1].layout, "content")
+        block_types = [b[0] for b in slides[1].blocks]
+        self.assertIn("bullets", block_types)
+        self.assertIn("table", block_types)
+        self.assertIn("text", block_types)
+
+
+class TestRenderPptxSmoke(unittest.TestCase):
+    """End-to-end PPTX render. Skipped when python-pptx isn't installed."""
+
+    def setUp(self) -> None:
+        try:
+            __import__("pptx")
+        except ImportError:
+            self.skipTest("python-pptx not installed; run scripts/install-local.sh")
+        self.tmp = Path(tempfile.mkdtemp(prefix="bsg-pptx-"))
+        self.src = self.tmp / "deck.md"
+        self.src.write_text(
+            "# Presentation Title\n\nSubtitle here.\n\n"
+            "## Slide One\n\n- Bullet **one**\n- Bullet *two*\n\n"
+            "## Slide Two\n\n| Col A | Col B |\n|-------|-------|\n| val 1 | val 2 |\n\n"
+            "## Slide Three\n\n```python\nprint('hello')\n```\n"
+        )
+
+    def tearDown(self) -> None:
+        if hasattr(self, "tmp"):
+            shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_renders_unbranded_pptx(self) -> None:
+        out = self.tmp / "deck.pptx"
+        result = run(
+            ["bash", str(RENDER_PPTX), str(self.src), str(out)],
+            cwd=self.tmp,
+        )
+        self.assertTrue(out.exists())
+        self.assertTrue(out.stat().st_size > 0)
+        self.assertTrue(out.read_bytes().startswith(ZIP_MAGIC))
+        self.assertEqual(result.returncode, 0)
+
+    def test_pptx_has_correct_slide_count(self) -> None:
+        out = self.tmp / "deck.pptx"
+        run(["bash", str(RENDER_PPTX), str(self.src), str(out)], cwd=self.tmp)
+        from pptx import Presentation
+        prs = Presentation(str(out))
+        self.assertEqual(len(prs.slides), 4)
+
+    def test_renders_end_to_end_via_orchestrator(self) -> None:
+        out = self.tmp / "deck.pptx"
+        run(
+            ["bash", str(ORCH), str(self.src), "--target", "pptx"],
+            cwd=self.tmp,
+        )
+        self.assertTrue(out.exists())
+        self.assertTrue(out.read_bytes().startswith(ZIP_MAGIC))
+
+    def test_autodetect_via_orchestrator(self) -> None:
+        src = self.tmp / "auto.md"
+        src.write_text("---\ngamma:\n  format: presentation\n---\n# Auto\n\nBody.\n")
+        run(["bash", str(ORCH), str(src)], cwd=self.tmp)
+        self.assertTrue((self.tmp / "auto.pptx").exists())
+
+    def test_renders_with_template(self) -> None:
+        from pptx import Presentation
+        tmpl_dir = self.tmp / "brand" / "templates"
+        tmpl_dir.mkdir(parents=True)
+        prs = Presentation()
+        tmpl_path = tmpl_dir / "template.pptx"
+        prs.save(str(tmpl_path))
+        out = self.tmp / "deck.pptx"
+        run(
+            ["bash", str(RENDER_PPTX), str(self.src), str(out),
+             "--template", str(tmpl_path)],
+            cwd=self.tmp,
+        )
+        self.assertTrue(out.exists())
+        self.assertTrue(out.stat().st_size > 0)
 
 
 if __name__ == "__main__":

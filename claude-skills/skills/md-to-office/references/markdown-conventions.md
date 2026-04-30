@@ -14,15 +14,17 @@ Pandoc handles the common markdown subset cleanly. Stick to:
 - **Links**: `[text](url)`. Pandoc renders them as Word hyperlinks.
 - **Images**: `![alt](path/to/img.png)`. Use relative paths so pandoc can resolve them at render time.
 
-## PPTX (PR #3, not yet implemented)
+## PPTX
 
-When the pptx renderer lands, the convention will be:
-
-- `# Title` → title slide (layout: `title`)
-- `## Section` → section-header slide (layout: `section`)
-- `### Content` or plain H2 with bullets → content slide (layout: `content`)
+- `# Title` → title slide (layout 0: Title Slide). Body text becomes subtitle.
+- `## Section` → content slide (layout 1: Title and Content)
+- `### Sub` → bold subheading within current slide
 - `---` (horizontal rule) → explicit slide break
-- Tables and images inside a section go on the same content slide
+- Bullet lists (dash, asterisk, numbered) → bulleted text frame with nesting (up to 2 levels)
+- GFM pipe tables → PPTX table shape positioned below content
+- `![alt](path)` → embedded picture (relative paths resolved from source dir)
+- `**bold**` / `*italic*` → inline formatting in runs
+- Fenced code blocks → monospace (Courier New) text
 
 ## XLSX (PR #4, not yet implemented)
 
@@ -31,16 +33,23 @@ from the preceding H2 (if any) or fall back to `Sheet1`, `Sheet2`, …
 
 ## Frontmatter hint
 
-The auto-target detector (post v0.1) will look at optional YAML
-frontmatter:
+The auto-target detector reads optional YAML frontmatter:
 
 ```markdown
 ---
-target: pptx
+gamma:
+  format: presentation
 ---
 
 # Slide 1
 ...
 ```
 
-This pins the target without needing a CLI flag.
+Supported fields (first match wins):
+- `gamma.format: presentation` → PPTX
+- `gamma.format: document` → DOCX
+- `target: pptx` → PPTX
+- `target: docx` → DOCX
+
+This pins the target without needing a CLI flag. An explicit
+`--target` override always wins over frontmatter.
