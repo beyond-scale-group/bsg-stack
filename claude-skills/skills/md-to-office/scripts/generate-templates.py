@@ -213,23 +213,33 @@ def main() -> None:
     tokens = json.loads(tokens_path.read_text())
     TEMPLATES.mkdir(parents=True, exist_ok=True)
 
-    errors: list[str] = []
+    skipped: list[str] = []
+    failed: list[str] = []
+    succeeded: list[str] = []
 
     for label, fn in [
-        ("DOCX",  _generate_docx),
-        ("PPTX",  _generate_pptx),
-        ("XLSX",  _generate_xlsx),
+        ("docx",  _generate_docx),
+        ("pptx",  _generate_pptx),
+        ("xlsx",  _generate_xlsx),
     ]:
         try:
             fn(tokens)
+            succeeded.append(label)
         except ImportError as e:
-            errors.append(f"{label}: missing dep — {e}. Run scripts/install-local.sh.")
+            skipped.append(label)
+            print(f"  ⚠️  {label.upper()}: missing dep — {e}. Run scripts/install-local.sh.", file=sys.stderr)
         except Exception as e:
-            errors.append(f"{label}: generation failed — {e}")
+            failed.append(label)
+            print(f"  ⚠️  {label.upper()}: generation failed — {e}", file=sys.stderr)
 
-    if errors:
-        for msg in errors:
-            print(f"  ⚠️  {msg}", file=sys.stderr)
+    parts = (
+        [f"{f} ok" for f in succeeded]
+        + [f"{f} skipped (missing dep)" for f in skipped]
+        + [f"{f} failed" for f in failed]
+    )
+    print("templates: " + ", ".join(parts))
+
+    if not succeeded:
         sys.exit(1)
 
 
