@@ -53,8 +53,8 @@ tick: >
   outcomes in the "Phase-B pilot receipt" table below.
 auto-implements:
   - "label:bug + label:qa + label:epic:* + .bsg-autopilot.yml authorizes qa"
-  - "label:enhancement + label:qa + label:epic:* + .bsg-autopilot.yml authorizes qa + estimated fix size <= 30 LOC and touches <= 3 files"
-  - "estimated fix size <= 30 LOC and touches <= 3 files"
+  - "label:enhancement + label:qa + label:epic:* + .bsg-autopilot.yml authorizes qa + fits .bsg-autopilot.yml budget"
+  - "fits .bsg-autopilot.yml budget (max_loc_per_issue, max_files_per_issue)"
   - "finding is a missing test for a regression (reproduces failure, then asserts fix)"
 never-auto-implements:
   - "changes to claude-skills/agents/*.md (cannot rewrite peers)"
