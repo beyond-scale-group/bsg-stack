@@ -4,14 +4,15 @@
 # Returns open issues that satisfy ALL of:
 #   - label matches the caller's bus label (default: tech)
 #   - label:bug OR label:enhancement
-#   - label:human-reviewed       (skipped when .bsg-autopilot.yml authorizes the agent)
-#   - label:safe-to-automate     (skipped when .bsg-autopilot.yml authorizes the agent)
 #   - at least one epic:* label
 #   - has no open PR already referencing it (agent didn't start work yet)
 #
-# When .bsg-autopilot.yml exists, is enabled, and lists the calling agent,
-# both human-reviewed and safe-to-automate label filters are dropped —
-# the repo-level marker replaces per-issue gates. See #221.
+# Auto-implementation is opt-in at the **repo level** via
+# .bsg-autopilot.yml. Without the file, with `enabled: false`, or when
+# the calling agent is not listed under `agents:`, no candidates are
+# emitted (the agent's tick becomes audit-only). The previous per-issue
+# gates `safe-to-automate` and `needs-human-review` were dropped in
+# E10 (#286) — the repo-level marker is the single source of truth.
 #
 # After emitting the candidate list, the first (top) candidate is locked
 # via bus_lock so concurrent ticks don't race on the same issue. The lock
@@ -44,25 +45,22 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Determine whether autopilot mode is active for this agent.
-AUTOPILOT=false
-if [[ -f .bsg-autopilot.yml ]]; then
-  enabled=$(grep -E '^\s*enabled\s*:' .bsg-autopilot.yml 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
-  if [[ "$enabled" == "true" ]]; then
-    if grep -qE "^\s*-\s+$AGENT\s*$" .bsg-autopilot.yml 2>/dev/null; then
-      AUTOPILOT=true
-    fi
-  fi
+# Auto-implementation requires a repo-level opt-in via .bsg-autopilot.yml.
+# Without the file, with `enabled: false`, or when this agent is not
+# listed under `agents:`, we emit no candidates — the agent's tick
+# becomes audit-only. See #286.
+if [[ ! -f .bsg-autopilot.yml ]]; then
+  exit 0
+fi
+enabled=$(grep -E '^\s*enabled\s*:' .bsg-autopilot.yml 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
+if [[ "$enabled" != "true" ]]; then
+  exit 0
+fi
+if ! grep -qE "^\s*-\s+$AGENT\s*$" .bsg-autopilot.yml 2>/dev/null; then
+  exit 0
 fi
 
 LABEL_FLAGS=(--label "$AGENT")
-if [[ "$AUTOPILOT" == "false" ]]; then
-  LABEL_FLAGS+=(--label "human-reviewed" --label "safe-to-automate")
-else
-  # Autopilot: human-reviewed and safe-to-automate are optional.
-  # The repo-level opt-in replaces per-issue gates.
-  :
-fi
 
 # Pull open issues carrying all required labels. GitHub's search API
 # AND-s labels when multiple --label flags are passed, so the bug /

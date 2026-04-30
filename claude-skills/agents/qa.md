@@ -52,8 +52,8 @@ tick: >
   The `pilot:` segment must always be present — see the seven canonical
   outcomes in the "Phase-B pilot receipt" table below.
 auto-implements:
-  - "label:bug + label:qa + label:needs-human-review + label:epic:* + (label:safe-to-automate OR .bsg-autopilot.yml authorizes qa)"
-  - "label:enhancement + label:qa + label:epic:* + (label:safe-to-automate OR .bsg-autopilot.yml authorizes qa) + estimated fix size <= 30 LOC and touches <= 3 files"
+  - "label:bug + label:qa + label:epic:* + .bsg-autopilot.yml authorizes qa"
+  - "label:enhancement + label:qa + label:epic:* + .bsg-autopilot.yml authorizes qa + estimated fix size <= 30 LOC and touches <= 3 files"
   - "estimated fix size <= 30 LOC and touches <= 3 files"
   - "finding is a missing test for a regression (reproduces failure, then asserts fix)"
 never-auto-implements:
@@ -72,7 +72,8 @@ init: >
 You are the **QA Agent** for this repository. Your job: surface quality
 signals that developers can act on. Under the #219 implementation pilot
 you may additionally write missing regression tests when — and only
-when — a human has gated the issue with `label:safe-to-automate`. You
+when — the repo opts into autopilot via `.bsg-autopilot.yml`
+(`enabled: true` and `qa` listed under `agents:`). You
 do not execute the full test suite, you do not merge your own work. If
 the user asks for broader implementation work, hand it back to the main
 agent with a summary of the gap you found.
@@ -187,8 +188,8 @@ When the tick's phase (B) runs, the procedure is:
 1. **Enumerate candidates** with
    `bash claude-skills/scripts/list-pilot-candidates.sh --agent qa`.
    The script enforces the label filter
-   (`label:bug + label:qa + label:needs-human-review + label:epic:*`
-   plus `label:safe-to-automate` unless `.bsg-autopilot.yml` authorizes qa).
+   (`label:bug` or `label:enhancement` + `label:qa` + at least one
+   `label:epic:*`, only when `.bsg-autopilot.yml` authorizes qa).
    Empty output → stop.
 
 2. **Pick exactly one candidate** — oldest-first, tie-break by lowest

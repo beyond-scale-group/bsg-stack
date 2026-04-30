@@ -4,16 +4,18 @@
 # Every BSG agent that files a GitHub issue should use this helper instead
 # of calling `gh issue create` directly. The wrapper:
 #
-#   1. Ensures the `needs-human-review` label exists on the target repo
-#      (creates it once if missing), so the convention propagates to any
-#      BSG-consuming repo without manual setup.
-#   2. Adds `needs-human-review` to the `--label` list automatically.
+#   1. In **non-autopilot** mode (no `.bsg-autopilot.yml` or
+#      `enabled: false`): ensures the `needs-human-review` label exists
+#      on the target repo and adds it to the `--label` list automatically.
+#      Humans own the transition out of "needs review" by merging,
+#      closing, or relabeling the issue.
+#   2. In **autopilot** mode (`.bsg-autopilot.yml` with `enabled: true`):
+#      `needs-human-review` is no longer auto-applied — the repo-level
+#      opt-in is the gate, and `filed-by:<agent>` (via --filed-by) is the
+#      traceability marker. See E10 (#286).
 #   3. Forwards every other flag to `gh issue create` unchanged, so the
 #      caller's existing `--title`, `--body`, `--label bug`, `--assignee`,
 #      etc. all keep working.
-#
-# The label is never removed automatically — humans own the transition out
-# of "needs review" by merging, closing, or relabeling the issue.
 #
 # Usage (drop-in replacement for `gh issue create`):
 #   file-issue.sh --title "..." --body "..."
@@ -94,24 +96,43 @@ if [[ -n "$DEDUP_FINGERPRINT" ]]; then
   fi
 fi
 
-# Idempotently ensure the label exists on the target repo. `gh label create`
-# exits non-zero if the label already exists, so swallow that specific case.
-if ! gh label list "${repo_flag[@]}" --json name \
-     --jq '.[] | select(.name == "'"$REVIEW_LABEL"'") | .name' \
-     2>/dev/null | grep -qx "$REVIEW_LABEL"; then
-  gh label create "$REVIEW_LABEL" \
-    "${repo_flag[@]}" \
-    --color "$REVIEW_COLOR" \
-    --description "$REVIEW_DESC" \
-    >/dev/null 2>&1 || true
+# Auto-apply `needs-human-review` only when the target repo is NOT in
+# autopilot mode. In autopilot mode the repo-level opt-in is the gate
+# and `filed-by:<agent>` is the traceability marker — applying
+# needs-human-review on every agent-filed issue would be redundant noise.
+APPLY_REVIEW_LABEL=true
+if [[ -f .bsg-autopilot.yml ]]; then
+  enabled=$(grep -E '^\s*enabled\s*:' .bsg-autopilot.yml 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
+  if [[ "$enabled" == "true" ]]; then
+    APPLY_REVIEW_LABEL=false
+  fi
 fi
 
-# Labels we always ensure are on the issue: needs-human-review + (optional)
-# the bus label that pins ownership to a specific agent + (optional)
-# filed-by:<agent> for traceability.
-extra_labels="$REVIEW_LABEL"
+# Idempotently ensure the review label exists on the target repo when
+# we're going to apply it. `gh label create` exits non-zero if the label
+# already exists, so swallow that specific case.
+if [[ "$APPLY_REVIEW_LABEL" == "true" ]]; then
+  if ! gh label list "${repo_flag[@]}" --json name \
+       --jq '.[] | select(.name == "'"$REVIEW_LABEL"'") | .name' \
+       2>/dev/null | grep -qx "$REVIEW_LABEL"; then
+    gh label create "$REVIEW_LABEL" \
+      "${repo_flag[@]}" \
+      --color "$REVIEW_COLOR" \
+      --description "$REVIEW_DESC" \
+      >/dev/null 2>&1 || true
+  fi
+fi
+
+# Labels we ensure on the issue:
+#   - needs-human-review (only outside autopilot mode)
+#   - (optional) the bus label that pins ownership to a specific agent
+#   - (optional) filed-by:<agent> for traceability
+extra_labels=""
+if [[ "$APPLY_REVIEW_LABEL" == "true" ]]; then
+  extra_labels="$REVIEW_LABEL"
+fi
 if [[ -n "$BUS_LABEL" ]]; then
-  extra_labels="${extra_labels},${BUS_LABEL}"
+  extra_labels="${extra_labels:+$extra_labels,}$BUS_LABEL"
 fi
 if [[ -n "$FILED_BY" ]]; then
   filed_label="filed-by:${FILED_BY}"
@@ -125,7 +146,7 @@ if [[ -n "$FILED_BY" ]]; then
       --description "Issue filed automatically by the $FILED_BY agent (#222)" \
       >/dev/null 2>&1 || true
   fi
-  extra_labels="${extra_labels},${filed_label}"
+  extra_labels="${extra_labels:+$extra_labels,}$filed_label"
 fi
 
 # `gh issue create --label` accepts either a comma-separated list or
@@ -140,7 +161,11 @@ while [[ $i -lt ${#args[@]} ]]; do
   arg="${args[$i]}"
   if [[ "$arg" == "--label" ]]; then
     existing="${args[$((i+1))]}"
-    final_args+=(--label "${existing},${extra_labels}")
+    if [[ -n "$extra_labels" ]]; then
+      final_args+=(--label "${existing},${extra_labels}")
+    else
+      final_args+=(--label "$existing")
+    fi
     label_merged=1
     i=$((i+2))
   elif [[ "$arg" == "--body" && -n "$DEDUP_FINGERPRINT" ]]; then
@@ -155,7 +180,7 @@ while [[ $i -lt ${#args[@]} ]]; do
     i=$((i+1))
   fi
 done
-if [[ $label_merged -eq 0 ]]; then
+if [[ $label_merged -eq 0 && -n "$extra_labels" ]]; then
   final_args+=(--label "$extra_labels")
 fi
 
