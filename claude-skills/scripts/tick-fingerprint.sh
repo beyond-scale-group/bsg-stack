@@ -112,8 +112,8 @@ fi
 # ---------------------------------------------------------------- emit exports
 # Caller evals the output: eval "$(bash tick-fingerprint.sh ...)"
 cat <<EXPORTS
-TICK_SHORT_CIRCUIT=$TICK_SHORT_CIRCUIT
-TICK_LAST_PR=$TICK_LAST_PR
-TICK_FINGERPRINT=$TICK_FINGERPRINT
-TICK_REPORT_FILE=$REPORT_FILE
+export TICK_SHORT_CIRCUIT=$TICK_SHORT_CIRCUIT
+export TICK_LAST_PR=$TICK_LAST_PR
+export TICK_FINGERPRINT=$TICK_FINGERPRINT
+export TICK_REPORT_FILE=$REPORT_FILE
 EXPORTS
