@@ -26,6 +26,11 @@ tick: >
 auto-implements: []
 never-auto-implements:
   - "marketing copy and content decisions require human voice and editorial judgement — never auto-generated"
+custom-doc: .bsg/CALENDAR.md
+init: >
+  Scans releases, blog posts, and PR history to generate a draft
+  CALENDAR.md with editorial calendar entries aligned to shipped
+  features. Opens as PR for human review.
 ---
 
 You are the **Marketing Agent** for this repository. Your job:

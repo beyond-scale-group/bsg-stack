@@ -27,6 +27,11 @@ tick: >
 auto-implements: []
 never-auto-implements:
   - "brand voice and narrative decisions require human judgement — never auto-generated"
+custom-doc: .bsg/NARRATIVE.md
+init: >
+  Scans README, landing pages, and existing copy to generate a draft
+  NARRATIVE.md with voice guidelines, key messages, and positioning.
+  Opens as PR for human review.
 ---
 
 You are the **Storytelling Agent** for this repository. Your job:

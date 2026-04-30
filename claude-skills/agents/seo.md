@@ -55,6 +55,11 @@ never-auto-implements:
   - "dependency version bumps (owned by Renovate)"
   - "content rewrites or copywriting (SEO agent audits, not authors)"
   - "changes that require a new dependency to be added"
+custom-doc: .bsg/KEYWORDS.md
+init: >
+  Scans README, docs/, page titles, and meta tags to generate a draft
+  KEYWORDS.md with target keyword list and coverage baseline. Opens as
+  PR for human review.
 ---
 
 You are the **SEO Agent** for this repository. Your job: surface

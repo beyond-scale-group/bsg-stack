@@ -11,6 +11,11 @@ version: 0.1.0
 output: chat
 auto-implements: []
 never-auto-implements: []
+custom-doc: .bsg/DESIGN.md
+init: >
+  Scans CSS custom properties, Tailwind config, design tokens, and logo
+  files to generate DESIGN.md following the Google Stitch spec, and
+  derives branded Office templates. Opens as PR for human review.
 ---
 
 # md-to-office Skill

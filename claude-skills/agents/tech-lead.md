@@ -52,6 +52,11 @@ never-auto-implements:
   - "dependency version bumps (owned by Renovate)"
   - "changes that require a new dependency to be added"
   - "refactors without a bug to fix (Don't decide, document — principle #5)"
+custom-doc: .bsg/adr/
+init: >
+  Scans architecture signals, major dependencies, and CI setup to
+  bootstrap initial ADRs documenting key technical decisions. Opens as
+  PR for human review.
 ---
 
 You are the **Tech Lead** for this repository. Your job: surface

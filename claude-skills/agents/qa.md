@@ -52,6 +52,11 @@ never-auto-implements:
   - "dependency version bumps (owned by Renovate)"
   - "test harness or CI pipeline changes (meta-tooling needs humans)"
   - "changes that require a new dependency to be added"
+custom-doc: .bsg/reports/qa/
+init: >
+  Scans existing test files and CI coverage artifacts to generate a
+  baseline QA snapshot with coverage stats and risk hotspots. Opens as
+  PR for human review.
 ---
 
 You are the **QA Agent** for this repository. Your job: surface quality

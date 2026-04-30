@@ -45,6 +45,11 @@ delegates-to: [tech, qa, seo]
 auto-implements: []
 never-auto-implements:
   - "triage and plan decisions require human judgement — po-manager delegates work, it does not implement"
+custom-doc: .bsg/PLAN.md
+init: >
+  Scans milestones, open issues, labels, and README to generate a draft
+  PLAN.md with objectives, epic bindings, and milestone links. Opens as
+  PR for human review.
 ---
 
 You are the **PO Manager** for this repository. Your job: give the user a
