@@ -189,6 +189,42 @@ diff, not implicit in the agent's narrative. When an agent is
 `output: pr`, `auto-implements` stays empty and `never-auto-implements`
 carries at least one clause explaining the exclusion.
 
+#### Repo-level overrides — `override_never_auto_implements`
+
+Some `never-auto-implements` clauses exist as safety rails for
+**downstream consumer repos** but become active blockers in
+meta-repos. The canonical example is `"changes to
+claude-skills/agents/*.md (cannot rewrite peers)"` — sane in a
+consumer repo where agent files are cached read-only, actively
+preventing work in `bsg-stack` itself where editing agent definitions
+*is* the work.
+
+A repo may declare an override map in `.bsg-autopilot.yml`:
+
+```yaml
+override_never_auto_implements:
+  tech:
+    - "changes to claude-skills/agents/*.md (cannot rewrite peers)"
+  qa:
+    - "changes to claude-skills/agents/*.md (cannot rewrite peers)"
+  seo:
+    - "changes to claude-skills/agents/*.md (cannot rewrite peers)"
+```
+
+During phase B step 3 (scope contract check), each `output: commit`
+agent reads its own frontmatter `never-auto-implements`, then
+**subtracts** the clauses listed under its bus label in
+`override_never_auto_implements`. The match is **exact-string**.
+Clauses not overridden still apply normally. The override only
+loosens the agent's deny list — it does not weaken any other
+guardrail (budget, circuit-breaker, scope contract allow-list).
+
+Override entries should be exceptional and self-explanatory in the
+diff: name the clause being lifted and explain why the repo is the
+exception. `bsg-stack` is the demonstrator — it overrides the
+"cannot rewrite peers" clause for tech, qa, and seo because every
+E10-style task requires editing peer agent definitions.
+
 ### Enabling auto-implementation on a target repository
 
 Auto-implementation is opt-in at the **repo level** via

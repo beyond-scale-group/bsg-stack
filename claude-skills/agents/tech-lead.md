@@ -192,6 +192,14 @@ When the tick's phase (B) runs, the procedure is:
    doesn't match at least one `auto-implements` clause, skip it too —
    the contract is allow-list.
 
+   **Repo-level override.** Before applying a `never-auto-implements`
+   clause, check whether the repo's `.bsg-autopilot.yml` carries an
+   `override_never_auto_implements:` map. If the calling agent (`tech`)
+   is a key in that map and the clause string appears in its list,
+   the clause is **disabled** for this repo. Treat the issue as if the
+   clause weren't there. This is how meta-repos like `bsg-stack` opt
+   into agents editing each other's definitions.
+
 4. **Budget the attempt.** Abort at 80 000 tokens for this single issue.
    If the abort hits, close the draft PR with a reasoning comment; do
    NOT retry until the issue's label set changes.
