@@ -279,10 +279,39 @@ preventing a runaway `/loop` from flooding the repo.
 
 **What stays the same in autopilot mode:**
 - Agents still open PRs with `needs-human-review` — a human merges
+  (unless `auto_merge: true` is set, see below)
 - `never-auto-implements` deny-list still applies
 - 30 LOC / 3 files budget still applies
 - One issue per agent per tick
 - `output: pr` agents are unaffected
+
+### Fully autonomous mode (`auto_merge: true`)
+
+Adding `auto_merge: true` to `.bsg-autopilot.yml` flips the
+finalization behavior of the 3 `output: commit` agents (tech-lead,
+qa, seo). Instead of stopping at `needs-human-review` after `gh pr
+create`, they call `auto-merge-or-flag.sh <pr> <agent>` which
+squash-merges the PR, deletes the branch, and stamps
+`human-reviewed`.
+
+**This is the only documented path for an agent to apply
+`human-reviewed`.** It is repo-scoped, opt-in via the autopilot
+file, and contingent on the calling agent being listed under
+`agents:`. Without `auto_merge: true`, the original "only humans
+apply human-reviewed" invariant still holds.
+
+**What you accept when you flip this flag:**
+- Implementation PRs land on main without a human in the loop
+- The 30 LOC / 3 file pilot budget becomes your only quality gate
+  (CI excepted — auto-merge respects branch protection if any)
+- Peer review (when configured) is purely advisory; reviews don't
+  block merges
+- A buggy agent or a poorly-labeled issue can pour broken commits
+  into main faster than you can read PRs
+
+bsg-stack opts in as the demonstrator repo. Other repos using the
+cached agents stay on the human-review default unless they set the
+flag themselves.
 
 ### Audit-to-issue pipeline (#222)
 
@@ -451,9 +480,13 @@ disposition call on it:
 | Automation (CI bots, Renovate, Dependabot) | ❌ No |
 
 **Hard rule: only a human may apply `human-reviewed`.** Agents MUST NOT add
-this label under any circumstance. If a non-human actor ever applies it,
-that is a bug in the applying automation. The label marks the *fact* of
-review, not the outcome — merge, close, and defer all count.
+this label under any circumstance — with one explicit, opt-in exception:
+when a repo sets `auto_merge: true` in `.bsg-autopilot.yml`, the
+`auto-merge-or-flag.sh` helper applies `human-reviewed` after squash-merging
+an implementation PR (see "Fully autonomous mode" above). Outside that
+single helper invocation, any non-human use of the label is still a bug.
+The label marks the *fact* of review, not the outcome — merge, close, and
+defer all count.
 
 How a human applies it — use the shared helper so the merge and the
 label swap are one atomic action:

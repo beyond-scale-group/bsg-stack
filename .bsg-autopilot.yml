@@ -27,6 +27,15 @@ budget:
   max_files_per_issue: 3
   max_issues_per_tick: 3
 
+# Fully autonomous mode — agents squash-merge their own implementation PRs
+# instead of stopping at needs-human-review. Only safe when:
+#   - Branch protection on main requires no reviews
+#   - The 30 LOC / 3 file pilot budget is accepted as a sufficient gate
+#   - Peer review is treated as advisory, not blocking
+# bsg-stack is the demonstrator and opts in here. See CLAUDE.md →
+# "Autopilot mode → auto_merge".
+auto_merge: true
+
 peer_review:
   tech:
     reviews: [qa, seo]

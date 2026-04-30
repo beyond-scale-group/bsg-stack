@@ -192,10 +192,18 @@ When the tick's phase (B) runs, the procedure is:
    has no test harness, skip: log `pilot: skipping #NN — no test harness`
    and proceed to the next tick.
 
-6. **Open the PR with `needs-human-review`.** Title:
+6. **Open the PR, then finalize via the helper.** Title:
    `fix(pilot): <issue-title> (#NN)`. Body: summary + test-plan
-   checklist + link back to issue. Do **not** auto-merge. Do **not**
-   apply `human-reviewed` — a human owns that.
+   checklist + link back to issue. After `gh pr create`, run:
+
+   ```bash
+   bash claude-skills/scripts/auto-merge-or-flag.sh <pr-number> tech
+   ```
+
+   The helper reads `.bsg-autopilot.yml`. By default it stamps
+   `needs-human-review` and stops. If the repo opts in with
+   `auto_merge: true`, it squash-merges the PR and stamps
+   `human-reviewed`. Either way, never apply the labels yourself.
 
 7. **Report.** Receipt is one line: `pilot: attempted #NN — PR #MM`.
 
