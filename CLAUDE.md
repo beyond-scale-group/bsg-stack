@@ -162,8 +162,8 @@ and won't attempt automatically when running in `output: commit` mode:
 
 ```yaml
 auto-implements:
-  - "label:bug + label:epic:* + label:safe-to-automate"
-  - "LOC estimate <= 30"
+  - "label:bug + label:epic:* + .bsg-autopilot.yml authorizes this agent"
+  - "LOC estimate <= 200"
 never-auto-implements:
   - "files under security/*"
   - "dependency version bumps (belongs to Renovate)"
@@ -171,9 +171,11 @@ never-auto-implements:
 
 Three agents are now `output: commit` with live auto-implementation
 pilots: **tech-lead** (#181), **seo** (#216), and **qa** (#219). Each
-one picks up at most one `safe-to-automate` issue per tick, applies a
-scoped fix (≤ 30 LOC / ≤ 3 files), and opens a PR with
-`needs-human-review` — never self-merging. The remaining five agents
+one picks up at most one issue per tick when the repo opts into
+autopilot via `.bsg-autopilot.yml`, applies a scoped fix
+(≤ 200 LOC / ≤ 8 files), and opens a PR — auto-merging when the
+repo sets `auto_merge: true`, otherwise stamping
+`needs-human-review` for human disposition. The remaining five agents
 (`po-manager`, `security`, `marketing`, `storytelling`, `pr-comms`)
 stay `output: pr` with explicit `never-auto-implements` clauses
 documenting *why* auto-implementation is out of scope for their domain.
@@ -189,6 +191,13 @@ carries at least one clause explaining the exclusion.
 
 ### Enabling auto-implementation on a target repository
 
+Auto-implementation is opt-in at the **repo level** via
+`.bsg-autopilot.yml`. The previous per-issue gates
+(`safe-to-automate`, `human-reviewed`) were dropped in E10 (#286) —
+the repo-level marker is the single source of truth. Without the
+file, `output: commit` agents tick in audit-only mode and never
+auto-implement, regardless of issue labels.
+
 To let `output: commit` agents (tech-lead, seo, qa) auto-implement
 fixes in a repository, a human must:
 
@@ -196,11 +205,6 @@ fixes in a repository, a human must:
 
    ```bash
    # Inside the target repo:
-   gh label create safe-to-automate \
-     --color c2e0c6 \
-     --description "Human-applied: this item is safe for an agent's output:commit tick to attempt"
-
-   # Plus the standard BSG labels if not already present:
    gh label create needs-human-review \
      --color fbca04 \
      --description "Awaiting a human decision (triage, merge, or scope)"
@@ -212,16 +216,23 @@ fixes in a repository, a human must:
    done
    ```
 
-2. **Feed the backlog.** File or label issues with:
-   - `label:bug` — only bugs are eligible today
+2. **Drop a `.bsg-autopilot.yml` at the repo root** (see "Autopilot
+   mode" below for the full schema):
+
+   ```yaml
+   enabled: true
+   agents:
+     - tech
+     - seo
+     - qa
+   ```
+
+3. **Feed the backlog.** File or label issues with:
+   - `label:bug` or `label:enhancement`
    - The agent's bus label (`tech`, `seo`, or `qa`)
-   - `label:human-reviewed` — proves a human triaged this (unless
-     autopilot mode is enabled, see below)
-   - `label:safe-to-automate` — **human-only gate** (unless autopilot
-     mode is enabled, see below)
    - At least one `epic:*` label binding the issue to a plan item
 
-3. **Run the tick** (or let `/loop` / `/schedule` drive it):
+4. **Run the tick** (or let `/loop` / `/schedule` drive it):
 
    ```bash
    # Single agent:
@@ -233,21 +244,24 @@ fixes in a repository, a human must:
 
    The agent's phase (B) calls `list-pilot-candidates.sh --agent <name>`
    to find eligible issues. If a candidate exists, the agent attempts
-   exactly one fix per sweep, opens a PR with `Fixes #NN` and
-   `needs-human-review`, and reports a one-line receipt.
+   exactly one fix per sweep and opens a PR. With `auto_merge: true`
+   in the autopilot file, the PR squash-merges and gets stamped
+   `human-reviewed`. Otherwise it stamps `needs-human-review` for
+   human disposition.
 
-4. **Review and merge.** The human reviews the PR, merges (or closes),
-   and applies `human-reviewed` via `mark-reviewed.sh <pr-number>`.
+5. **Review and merge.** When `auto_merge` is off, the human reviews
+   the PR, merges (or closes), and applies `human-reviewed` via
+   `mark-reviewed.sh <pr-number>`.
 
 The `--repo OWNER/NAME` flag on `list-pilot-candidates.sh` allows
 running against a different repository than the current working
 directory — useful for cross-repo sweeps from a central session.
 
-### Autopilot mode (`.bsg-autopilot.yml`) — #221
+### Autopilot mode (`.bsg-autopilot.yml`) — #221, #286
 
-For repos with a steady stream of labeled issues, the per-issue
-`safe-to-automate` gate adds friction. **Autopilot mode** replaces the
-per-issue gate with a repo-level opt-in.
+`.bsg-autopilot.yml` is the single repo-level opt-in for
+auto-implementation. The file is the gate: without it, no
+auto-implementation happens regardless of issue labels.
 
 Drop a `.bsg-autopilot.yml` at the repo root:
 
@@ -258,19 +272,22 @@ agents:
   - seo
   - qa
 budget:
-  max_prs_per_tick: 1
-  max_prs_per_day: 3
-  max_loc_per_issue: 30
-  max_files_per_issue: 3
+  max_prs_per_tick: 3
+  max_prs_per_day: 200
+  max_loc_per_issue: 200
+  max_files_per_issue: 8
 ```
 
-When this file exists, is `enabled: true`, and lists the calling agent
-in `agents:`, `list-pilot-candidates.sh` drops both the `human-reviewed`
-and `safe-to-automate` label filters. Issues only need `label:bug` +
-bus label + `label:epic:*` to be eligible.
+When this file exists, is `enabled: true`, and lists the calling
+agent in `agents:`, `list-pilot-candidates.sh` returns issues that
+have `label:bug` or `label:enhancement` + bus label + `label:epic:*`.
+Without it, the script returns no candidates.
 
-The per-issue labels (`human-reviewed`, `safe-to-automate`) still work
-as gates on repos without the file or for agents not listed in `agents:`.
+`needs-human-review` and `human-reviewed` are no longer eligibility
+gates — they only mark the **disposition state of PRs** (awaiting
+human merge / merged-and-reviewed). `human-reviewed` is also posted
+as the final stamp by `auto-merge-or-flag.sh` after a successful
+auto-merge.
 
 **Daily circuit-breaker.** `pilot-circuit-breaker.sh` counts
 implementation PRs opened today and compares against `max_prs_per_day`

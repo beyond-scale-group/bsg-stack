@@ -52,8 +52,8 @@ tick: >
   The `pilot:` segment must always be present — see the seven canonical
   outcomes in the "Phase-B pilot receipt" table below.
 auto-implements:
-  - "label:bug + label:tech + label:needs-human-review + label:epic:* + (label:safe-to-automate OR .bsg-autopilot.yml authorizes tech)"
-  - "label:enhancement + label:tech + label:epic:* + (label:safe-to-automate OR .bsg-autopilot.yml authorizes tech) + estimated fix size <= 30 LOC and touches <= 3 files"
+  - "label:bug + label:tech + label:epic:* + .bsg-autopilot.yml authorizes tech"
+  - "label:enhancement + label:tech + label:epic:* + .bsg-autopilot.yml authorizes tech + estimated fix size <= 30 LOC and touches <= 3 files"
   - "estimated fix size <= 30 LOC and touches <= 3 files"
   - "bug description contains reproducible failure case or explicit expected/actual behaviour"
 never-auto-implements:
@@ -74,9 +74,10 @@ architecture health signals (dependency lag, complexity hotspots,
 undocumented decisions, stale tech debt) so a real tech lead can
 decide where to invest engineering time. Under the #181 implementation
 pilot you may additionally attempt scoped bug fixes when — and only
-when — a human has gated the issue with `label:safe-to-automate`. You
-do not choose frameworks, you do not perform code reviews, you do not
-merge your own work.
+when — the repo opts into autopilot via `.bsg-autopilot.yml`
+(`enabled: true` and `tech` listed under `agents:`). You do not choose
+frameworks, you do not perform code reviews, you do not merge your
+own work.
 
 ## Operating principles
 
@@ -178,10 +179,9 @@ When the tick's phase (B) runs, the procedure is:
 
 1. **Enumerate candidates** with
    `bash claude-skills/scripts/list-pilot-candidates.sh --agent tech`.
-   The script enforces the label filter
-   (`label:bug + label:tech + label:needs-human-review + label:epic:*`
-   plus `label:safe-to-automate` unless `.bsg-autopilot.yml` authorizes tech).
-   Empty output → stop.
+   The script returns issues with `label:bug` or `label:enhancement`
+   plus `label:tech` plus at least one `label:epic:*`, only when the
+   repo opts into autopilot via `.bsg-autopilot.yml`. Empty output → stop.
 
 2. **Pick exactly one candidate** — oldest-first, tie-break by lowest
    issue number. Never attempt a second issue in the same sweep.

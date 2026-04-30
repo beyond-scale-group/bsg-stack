@@ -7,12 +7,12 @@
 #      (po, security, qa, tech, seo, marketing, storytelling, pr-comms).
 #      Two bus labels on the same item = ambiguous ownership → fail.
 #
-#   2. Carry either `needs-human-review` or `human-reviewed` — never both,
-#      never neither. Together they form a binary state that proves the
-#      item has moved through human triage.
-#
 # What is NOT enforced here (yet):
 #
+#   - The `needs-human-review` / `human-reviewed` binary was dropped
+#     in E10 (#286): the repo-level autopilot opt-in is now the gate,
+#     and `human-reviewed` becomes a post-merge stamp posted by
+#     `auto-merge-or-flag.sh` rather than a triage marker.
 #   - PRs are audited the same way as issues; report PRs opened by
 #     `open-report-pr.sh` auto-merge so quickly they rarely linger open
 #     long enough to fail the audit in practice.
@@ -74,16 +74,6 @@ check_item() {
     1) ;;
     *) report_item "$kind" "$number" "carries ${bus_count} bus labels (ambiguous ownership)" ;;
   esac
-
-  local has_needs has_done
-  has_needs=$(jq '[.[] | select(.name == "needs-human-review")] | length' <<<"$labels_json")
-  has_done=$(jq  '[.[] | select(.name == "human-reviewed")]   | length' <<<"$labels_json")
-
-  if [[ "$has_needs" -eq 0 && "$has_done" -eq 0 ]]; then
-    report_item "$kind" "$number" "missing both 'needs-human-review' and 'human-reviewed'"
-  elif [[ "$has_needs" -ge 1 && "$has_done" -ge 1 ]]; then
-    report_item "$kind" "$number" "carries both 'needs-human-review' and 'human-reviewed' — pick one"
-  fi
 }
 
 echo "Auditing open issues..."
