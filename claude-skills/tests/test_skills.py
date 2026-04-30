@@ -326,6 +326,42 @@ class TestSharedSkills(unittest.TestCase):
                         f"must list at least one `never-auto-implements` clause.",
                     )
 
+    # -------------------------------------- pilot receipt (#263)
+
+    def test_output_commit_agents_document_pilot_receipts(self) -> None:
+        """Every output: commit agent must document all seven canonical
+        pilot receipt outcomes (#263).
+
+        The pilot receipt is a mandatory single-line phase-B log that
+        prevents silent phase-B skips. Each canonical outcome string
+        must appear somewhere in the agent definition file.
+        """
+        PILOT_RECEIPT_MARKERS = [
+            "pilot: attempted #NN",
+            "pilot: no candidates",
+            "pilot: blocked by circuit-breaker",
+            "pilot: not authorized",
+            "pilot: skipped #NN — never-auto-implements",
+            "pilot: skipped #NN — no test harness",
+            "pilot: aborted #NN — budget",
+        ]
+        for path in list_agents():
+            with self.subTest(agent=path.stem):
+                text = path.read_text()
+                fm_match = FRONTMATTER_RE.match(text)
+                self.assertIsNotNone(fm_match)
+                scalars = dict(FRONTMATTER_SCALAR_RE.findall(fm_match.group(1)))
+                if scalars.get("output") != "commit":
+                    continue
+                for marker in PILOT_RECEIPT_MARKERS:
+                    self.assertIn(
+                        marker,
+                        text,
+                        f"{path.relative_to(REPO_ROOT)}: output: commit agent "
+                        f"must document the canonical pilot receipt "
+                        f"'{marker}' — see #263.",
+                    )
+
     # ---------------------------------------- custom-doc + init (#237)
 
     def test_every_agent_declares_custom_doc(self) -> None:

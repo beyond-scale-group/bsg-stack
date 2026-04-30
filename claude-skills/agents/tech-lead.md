@@ -18,8 +18,9 @@ tick: >
   If TICK_SHORT_CIRCUIT=1, set TICK_AUDIT_RECEIPT="unchanged — see PR #$TICK_LAST_PR" and skip to (B) — phases (A) and (A.5) are gated by audit freshness, but (B) and (C) have independent triggers and must always run.
   Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
   (A) Run the full architecture health check (deps + quality + debt + ADR gap
-  detection). Write the detailed report to tech/reports/YYYY-MM-DD-health.md
-  and land it on main via `claude-skills/scripts/open-report-pr.sh`.
+  detection). Write the detailed report to tech/reports/YYYY-MM-DD-health.md.
+  Do NOT open the report PR yet — defer to (B.post) so the pilot receipt
+  is embedded in the report.
   (A.5) Audit-to-issue (#222): if .bsg-autopilot.yml lists tech and the audit
   produced mechanically-fixable findings (stale TODO with clear fix, oversized
   file with obvious split point, missing ADR for a new dependency), file up to
@@ -28,20 +29,28 @@ tick: >
   Each issue carries label:bug + label:tech + label:epic:<plan-item>.
   Skip if autopilot is not enabled or if the finding doesn't match
   auto-implements.
-  (B) Implementation pilot (#181, autopilot #221): first run
+  (B) Implementation pilot (#181, autopilot #221): determine the pilot
+  receipt — one of seven canonical outcomes (see "Phase-B pilot receipt"
+  in the Implementation pilot section). First run
   `bash claude-skills/scripts/pilot-circuit-breaker.sh` — if it exits 1,
-  skip phase (B) entirely (daily PR cap reached). Then run
-  `list-pilot-candidates.sh --agent tech`. If the output is empty, stop.
-  Otherwise attempt exactly ONE issue per sweep (rank by oldest, tie-break
-  by lowest number); see the "Implementation pilot" section below for the
-  full procedure. Never self-merge the implementation PR.
+  receipt is `pilot: blocked by circuit-breaker (today=N cap=M)`. Then run
+  `list-pilot-candidates.sh --agent tech`. If the output is empty, receipt
+  is `pilot: no candidates`. Otherwise attempt exactly ONE issue per sweep
+  (rank by oldest, tie-break by lowest number); see the "Implementation
+  pilot" section below for the full procedure. Never self-merge the
+  implementation PR.
+  (B.post) Append the `pilot:` receipt line to the end of the report file.
+  Then land the report on main via
+  `claude-skills/scripts/open-report-pr.sh --require-pilot`.
   (C) Peer review (#222 phase 3b): if .bsg-autopilot.yml has a peer_review
   section listing tech, run `peer-review-candidates.sh --reviewer tech`.
   For each candidate PR (max 2 per tick): read the diff, check for code
   quality issues, architecture fit, and naming conventions. Add a review
   comment and apply `peer-reviewed:tech` label. If issues found, also apply
   `needs-rework`. Never merge, never apply `human-reviewed`.
-  In chat, reply with one line combining audit status and pilot outcome. Examples: "Tick: unchanged — see PR #X · pilot: no candidates", "Tick: 2 sb — PR #X · pilot: attempted #NN — PR #MM", "Tick: unchanged — see PR #X · pilot: blocked by circuit-breaker". The pilot segment must always be present and must be one of: `pilot: attempted #NN — PR #MM`, `pilot: no candidates`, `pilot: blocked by circuit-breaker`, `pilot: not authorized`.
+  In chat, reply with one line: `Tick: <state> — <PR URL> · pilot: <outcome>`.
+  The `pilot:` segment must always be present — see the seven canonical
+  outcomes in the "Phase-B pilot receipt" table below.
 auto-implements:
   - "label:bug + label:tech + label:needs-human-review + label:epic:* + (label:safe-to-automate OR .bsg-autopilot.yml authorizes tech)"
   - "estimated fix size <= 30 LOC and touches <= 3 files"
@@ -205,7 +214,22 @@ When the tick's phase (B) runs, the procedure is:
    `auto_merge: true`, it squash-merges the PR and stamps
    `human-reviewed`. Either way, never apply the labels yourself.
 
-7. **Report.** Receipt is one line: `pilot: attempted #NN — PR #MM`.
+7. **Phase-B pilot receipt (#263).** Every tick MUST produce exactly one
+   `pilot:` receipt. The canonical outcomes are:
+
+   | Outcome | Receipt |
+   |---|---|
+   | Attempted a fix | `pilot: attempted #NN — PR #MM` |
+   | No eligible candidates | `pilot: no candidates` |
+   | Circuit-breaker tripped | `pilot: blocked by circuit-breaker (today=N cap=M)` |
+   | Autopilot not authorized | `pilot: not authorized (agent tech not in .bsg-autopilot.yml)` |
+   | Issue matched never-auto-implements | `pilot: skipped #NN — never-auto-implements` |
+   | No test harness in repo | `pilot: skipped #NN — no test harness` |
+   | Token budget exhausted | `pilot: aborted #NN — budget` |
+
+   Embed this line in the report file footer AND include it as the second
+   element of the chat receipt (`Tick: <state> — <PR URL> · pilot: <outcome>`).
+   A tick that produces no `pilot:` line is a bug.
 
 ### When to NOT attempt
 

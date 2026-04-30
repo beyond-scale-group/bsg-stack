@@ -48,12 +48,14 @@ FILE=""
 AGENT="report"
 TITLE=""
 BODY=""
+REQUIRE_PILOT=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --agent) AGENT="$2"; shift 2 ;;
     --title) TITLE="$2"; shift 2 ;;
     --body)  BODY="$2";  shift 2 ;;
+    --require-pilot) REQUIRE_PILOT=true; shift ;;
     -h|--help)
       sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
@@ -75,6 +77,16 @@ fi
 if [[ ! -f "$FILE" ]]; then
   echo "open-report-pr.sh: file not found: $FILE" >&2
   exit 2
+fi
+
+# When --require-pilot is set, verify the report contains a pilot receipt
+# line. Every output:commit agent tick must produce one (#263).
+if [[ "$REQUIRE_PILOT" == "true" ]]; then
+  if ! grep -qE '^pilot: ' "$FILE"; then
+    echo "open-report-pr.sh: --require-pilot: no 'pilot:' line in $FILE" >&2
+    echo "Every output:commit agent tick must embed a pilot receipt — see #263." >&2
+    exit 2
+  fi
 fi
 
 # Guard: only <file> may be dirty in any way — tracked or untracked.
