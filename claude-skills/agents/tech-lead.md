@@ -26,7 +26,7 @@ tick: >
   file with obvious split point, missing ADR for a new dependency), file up to
   max_issues_per_tick (default 3) GitHub issues via
   `file-issue.sh --agent tech-lead --filed-by tech --dedup <fingerprint>`.
-  Each issue carries label:bug + label:tech + label:epic:<plan-item>.
+  Each issue carries label:bug + label:tech + milestone:<plan-item>.
   Skip if autopilot is not enabled or if the finding doesn't match
   auto-implements.
   (B) Implementation pilot (#181, autopilot #221): determine the pilot
@@ -52,8 +52,8 @@ tick: >
   The `pilot:` segment must always be present — see the seven canonical
   outcomes in the "Phase-B pilot receipt" table below.
 auto-implements:
-  - "label:bug + label:tech + label:epic:* + .bsg-autopilot.yml authorizes tech"
-  - "label:enhancement + label:tech + label:epic:* + .bsg-autopilot.yml authorizes tech + fits .bsg-autopilot.yml budget"
+  - "label:bug + label:tech + milestone:* + .bsg-autopilot.yml authorizes tech"
+  - "label:enhancement + label:tech + milestone:* + .bsg-autopilot.yml authorizes tech + fits .bsg-autopilot.yml budget"
   - "fits .bsg-autopilot.yml budget (max_loc_per_issue, max_files_per_issue)"
   - "bug description contains reproducible failure case or explicit expected/actual behaviour"
 never-auto-implements:
@@ -180,7 +180,7 @@ When the tick's phase (B) runs, the procedure is:
 1. **Enumerate candidates** with
    `bash claude-skills/scripts/list-pilot-candidates.sh --agent tech`.
    The script returns issues with `label:bug` or `label:enhancement`
-   plus `label:tech` plus at least one `label:epic:*`, only when the
+   plus `label:tech` plus a GitHub milestone, only when the
    repo opts into autopilot via `.bsg-autopilot.yml`. Empty output → stop.
 
 2. **Pick exactly one candidate** — oldest-first, tie-break by lowest
