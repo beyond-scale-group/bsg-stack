@@ -59,14 +59,14 @@ if [[ -f "$NARRATIVE_PATH" ]]; then
   DIFFERENTIATORS_JSON=$(extract_section_bullets "Value Proposition" | jq -Rn '[inputs | select(length>0)]' 2>/dev/null || echo '[]')
 
   BANNED_RAW=$(extract_kv_sublines "Voice Guidelines" "Banned vocabulary" || true)
-  BANNED_TERMS_JSON=$(echo "$BANNED_RAW" | tr ',' '\n' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' | grep -v '^$' | jq -Rn '[inputs]' 2>/dev/null || echo '[]')
+  BANNED_TERMS_JSON=$(echo "$BANNED_RAW" | tr ',' '\n' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' | jq -Rn '[inputs | select(length>0)]' 2>/dev/null || echo '[]')
 
   PREF_RAW=$(extract_kv_sublines "Voice Guidelines" "Preferred vocabulary" || true)
-  PREFERRED_TERMS_JSON=$(echo "$PREF_RAW" | tr ',' '\n' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' | grep -v '^$' | jq -Rn '[inputs]' 2>/dev/null || echo '[]')
+  PREFERRED_TERMS_JSON=$(echo "$PREF_RAW" | tr ',' '\n' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' | jq -Rn '[inputs | select(length>0)]' 2>/dev/null || echo '[]')
 
   CATEGORY=$(extract_kv_sublines "Positioning" "Category" | head -1 || true)
   AUDIENCE=$(extract_kv_sublines "Positioning" "Target audience" | head -1 || true)
-  FEATURE_ANCHORS_JSON=$(extract_kv_sublines "Positioning" "Feature anchors" | tr ',' '\n' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' | grep -v '^$' | jq -Rn '[inputs]' 2>/dev/null || echo '[]')
+  FEATURE_ANCHORS_JSON=$(extract_kv_sublines "Positioning" "Feature anchors" | tr ',' '\n' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' | jq -Rn '[inputs | select(length>0)]' 2>/dev/null || echo '[]')
 fi
 
 # --------------------------------------------- jargon baseline
