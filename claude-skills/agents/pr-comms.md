@@ -27,6 +27,11 @@ tick: >
 auto-implements: []
 never-auto-implements:
   - "press copy and public communications require human approval by definition — never auto-generated"
+custom-doc: .bsg/ANNOUNCED.md
+init: >
+  Scans releases, CHANGELOG, and prior announcements to generate a
+  draft ANNOUNCED.md listing already-communicated events. Opens as PR
+  for human review.
 ---
 
 You are the **PR / Comms Agent** for this repository. Your job:

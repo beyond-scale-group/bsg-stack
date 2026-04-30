@@ -326,6 +326,114 @@ class TestSharedSkills(unittest.TestCase):
                         f"must list at least one `never-auto-implements` clause.",
                     )
 
+    # ---------------------------------------- custom-doc + init (#237)
+
+    def test_every_agent_declares_custom_doc(self) -> None:
+        """Every agent must declare a `custom-doc:` field listing the
+        per-repo document(s) it reads/writes under .bsg/.
+
+        See CLAUDE.md → "Unified .bsg/ directory convention" and #237.
+        """
+        agents = list_agents()
+        self.assertGreater(len(agents), 0, "no agents discovered")
+        for path in agents:
+            with self.subTest(agent=path.stem):
+                text = path.read_text()
+                fm_match = FRONTMATTER_RE.match(text)
+                self.assertIsNotNone(fm_match)
+                frontmatter = fm_match.group(1)
+                scalars = dict(FRONTMATTER_SCALAR_RE.findall(frontmatter))
+                self.assertIn(
+                    "custom-doc",
+                    scalars,
+                    f"{path.relative_to(REPO_ROOT)}: agent frontmatter is "
+                    f"missing a `custom-doc:` field. Every BSG agent must "
+                    f"declare the per-repo document it reads/writes — see "
+                    f"#237 for the schema.",
+                )
+                self.assertTrue(
+                    scalars["custom-doc"].strip(),
+                    f"{path.relative_to(REPO_ROOT)}: `custom-doc:` is empty. "
+                    f"Specify the .bsg/ path this agent owns.",
+                )
+
+    def test_every_agent_declares_init_action(self) -> None:
+        """Every agent must declare an `init:` field in frontmatter
+        describing what --init generates and from what sources.
+
+        See CLAUDE.md → "Mandatory --init on every agent" and #237.
+        """
+        agents = list_agents()
+        self.assertGreater(len(agents), 0, "no agents discovered")
+        for path in agents:
+            with self.subTest(agent=path.stem):
+                text = path.read_text()
+                fm_match = FRONTMATTER_RE.match(text)
+                self.assertIsNotNone(fm_match)
+                frontmatter = fm_match.group(1)
+                keys = set(TOP_LEVEL_KEY_RE.findall(frontmatter))
+                self.assertIn(
+                    "init",
+                    keys,
+                    f"{path.relative_to(REPO_ROOT)}: agent frontmatter is "
+                    f"missing an `init:` field. Every BSG agent must declare "
+                    f"what its --init generates — see #237.",
+                )
+                init_body = self._extract_folded_body(frontmatter, "init")
+                self.assertTrue(
+                    init_body.strip(),
+                    f"{path.relative_to(REPO_ROOT)}: `init:` field is empty. "
+                    f"Describe what --init generates and from what sources.",
+                )
+
+    def test_every_skill_with_custom_doc_has_init(self) -> None:
+        """Skills that declare a custom-doc must also declare init."""
+        skills = list_skill_entrypoints()
+        for path in skills:
+            with self.subTest(skill=path.parent.name):
+                text = path.read_text()
+                fm_match = FRONTMATTER_RE.match(text)
+                if not fm_match:
+                    continue
+                frontmatter = fm_match.group(1)
+                scalars = dict(FRONTMATTER_SCALAR_RE.findall(frontmatter))
+                if "custom-doc" not in scalars:
+                    continue
+                keys = set(TOP_LEVEL_KEY_RE.findall(frontmatter))
+                self.assertIn(
+                    "init",
+                    keys,
+                    f"{path.relative_to(REPO_ROOT)}: skill declares "
+                    f"`custom-doc: {scalars['custom-doc']}` but has no "
+                    f"`init:` field. Skills with a custom doc must declare "
+                    f"how --init generates it — see #237.",
+                )
+                init_body = self._extract_folded_body(frontmatter, "init")
+                self.assertTrue(
+                    init_body.strip(),
+                    f"{path.relative_to(REPO_ROOT)}: `init:` field is empty.",
+                )
+
+    @staticmethod
+    def _extract_folded_body(frontmatter: str, key: str) -> str:
+        """Return the value of a YAML key (inline or folded block)."""
+        lines = frontmatter.splitlines()
+        body: list[str] = []
+        in_block = False
+        for line in lines:
+            if not in_block:
+                m = re.match(rf"^{re.escape(key)}\s*:\s*(.*)$", line)
+                if m:
+                    in_block = True
+                    inline = m.group(1).strip()
+                    if inline and inline not in (">", "|", ">-", "|-"):
+                        body.append(inline)
+                continue
+            if re.match(r"^[A-Za-z_][A-Za-z0-9_-]*\s*:", line):
+                break
+            body.append(line)
+        return "\n".join(body)
+
     # ---------------------------------------- registry/frontmatter alignment
 
     def test_registry_output_matches_frontmatter(self) -> None:

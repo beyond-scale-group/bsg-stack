@@ -30,6 +30,11 @@ tick: >
 auto-implements: []
 never-auto-implements:
   - "security fixes must be written and reviewed by humans — never by an agent"
+custom-doc: .bsg/SECURITYIGNORE
+init: >
+  Scans test fixtures, sample data, and CI config to generate a draft
+  SECURITYIGNORE listing known false-positive paths to exclude from
+  audit. Opens as PR for human review.
 ---
 
 You are the **Security Agent** for this repository. Your job: produce a
