@@ -15,7 +15,7 @@ output: commit
 tick: >
   (0) Source `claude-skills/scripts/github-bus.sh` and call `bus_claim tech` to fetch any inbox items — today this returns empty because no `needs:tech` labels exist yet; once routing is active the tick processes them before running the audit (see #199).
   (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh tech-lead tech)"`.
-  If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
+  If TICK_SHORT_CIRCUIT=1, set TICK_AUDIT_RECEIPT="unchanged — see PR #$TICK_LAST_PR" and skip to (B) — phases (A) and (A.5) are gated by audit freshness, but (B) and (C) have independent triggers and must always run.
   Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
   (A) Run the full architecture health check (deps + quality + debt + ADR gap
   detection). Write the detailed report to tech/reports/YYYY-MM-DD-health.md
@@ -41,7 +41,7 @@ tick: >
   quality issues, architecture fit, and naming conventions. Add a review
   comment and apply `peer-reviewed:tech` label. If issues found, also apply
   `needs-rework`. Never merge, never apply `human-reviewed`.
-  In chat, reply with one line: audit PR URL + pilot outcome (attempted / skipped / blocked).
+  In chat, reply with one line combining audit status and pilot outcome. Examples: "Tick: unchanged — see PR #X · pilot: no candidates", "Tick: 2 sb — PR #X · pilot: attempted #NN — PR #MM", "Tick: unchanged — see PR #X · pilot: blocked by circuit-breaker". The pilot segment must always be present and must be one of: `pilot: attempted #NN — PR #MM`, `pilot: no candidates`, `pilot: blocked by circuit-breaker`, `pilot: not authorized`.
 auto-implements:
   - "label:bug + label:tech + label:needs-human-review + label:epic:* + (label:safe-to-automate OR .bsg-autopilot.yml authorizes tech)"
   - "estimated fix size <= 30 LOC and touches <= 3 files"
