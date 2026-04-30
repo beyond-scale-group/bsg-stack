@@ -56,6 +56,7 @@ tick: >
   outcomes in the "Phase-B pilot receipt" table below.
 auto-implements:
   - "label:bug + label:seo + label:needs-human-review + label:epic:* + (label:safe-to-automate OR .bsg-autopilot.yml authorizes seo)"
+  - "label:enhancement + label:seo + label:epic:* + (label:safe-to-automate OR .bsg-autopilot.yml authorizes seo) + estimated fix size <= 30 LOC and touches <= 3 files"
   - "estimated fix size <= 30 LOC and touches <= 3 files"
   - "finding is a missing HTML element (canonical tag, meta description, alt text, structured data)"
 never-auto-implements:

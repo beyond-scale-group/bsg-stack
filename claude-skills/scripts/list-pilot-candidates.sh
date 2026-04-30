@@ -3,7 +3,7 @@
 #
 # Returns open issues that satisfy ALL of:
 #   - label matches the caller's bus label (default: tech)
-#   - label:bug
+#   - label:bug OR label:enhancement
 #   - label:human-reviewed       (skipped when .bsg-autopilot.yml authorizes the agent)
 #   - label:safe-to-automate     (skipped when .bsg-autopilot.yml authorizes the agent)
 #   - at least one epic:* label
@@ -55,7 +55,7 @@ if [[ -f .bsg-autopilot.yml ]]; then
   fi
 fi
 
-LABEL_FLAGS=(--label "$AGENT" --label "bug")
+LABEL_FLAGS=(--label "$AGENT")
 if [[ "$AUTOPILOT" == "false" ]]; then
   LABEL_FLAGS+=(--label "human-reviewed" --label "safe-to-automate")
 else
@@ -65,7 +65,8 @@ else
 fi
 
 # Pull open issues carrying all required labels. GitHub's search API
-# AND-s labels when multiple --label flags are passed.
+# AND-s labels when multiple --label flags are passed, so the bug /
+# enhancement OR-filter is applied below in jq instead of via --label.
 candidates_json=$(gh issue list "${REPO_FLAG[@]}" \
   --state open \
   "${LABEL_FLAGS[@]}" \
@@ -73,11 +74,13 @@ candidates_json=$(gh issue list "${REPO_FLAG[@]}" \
   2>/dev/null || echo "[]")
 
 # Post-filter for:
+#   - label:bug OR label:enhancement (#282)
 #   - at least one epic:* label
 #   - no open PR already touching this issue (avoid re-attempting)
 # Emit one JSON object per line.
 filtered=$(jq -c '
   .[]
+  | select(.labels | any(.name == "bug" or .name == "enhancement"))
   | select(.labels | any(.name | startswith("epic:")))
   | {
       number,

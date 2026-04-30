@@ -53,6 +53,7 @@ tick: >
   outcomes in the "Phase-B pilot receipt" table below.
 auto-implements:
   - "label:bug + label:qa + label:needs-human-review + label:epic:* + (label:safe-to-automate OR .bsg-autopilot.yml authorizes qa)"
+  - "label:enhancement + label:qa + label:epic:* + (label:safe-to-automate OR .bsg-autopilot.yml authorizes qa) + estimated fix size <= 30 LOC and touches <= 3 files"
   - "estimated fix size <= 30 LOC and touches <= 3 files"
   - "finding is a missing test for a regression (reproduces failure, then asserts fix)"
 never-auto-implements:

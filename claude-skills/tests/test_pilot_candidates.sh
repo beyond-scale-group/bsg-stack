@@ -76,7 +76,7 @@ bash "$SUT" --agent tech >/dev/null 2>&1
 ARGS="$(cat "$GH_ARGS_FILE")"
 
 assert_contains "T1: has --label tech" "$ARGS" "--label tech"
-assert_contains "T1: has --label bug" "$ARGS" "--label bug"
+assert_not_contains "T1: no --label bug (filter moved to jq)" "$ARGS" "--label bug"
 assert_contains "T1: has --label human-reviewed" "$ARGS" "--label human-reviewed"
 assert_contains "T1: has --label safe-to-automate" "$ARGS" "--label safe-to-automate"
 assert_not_contains "T1: no needs-human-review" "$ARGS" "needs-human-review"
@@ -93,7 +93,7 @@ bash "$SUT" --agent tech >/dev/null 2>&1
 ARGS="$(cat "$GH_ARGS_FILE")"
 
 assert_contains "T2: has --label tech" "$ARGS" "--label tech"
-assert_contains "T2: has --label bug" "$ARGS" "--label bug"
+assert_not_contains "T2: no --label bug (filter moved to jq)" "$ARGS" "--label bug"
 assert_not_contains "T2: no human-reviewed" "$ARGS" "human-reviewed"
 assert_not_contains "T2: no safe-to-automate" "$ARGS" "safe-to-automate"
 assert_not_contains "T2: no needs-human-review" "$ARGS" "needs-human-review"
@@ -190,6 +190,44 @@ bash "$SUT" --agent tech >/dev/null 2>&1
 LOCK_ARGS="$(cat "$GH_LOCK_FILE" 2>/dev/null || echo "")"
 assert_contains "T7: bus_lock adds agent:lock:tech" "$LOCK_ARGS" "agent:lock:tech"
 assert_contains "T7: bus_lock targets issue 42" "$LOCK_ARGS" "42"
+
+# ---------- Test 8: enhancement issues are eligible (#282) ----------
+echo "--- Test 8: enhancement-only issue surfaces as candidate ---"
+cat > "$MOCK_GH" <<'MOCK8'
+#!/usr/bin/env bash
+if [[ "${2:-}" == "list" ]]; then
+  echo "$@" > "$GH_ARGS_FILE"
+  cat <<'JSON'
+[{"number":62,"title":"enh","url":"https://example.com/62","labels":[{"name":"enhancement"},{"name":"tech"},{"name":"epic:E1"}]}]
+JSON
+fi
+MOCK8
+chmod +x "$MOCK_GH"
+
+rm -f "$TMPDIR_TEST/.bsg-autopilot.yml"
+OUTPUT="$(bash "$SUT" --agent tech 2>/dev/null)"
+assert_contains "T8: enhancement issue surfaces" "$OUTPUT" '"number":62'
+
+# ---------- Test 9: issue with neither bug nor enhancement is rejected ----------
+echo "--- Test 9: issue without bug/enhancement is filtered out ---"
+cat > "$MOCK_GH" <<'MOCK9'
+#!/usr/bin/env bash
+if [[ "${2:-}" == "list" ]]; then
+  echo "$@" > "$GH_ARGS_FILE"
+  cat <<'JSON'
+[{"number":77,"title":"docs","url":"https://example.com/77","labels":[{"name":"documentation"},{"name":"tech"},{"name":"epic:E1"}]}]
+JSON
+fi
+MOCK9
+chmod +x "$MOCK_GH"
+
+OUTPUT="$(bash "$SUT" --agent tech 2>/dev/null)"
+if [[ -z "$OUTPUT" ]]; then
+  PASS=$((PASS + 1))
+else
+  FAIL=$((FAIL + 1))
+  echo "FAIL: T9: docs-only issue should be filtered out, got: $OUTPUT"
+fi
 
 # ---------- Summary ----------
 echo ""
