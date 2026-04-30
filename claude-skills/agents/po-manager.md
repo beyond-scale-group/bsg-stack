@@ -21,9 +21,10 @@ tick: >
   (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh po-manager po)"`.
   If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
   Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
-  (1) Run `reconcile-labels.sh` to project po/PLAN.md bindings onto GitHub
-  labels — epic:<slug> on bound issues/PRs, scope-creep on unbound ones
-  (idempotent; skip silently if the plan is missing or unparseable).
+  (1) Run `reconcile-milestones.sh` to assign GitHub milestones from po/PLAN.md
+  bindings — each bound issue/PR gets the milestone matching its epic slug,
+  scope-creep label for unbound ones (idempotent; skip silently if the plan
+  is missing or unparseable).
   (2) Run the full status + adherence report and land it as
   po/reports/YYYY-MM-DD-status.md via open-report-pr.sh. Stay silent in chat
   unless a silence-breaker fires (see the "Tick action" section below).
@@ -128,16 +129,17 @@ that nothing gets posted in chat when the project is healthy.
 
 ### Steps
 
-1. **Reconcile plan bindings to GitHub labels** (idempotent; silent on
+1. **Reconcile plan bindings to GitHub milestones** (idempotent; silent on
    plan drift so it doesn't add noise between plan edits):
 
    ```bash
-   bash .claude/skills/po/scripts/reconcile-labels.sh
+   bash .claude/skills/po/scripts/reconcile-milestones.sh
    ```
 
-   This applies `epic:<slug>` to every issue/PR bound in `po/PLAN.md`
-   and `scope-creep` to everything not bound. Labels go both directions
-   — unbinding an item removes its stale epic label on the next tick.
+   This assigns the GitHub milestone matching each epic slug to every
+   issue/PR bound in `po/PLAN.md`, and applies `scope-creep` to everything
+   not bound. Milestones are created if they don't exist yet. Scope-creep
+   is removed from items that now have a milestone.
 
 2. **Compose the full status report** (adherence at the top, then
    milestones, stale, PR flow). `generate-report.sh` collects a fresh
@@ -211,9 +213,9 @@ After running the right script(s), writing the report, and opening the PR:
 ```
 **Report:** `po/reports/2026-04-10-status.md` — PR <url>
 
-- ✅ Healthy: <one fact, e.g. "Milestone v2 at 78%, on track">
-- ⚠️ At risk: <one fact, e.g. "3 stale issues > 30 days, all unassigned">
-- 🤔 Needs decision: <one fact, e.g. "PR #42 open 18 days, no reviewers">
+- Healthy: <one fact, e.g. "Milestone v2 at 78%, on track">
+- At risk: <one fact, e.g. "3 stale issues > 30 days, all unassigned">
+- Needs decision: <one fact, e.g. "PR #42 open 18 days, no reviewers">
 
 Want me to drill into any of these?
 ```
