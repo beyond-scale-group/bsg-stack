@@ -68,18 +68,20 @@ export GH_ARGS_FILE
 # Put mock gh first in PATH.
 export PATH="$TMPDIR_TEST:$PATH"
 
-# ---------- Test 1: No autopilot file → requires human-reviewed + safe-to-automate ----------
-echo "--- Test 1: no autopilot, default agent (tech) ---"
+# ---------- Test 1: No autopilot file → script exits 0 with no candidates ----------
+# Since #286, auto-implementation is opt-in at the repo level via
+# .bsg-autopilot.yml. Without the file the script exits before any
+# `gh` call, so ARGS_FILE is never written and OUTPUT must be empty.
+echo "--- Test 1: no autopilot file → no candidates ---"
 cd "$TMPDIR_TEST"
-rm -f .bsg-autopilot.yml
-bash "$SUT" --agent tech >/dev/null 2>&1
-ARGS="$(cat "$GH_ARGS_FILE")"
-
-assert_contains "T1: has --label tech" "$ARGS" "--label tech"
-assert_not_contains "T1: no --label bug (filter moved to jq)" "$ARGS" "--label bug"
-assert_contains "T1: has --label human-reviewed" "$ARGS" "--label human-reviewed"
-assert_contains "T1: has --label safe-to-automate" "$ARGS" "--label safe-to-automate"
-assert_not_contains "T1: no needs-human-review" "$ARGS" "needs-human-review"
+rm -f .bsg-autopilot.yml "$GH_ARGS_FILE"
+OUTPUT="$(bash "$SUT" --agent tech 2>/dev/null)"
+if [[ -z "$OUTPUT" && ! -f "$GH_ARGS_FILE" ]]; then
+  PASS=$((PASS + 1))
+else
+  FAIL=$((FAIL + 1))
+  echo "FAIL: T1: expected no candidates and no gh call, got OUTPUT=[$OUTPUT] gh_called=$([[ -f "$GH_ARGS_FILE" ]] && echo yes || echo no)"
+fi
 
 # ---------- Test 2: Autopilot enabled for tech → drops both gates ----------
 echo "--- Test 2: autopilot enabled for tech ---"
@@ -98,30 +100,47 @@ assert_not_contains "T2: no human-reviewed" "$ARGS" "human-reviewed"
 assert_not_contains "T2: no safe-to-automate" "$ARGS" "safe-to-automate"
 assert_not_contains "T2: no needs-human-review" "$ARGS" "needs-human-review"
 
-# ---------- Test 3: Autopilot enabled but agent NOT listed → still gated ----------
-echo "--- Test 3: autopilot enabled, agent NOT listed (seo) ---"
-bash "$SUT" --agent seo >/dev/null 2>&1
-ARGS="$(cat "$GH_ARGS_FILE")"
+# ---------- Test 3: Autopilot enabled but agent NOT listed → no candidates ----------
+echo "--- Test 3: autopilot enabled, agent NOT listed (seo) → no candidates ---"
+rm -f "$GH_ARGS_FILE"
+OUTPUT="$(bash "$SUT" --agent seo 2>/dev/null)"
+if [[ -z "$OUTPUT" && ! -f "$GH_ARGS_FILE" ]]; then
+  PASS=$((PASS + 1))
+else
+  FAIL=$((FAIL + 1))
+  echo "FAIL: T3: expected no candidates for unauthorized agent, got OUTPUT=[$OUTPUT]"
+fi
 
-assert_contains "T3: has --label seo" "$ARGS" "--label seo"
-assert_contains "T3: has --label human-reviewed" "$ARGS" "--label human-reviewed"
-assert_contains "T3: has --label safe-to-automate" "$ARGS" "--label safe-to-automate"
-
-# ---------- Test 4: Autopilot file exists but enabled: false → still gated ----------
-echo "--- Test 4: autopilot disabled ---"
+# ---------- Test 4: Autopilot file exists but enabled: false → no candidates ----------
+echo "--- Test 4: autopilot disabled → no candidates ---"
 cat > "$TMPDIR_TEST/.bsg-autopilot.yml" <<'YAML'
 enabled: false
 agents:
   - tech
 YAML
-bash "$SUT" --agent tech >/dev/null 2>&1
-ARGS="$(cat "$GH_ARGS_FILE")"
+rm -f "$GH_ARGS_FILE"
+OUTPUT="$(bash "$SUT" --agent tech 2>/dev/null)"
+if [[ -z "$OUTPUT" && ! -f "$GH_ARGS_FILE" ]]; then
+  PASS=$((PASS + 1))
+else
+  FAIL=$((FAIL + 1))
+  echo "FAIL: T4: expected no candidates with enabled:false, got OUTPUT=[$OUTPUT]"
+fi
 
-assert_contains "T4: has --label human-reviewed" "$ARGS" "--label human-reviewed"
-assert_contains "T4: has --label safe-to-automate" "$ARGS" "--label safe-to-automate"
+# Tests 5+ require autopilot to be enabled — that's the only path that
+# reaches `gh issue list` since #286.
+write_autopilot_enabled() {
+  cat > "$TMPDIR_TEST/.bsg-autopilot.yml" <<'YAML'
+enabled: true
+agents:
+  - tech
+  - qa
+YAML
+}
 
 # ---------- Test 5: jq post-filter requires epic:* label ----------
 echo "--- Test 5: epic filter ---"
+write_autopilot_enabled
 # Mock gh returns an issue WITHOUT an epic label.
 cat > "$MOCK_GH" <<'MOCK2'
 #!/usr/bin/env bash
@@ -142,9 +161,9 @@ else
   echo "FAIL: T5: issue without epic should be filtered out, got: $OUTPUT"
 fi
 
-# ---------- Test 6: Regression — needs-human-review must NEVER appear ----------
+# ---------- Test 6: needs-human-review must NEVER appear in label flags ----------
 echo "--- Test 6: regression guard — needs-human-review never in label flags ---"
-# Restore normal mock.
+write_autopilot_enabled
 cat > "$MOCK_GH" <<'MOCK3'
 #!/usr/bin/env bash
 if [[ "${2:-}" == "list" ]]; then
@@ -154,23 +173,17 @@ fi
 MOCK3
 chmod +x "$MOCK_GH"
 
-rm -f "$TMPDIR_TEST/.bsg-autopilot.yml"
 bash "$SUT" --agent tech >/dev/null 2>&1
 ARGS="$(cat "$GH_ARGS_FILE")"
-assert_not_contains "T6a: no needs-human-review (no autopilot)" "$ARGS" "needs-human-review"
-
-cat > "$TMPDIR_TEST/.bsg-autopilot.yml" <<'YAML'
-enabled: true
-agents:
-  - tech
-YAML
-bash "$SUT" --agent tech >/dev/null 2>&1
-ARGS="$(cat "$GH_ARGS_FILE")"
-assert_not_contains "T6b: no needs-human-review (autopilot)" "$ARGS" "needs-human-review"
+assert_not_contains "T6: no needs-human-review (autopilot)" "$ARGS" "needs-human-review"
+assert_not_contains "T6: no human-reviewed (autopilot)" "$ARGS" "human-reviewed"
+assert_not_contains "T6: no safe-to-automate (autopilot)" "$ARGS" "safe-to-automate"
 
 # ---------- Test 7: bus_lock called on first candidate ----------
 echo "--- Test 7: bus_lock invoked on first candidate ---"
+write_autopilot_enabled
 GH_LOCK_FILE="$TMPDIR_TEST/gh_lock_args"
+rm -f "$GH_LOCK_FILE"
 cat > "$MOCK_GH" <<'MOCK4'
 #!/usr/bin/env bash
 if [[ "${2:-}" == "list" ]]; then
@@ -185,7 +198,6 @@ MOCK4
 chmod +x "$MOCK_GH"
 export GH_LOCK_FILE
 
-rm -f "$TMPDIR_TEST/.bsg-autopilot.yml"
 bash "$SUT" --agent tech >/dev/null 2>&1
 LOCK_ARGS="$(cat "$GH_LOCK_FILE" 2>/dev/null || echo "")"
 assert_contains "T7: bus_lock adds agent:lock:tech" "$LOCK_ARGS" "agent:lock:tech"
@@ -193,6 +205,7 @@ assert_contains "T7: bus_lock targets issue 42" "$LOCK_ARGS" "42"
 
 # ---------- Test 8: enhancement issues are eligible (#282) ----------
 echo "--- Test 8: enhancement-only issue surfaces as candidate ---"
+write_autopilot_enabled
 cat > "$MOCK_GH" <<'MOCK8'
 #!/usr/bin/env bash
 if [[ "${2:-}" == "list" ]]; then
@@ -204,12 +217,12 @@ fi
 MOCK8
 chmod +x "$MOCK_GH"
 
-rm -f "$TMPDIR_TEST/.bsg-autopilot.yml"
 OUTPUT="$(bash "$SUT" --agent tech 2>/dev/null)"
 assert_contains "T8: enhancement issue surfaces" "$OUTPUT" '"number":62'
 
 # ---------- Test 9: issue with neither bug nor enhancement is rejected ----------
 echo "--- Test 9: issue without bug/enhancement is filtered out ---"
+write_autopilot_enabled
 cat > "$MOCK_GH" <<'MOCK9'
 #!/usr/bin/env bash
 if [[ "${2:-}" == "list" ]]; then
