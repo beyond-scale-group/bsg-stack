@@ -13,6 +13,10 @@
 # both human-reviewed and safe-to-automate label filters are dropped —
 # the repo-level marker replaces per-issue gates. See #221.
 #
+# After emitting the candidate list, the first (top) candidate is locked
+# via bus_lock so concurrent ticks don't race on the same issue. The lock
+# is best-effort — a failure never aborts the script. See #269.
+#
 # Usage:
 #   bash claude-skills/scripts/list-pilot-candidates.sh [--agent NAME] [--repo OWNER/NAME]
 #
@@ -20,6 +24,11 @@
 # Exit 0 always (no candidate is not an error).
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Source bus primitives (best-effort — missing file is non-fatal).
+# shellcheck source=claude-skills/scripts/github-bus.sh
+source "$SCRIPT_DIR/github-bus.sh" 2>/dev/null || true
 
 AGENT="tech"
 REPO_FLAG=()
@@ -67,7 +76,7 @@ candidates_json=$(gh issue list "${REPO_FLAG[@]}" \
 #   - at least one epic:* label
 #   - no open PR already touching this issue (avoid re-attempting)
 # Emit one JSON object per line.
-jq -c '
+filtered=$(jq -c '
   .[]
   | select(.labels | any(.name | startswith("epic:")))
   | {
@@ -76,4 +85,12 @@ jq -c '
       url,
       epics: [.labels[].name | select(startswith("epic:"))]
     }
-' <<<"$candidates_json"
+' <<<"$candidates_json")
+
+echo "$filtered"
+
+# Lock the first candidate best-effort so concurrent ticks don't race. #269
+if [[ -n "$filtered" ]]; then
+  first_num=$(echo "$filtered" | head -1 | jq -r '.number')
+  bus_lock "$first_num" "$AGENT" 2>/dev/null || true
+fi

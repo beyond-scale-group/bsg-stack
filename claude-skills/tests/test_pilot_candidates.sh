@@ -46,16 +46,21 @@ assert_not_contains() {
 }
 
 # --- Mock gh: captures the arguments passed to `gh issue list` ---
-# The mock writes all args to a file and emits a canned JSON response.
+# Only records args for `issue list` calls; silently ignores `issue edit`
+# (bus_lock) so those don't overwrite the captured list-call args.
 MOCK_GH="$TMPDIR_TEST/gh"
 GH_ARGS_FILE="$TMPDIR_TEST/gh_args"
 cat > "$MOCK_GH" <<'MOCK'
 #!/usr/bin/env bash
-echo "$@" > "$GH_ARGS_FILE"
-# Return one issue with an epic label so jq post-filter passes it through.
-cat <<'JSON'
+# Only capture args for `gh issue list` calls.
+if [[ "${2:-}" == "list" ]]; then
+  echo "$@" > "$GH_ARGS_FILE"
+  # Return one issue with an epic label so jq post-filter passes it through.
+  cat <<'JSON'
 [{"number":67,"title":"test issue","url":"https://example.com/67","labels":[{"name":"bug"},{"name":"tech"},{"name":"epic:E2"}]}]
 JSON
+fi
+# bus_lock calls `gh issue edit` — succeed silently.
 MOCK
 chmod +x "$MOCK_GH"
 export GH_ARGS_FILE
@@ -120,10 +125,12 @@ echo "--- Test 5: epic filter ---"
 # Mock gh returns an issue WITHOUT an epic label.
 cat > "$MOCK_GH" <<'MOCK2'
 #!/usr/bin/env bash
-echo "$@" > "$GH_ARGS_FILE"
-cat <<'JSON'
+if [[ "${2:-}" == "list" ]]; then
+  echo "$@" > "$GH_ARGS_FILE"
+  cat <<'JSON'
 [{"number":99,"title":"no epic","url":"https://example.com/99","labels":[{"name":"bug"},{"name":"tech"}]}]
 JSON
+fi
 MOCK2
 chmod +x "$MOCK_GH"
 
@@ -140,8 +147,10 @@ echo "--- Test 6: regression guard — needs-human-review never in label flags -
 # Restore normal mock.
 cat > "$MOCK_GH" <<'MOCK3'
 #!/usr/bin/env bash
-echo "$@" > "$GH_ARGS_FILE"
-echo '[]'
+if [[ "${2:-}" == "list" ]]; then
+  echo "$@" > "$GH_ARGS_FILE"
+  echo '[]'
+fi
 MOCK3
 chmod +x "$MOCK_GH"
 
@@ -158,6 +167,29 @@ YAML
 bash "$SUT" --agent tech >/dev/null 2>&1
 ARGS="$(cat "$GH_ARGS_FILE")"
 assert_not_contains "T6b: no needs-human-review (autopilot)" "$ARGS" "needs-human-review"
+
+# ---------- Test 7: bus_lock called on first candidate ----------
+echo "--- Test 7: bus_lock invoked on first candidate ---"
+GH_LOCK_FILE="$TMPDIR_TEST/gh_lock_args"
+cat > "$MOCK_GH" <<'MOCK4'
+#!/usr/bin/env bash
+if [[ "${2:-}" == "list" ]]; then
+  echo "$@" > "$GH_ARGS_FILE"
+  cat <<'JSON'
+[{"number":42,"title":"lock me","url":"https://example.com/42","labels":[{"name":"bug"},{"name":"tech"},{"name":"epic:E1"}]}]
+JSON
+elif [[ "${2:-}" == "edit" ]]; then
+  echo "$@" > "$GH_LOCK_FILE"
+fi
+MOCK4
+chmod +x "$MOCK_GH"
+export GH_LOCK_FILE
+
+rm -f "$TMPDIR_TEST/.bsg-autopilot.yml"
+bash "$SUT" --agent tech >/dev/null 2>&1
+LOCK_ARGS="$(cat "$GH_LOCK_FILE" 2>/dev/null || echo "")"
+assert_contains "T7: bus_lock adds agent:lock:tech" "$LOCK_ARGS" "agent:lock:tech"
+assert_contains "T7: bus_lock targets issue 42" "$LOCK_ARGS" "42"
 
 # ---------- Summary ----------
 echo ""
