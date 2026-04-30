@@ -1,13 +1,14 @@
 ---
 name: md-to-office
 description: >
-  Convert a markdown file into a brand-aligned Office document (DOCX first,
-  PPTX/XLSX in later PRs) using Office templates that live inside the
-  current repo at brand/templates/. Wraps pandoc; ships no binaries of
-  its own — each consuming repo owns its brand assets. Use when the user
-  asks to "turn this md into a Word doc", "export as Word", "génère un
+  Convert a markdown file into a brand-aligned Office document (DOCX or PPTX)
+  using Office templates that live inside the current repo at brand/templates/.
+  Wraps pandoc for DOCX and python-pptx for PPTX; ships no binaries of
+  its own — each consuming repo owns its brand assets. Auto-detects target
+  format from gamma frontmatter. Use when the user asks to "turn this md
+  into a Word doc", "export as PowerPoint", "convert to slides", "génère un
   Word à partir de ce .md", or "convert the report to docx".
-version: 0.1.0
+version: 0.2.0
 output: chat
 auto-implements: []
 never-auto-implements: []
@@ -31,11 +32,11 @@ runtime.
 1. **Templates live in the target repo, never in this skill.** The
    catalog ships pure rendering logic. A repo without `brand/` still
    gets a working (unbranded) output — that is a success, not an error.
-2. **Deterministic pipeline.** Rendering is pandoc + (later) python-pptx
-   + openpyxl. No LLM call during rendering. Claude orchestrates,
-   never draws.
-3. **Write next to the source.** `report.md` → `report.docx` in the
-   same directory, mirroring the `/ocr` convention.
+2. **Deterministic pipeline.** Rendering is pandoc (DOCX) + python-pptx
+   (PPTX). No LLM call during rendering. Claude orchestrates, never draws.
+3. **Write next to the source.** `report.md` → `report.docx` (or
+   `deck.md` → `deck.pptx`) in the same directory, mirroring the
+   `/ocr` convention.
 4. **Idempotent.** If the output exists and is newer than the source,
    skip unless `--force` is given.
 5. **Scripts do the work.** This SKILL.md narrates; `scripts/`
@@ -50,12 +51,9 @@ Every consuming repo is expected (but not required) to carry:
 └── brand/
     └── templates/
         ├── reference.docx    # pandoc reference-doc, used for DOCX output
-        ├── template.pptx     # (PR #3) PowerPoint master + layouts
+        ├── template.pptx     # PowerPoint master + layouts, used for PPTX output
         └── template.xlsx     # (PR #4) Excel styles + table sample
 ```
-
-Scope of PR #1: only `reference.docx` is read. PPTX and XLSX renderers
-will land in follow-up PRs per PRD-008.
 
 ## Template resolution
 
@@ -79,13 +77,15 @@ prefer it over calling the renderers directly.
 
 | Script | Purpose |
 |---|---|
-| `md-to-office.sh` | Orchestrator. `md-to-office.sh <file> [--target docx] [--template <path>] [--force]`. |
+| `md-to-office.sh` | Orchestrator. `md-to-office.sh <file> [--target docx\|pptx] [--template <path>] [--force]`. Also accepts a directory for batch mode. |
 | `resolve-template.sh` | Emits the resolved template path (or empty) for a given target. |
 | `render-docx.sh` | pandoc wrapper. `render-docx.sh <input.md> <output.docx> [--template <path>]`. |
+| `render-pptx.sh` | python-pptx wrapper. `render-pptx.sh <input.md> <output.pptx> [--template <path>]`. |
+| `render-pptx.py` | Markdown-to-slides parser + PPTX renderer. Called by `render-pptx.sh`. |
 | `init-brand.sh` | Brand bootstrap. `init-brand.sh [--force] [--tokens-only] [--dry-run]`. |
 | `scan-brand.py` | Repo signal scanner → `brand/tokens.json` + optional audit. |
 | `generate-templates.py` | Reads `tokens.json`, produces `reference.docx`, `template.pptx`, `template.xlsx`. |
-| `install-local.sh` | Installs `pandoc` via brew. `--dry-run` to print-only. |
+| `install-local.sh` | Installs `pandoc` + Python deps via brew/pip. `--dry-run` to print-only. |
 
 ## Brand initialization (`--init`)
 
@@ -117,23 +117,71 @@ brand/templates/template.pptx       ← PowerPoint with brand theme
 brand/templates/template.xlsx       ← Excel with brand-coloured header
 ```
 
+## Auto-detection from frontmatter
+
+When `--target` is omitted, the orchestrator reads YAML frontmatter to
+pick the output format:
+
+```yaml
+---
+gamma:
+  format: presentation   # → PPTX
+---
+```
+
+```yaml
+---
+gamma:
+  format: document       # → DOCX
+---
+```
+
+```yaml
+---
+target: pptx             # → PPTX (also works)
+---
+```
+
+If no frontmatter or no recognized field, defaults to DOCX.
+
 ## Usage
 
 ```bash
-# Auto-target (DOCX by default in PR #1):
-claude-skills/skills/md-to-office/scripts/md-to-office.sh report.md
+# Auto-detect from frontmatter (presentation → PPTX, document → DOCX):
+md-to-office.sh deck.md           # PPTX if gamma.format = presentation
+md-to-office.sh report.md         # DOCX (default)
+
+# Explicit target:
+md-to-office.sh deck.md --target pptx
+md-to-office.sh report.md --target docx
 
 # Explicit template override:
 md-to-office.sh report.md --template path/to/custom.docx
 
 # Force re-render:
 md-to-office.sh report.md --force
+
+# Batch mode (converts every .md in directory, auto-detecting each):
+md-to-office.sh content/funding/
 ```
+
+## PPTX slide conventions
+
+- `# Title` → title slide (layout 0)
+- `## Section` → content slide with title
+- `### Sub` → subheading within current slide
+- `---` → explicit slide break
+- Bullet lists → bulleted text frame with nesting
+- GFM pipe tables → PPTX table shape
+- `![alt](path)` → embedded picture
+- `**bold**` / `*italic*` → inline formatting
+- Fenced code blocks → monospace text
 
 ## Output convention
 
 ```
-report.md                 →  report.docx
+report.md                 →  report.docx      (default / gamma.format: document)
+deck.md                   →  deck.pptx        (gamma.format: presentation)
 /tmp/note.md              →  /tmp/note.docx
 po/reports/2026-04-24.md  →  po/reports/2026-04-24.docx
 ```
@@ -143,15 +191,16 @@ po/reports/2026-04-24.md  →  po/reports/2026-04-24.docx
 | Tool | Install |
 |---|---|
 | `pandoc` ≥ 3.0 | `brew install pandoc` |
+| `python-pptx` | `pip3 install python-pptx` |
 
-Run `scripts/install-local.sh` to install on macOS.
+Run `scripts/install-local.sh` to install all dependencies on macOS.
 
-## Limits (v0.1)
+## Limits (v0.2)
 
-- **DOCX only.** PPTX and XLSX renderers land in later PRs per PRD-008
-  §12.
-- **No multi-file input.** One `.md` at a time; batch conversion is
-  deferred.
+- **XLSX not yet implemented.** The XLSX renderer lands in a future PR
+  per PRD-008 §12.
+- **Batch mode is flat.** Directory conversion only processes `.md`
+  files at the top level, not recursively.
 
 ---
 
