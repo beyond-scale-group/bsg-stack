@@ -195,7 +195,21 @@ def install_file(url: str, dest: Path, owned: set, rel_key: str) -> bool:
     the manifest, with one exception: this script is always allowed to
     overwrite itself (otherwise the very first run after install would
     refuse to claim the file the install flow just dropped on disk).
+
+    Dangling symlinks (broken symlinks where the target doesn't exist) are
+    treated as writable destinations — they are removed before writing so
+    that mkdir/replace don't raise FileExistsError (issue #67).
     """
+    # A dangling symlink: is_symlink() is True but exists() is False.
+    # Remove it so the path is clear for writing.
+    if dest.is_symlink() and not dest.exists():
+        try:
+            dest.unlink()
+            log(f"  removed dangling symlink {dest}")
+        except OSError as e:
+            log(f"  SKIP {dest} (dangling symlink, could not remove: {e})")
+            return False
+
     if dest.exists() and rel_key not in owned and not is_self(rel_key):
         log(f"  SKIP {dest} (exists, not owned by BSG manifest)")
         return False
@@ -264,9 +278,22 @@ def reconcile(manifest: dict) -> dict:
 
     for api_sub, dest, prefix in SECTIONS:
         log(f"fetching {api_sub}...")
-        entries, definitive = walk_remote(
-            f"claude-skills/{api_sub}", dest, prefix
-        )
+        try:
+            entries, definitive = walk_remote(
+                f"claude-skills/{api_sub}", dest, prefix
+            )
+        except Exception as e:  # noqa: BLE001
+            # Per-section isolation: one broken path must not prevent
+            # the remaining sections (agents/, scripts/) from syncing.
+            # Log the failure and leave existing files for this section alone.
+            log(f"  ERROR in {api_sub}: {e} — skipping section, existing files untouched")
+            # Preserve ownership of all files already owned under this prefix
+            # so they survive the deletion reconcile below.
+            for rel_key in owned:
+                if rel_key.split("/", 1)[0] == prefix:
+                    new_owned.add(rel_key)
+            continue
+
         if not entries and not definitive:
             log("  unreachable, leaving existing files alone")
         section_results[prefix] = (entries, definitive)
