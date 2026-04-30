@@ -56,8 +56,8 @@ tick: >
   outcomes in the "Phase-B pilot receipt" table below.
 auto-implements:
   - "label:bug + label:seo + label:epic:* + .bsg-autopilot.yml authorizes seo"
-  - "label:enhancement + label:seo + label:epic:* + .bsg-autopilot.yml authorizes seo + estimated fix size <= 30 LOC and touches <= 3 files"
-  - "estimated fix size <= 30 LOC and touches <= 3 files"
+  - "label:enhancement + label:seo + label:epic:* + .bsg-autopilot.yml authorizes seo + fits .bsg-autopilot.yml budget"
+  - "fits .bsg-autopilot.yml budget (max_loc_per_issue, max_files_per_issue)"
   - "finding is a missing HTML element (canonical tag, meta description, alt text, structured data)"
 never-auto-implements:
   - "changes to claude-skills/agents/*.md (cannot rewrite peers)"

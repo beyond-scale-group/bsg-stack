@@ -53,8 +53,8 @@ tick: >
   outcomes in the "Phase-B pilot receipt" table below.
 auto-implements:
   - "label:bug + label:tech + label:epic:* + .bsg-autopilot.yml authorizes tech"
-  - "label:enhancement + label:tech + label:epic:* + .bsg-autopilot.yml authorizes tech + estimated fix size <= 30 LOC and touches <= 3 files"
-  - "estimated fix size <= 30 LOC and touches <= 3 files"
+  - "label:enhancement + label:tech + label:epic:* + .bsg-autopilot.yml authorizes tech + fits .bsg-autopilot.yml budget"
+  - "fits .bsg-autopilot.yml budget (max_loc_per_issue, max_files_per_issue)"
   - "bug description contains reproducible failure case or explicit expected/actual behaviour"
 never-auto-implements:
   - "changes to claude-skills/agents/*.md (cannot rewrite peers)"
