@@ -62,6 +62,7 @@ No git clone, no script to run, no cron to set up.
 | `marketing` | Marketing auditor subagent. Delegated to for "marketing audit", "content calendar", "campaign brief", "feature alignment", "landing page check". Uses the `marketing-report` skill to detect overdue content, unmarketed releases, premature claims, and stale campaign briefs. Reports and drafts brief stubs only — does not write copy or launch campaigns. |
 | `storytelling` | Brand narrative auditor subagent. Delegated to for "brand audit", "narrative check", "voice consistency", "talking points", "positioning", "tone of voice". Uses the `storytelling-report` skill for voice scoring, key-message alignment, positioning staleness, and talking-point drafting. Reports only — never edits the narrative bible or final copy. |
 | `pr-comms` | PR / communications subagent. Delegated to for "press release", "announcement draft", "PR events", "press kit", "communication plan", "newsworthy". Uses the `pr-comms-report` skill for event classification, press-kit freshness, and draft-stub generation. Drafts only — never publishes, contacts journalists, or responds to security incidents. |
+| `cleaner` | Backlog hygiene subagent. Delegated to for "backlog cleanup", "stale locks", "duplicate issues", "label hygiene", "orphaned labels". Removes orphaned `agent:lock:*` labels, strips stale `needs:*` from closed issues, detects near-duplicate tickets, reconciles manifest GC, and reports unused labels. Reports and comments only — never closes issues or deletes labels. Run `@cleaner dry-run` first on any repo. |
 
 ## Settings merged into `~/.claude/settings.json`
 
@@ -104,7 +105,7 @@ that most repos already have.
 | `human-reviewed` | `0e8a16` (green) | **Humans only — agents forbidden** | A human has made a disposition decision on the item: merged, closed, bound to a plan item, or commented with a decision. Proves the audit trail. Only a human GitHub account may apply this label; if a non-human actor ever applies it, that is a bug. |
 | `bug` | `d73a4a` (red) | Agents and humans | Standard GitHub label for defects. |
 | `enhancement` | `a2eeef` (cyan) | Agents and humans | Standard GitHub label for feature requests and improvements. |
-| `po`, `security`, `qa`, `tech`, `seo`, `marketing`, `storytelling`, `pr-comms` | `5319e7` (purple) | `file-issue.sh` with `--agent <name>`; agents apply their own on hand-off via `github-bus.sh` | The **bus label** for each agent — one label per agent, sourced from `claude-skills/agents/registry.json`. Every open issue carries exactly one. Enables filtering by ownership (`label:security` = "all security's inbox") and is what `bus_claim` keys off of. |
+| `po`, `security`, `qa`, `tech`, `seo`, `marketing`, `storytelling`, `pr-comms`, `cleaner` | `5319e7` (purple) | `file-issue.sh` with `--agent <name>`; agents apply their own on hand-off via `github-bus.sh` | The **bus label** for each agent — one label per agent, sourced from `claude-skills/agents/registry.json`. Every open issue carries exactly one. Enables filtering by ownership (`label:security` = "all security's inbox") and is what `bus_claim` keys off of. |
 | `safe-to-automate` | `c2e0c6` (light green) | **Humans only** | Gate for the `output: commit` pilot (#181). A human has reviewed the issue and declared: "I'm OK with an agent attempting this fix automatically on its next tick." Without this label, agents in `output: commit` mode must not touch the issue. Absence = default-safe. |
 
 Invariant every open item must satisfy — enforced by
@@ -200,6 +201,7 @@ bash claude-skills/scripts/list-pilot-candidates.sh --agent tech --repo OWNER/NA
 | `marketing` | Copywriting and content decisions require human voice |
 | `storytelling` | Brand voice decisions require human judgement |
 | `pr-comms` | Press copy requires human approval by definition |
+| `cleaner` | Closing issues and deleting labels are irreversible human decisions |
 
 Each of these carries an explicit `never-auto-implements` clause in
 frontmatter so the exclusion is a documented decision, not a TODO.
