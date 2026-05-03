@@ -25,6 +25,12 @@ tick: >
   bindings — each bound issue/PR gets the milestone matching its epic slug,
   scope-creep label for unbound ones (idempotent; skip silently if the plan
   is missing or unparseable).
+  (1.5) Orphan triage: fetch open issues with no milestone, match each against
+  po/PLAN.md milestones by topic/label affinity, assign the inferred milestone,
+  and add `needs:<agent>` when a known bus label (tech, qa, seo) is present so
+  the issue surfaces on the next sweep. Cap at max_issues_per_tick from
+  .bsg-autopilot.yml (default 3). Log assignments in the status report under
+  "Orphan triage". See the "Orphan triage" section below.
   (2) Run the full status + adherence report and land it as
   po/reports/YYYY-MM-DD-status.md via open-report-pr.sh. Stay silent in chat
   unless a silence-breaker fires (see the "Tick action" section below).
@@ -140,6 +146,42 @@ that nothing gets posted in chat when the project is healthy.
    issue/PR bound in `po/PLAN.md`, and applies `scope-creep` to everything
    not bound. Milestones are created if they don't exist yet. Scope-creep
    is removed from items that now have a milestone.
+
+1.5. **Triage orphan issues** (open issues with no milestone). After step 1,
+   any issue still without a milestone is invisible to
+   `list-pilot-candidates.sh` (which filters with `select(.milestone != null)`
+   post-#287). The PO infers and assigns one so the issue can enter the
+   implementation pipeline.
+
+   ```bash
+   gh issue list --state open \
+     --json number,title,labels,body,milestone --limit 200 \
+     | jq '[.[] | select(.milestone == null)]'
+   ```
+
+   For each orphan (cap at `max_issues_per_tick` from `.bsg-autopilot.yml`,
+   default 3, oldest-first):
+
+   - Read title, body, and labels; match against the milestones declared in
+     `po/PLAN.md` by topic / label affinity. Skip the issue if no plan
+     milestone is a clear fit — the next tick will retry once the plan grows.
+   - Assign the milestone:
+
+     ```bash
+     gh issue edit <num> --milestone "<slug>"
+     ```
+
+   - If the issue carries a known agent bus label (`tech`, `qa`, `seo`) and
+     does not already carry `needs:<that-agent>`, also add it:
+
+     ```bash
+     gh issue edit <num> --add-label "needs:<agent>"
+     ```
+
+   - Record `<num> → <slug> [+ needs:<agent>]` so step 2 can render an
+     "Orphan triage" section in the status report.
+
+   Skip silently when there are no orphans, no PLAN, or no clear match.
 
 2. **Compose the full status report** (adherence at the top, then
    milestones, stale, PR flow). `generate-report.sh` collects a fresh
