@@ -46,8 +46,8 @@ tick: >
   section listing qa, run `peer-review-candidates.sh --reviewer qa`.
   For each candidate PR (max 2 per tick): read the diff, check for test
   coverage and regression risk. Add a review comment and apply
-  `peer-reviewed:qa` label. If issues found, also apply `needs-rework`.
-  Never merge, never apply `human-reviewed`.
+  `peer-reviewed:qa` label. If issues found, post a review comment with
+  the rework rationale. Never merge, never apply `human-reviewed`.
   In chat, reply with one line: `Tick: <state> — <PR URL> · pilot: <outcome>`.
   The `pilot:` segment must always be present — see the seven canonical
   outcomes in the "Phase-B pilot receipt" table below.

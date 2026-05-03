@@ -434,7 +434,7 @@ The tick gains a phase **(C)** after implementation:
 3. For each eligible PR (max 2 per tick): read the diff, evaluate
    against the agent's criteria, post a review comment
 4. Apply `peer-reviewed:<reviewer>` label after review
-5. If issues found, also apply `needs-rework`
+5. If issues found, post a review comment with the rework rationale (comment-only — no label)
 
 **Hard rules for peer review:**
 - Agents NEVER merge PRs — only comment and label
@@ -449,7 +449,6 @@ The tick gains a phase **(C)** after implementation:
 | Label | Applied by | Meaning |
 |---|---|---|
 | `peer-reviewed:<agent>` | Reviewing agent | This agent has reviewed the PR |
-| `needs-rework` | Reviewing agent | Issues found — author should address before human review |
 
 ### Coordination bus (GitHub labels as queues)
 
