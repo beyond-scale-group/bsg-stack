@@ -199,6 +199,12 @@ def install_file(url: str, dest: Path, owned: set, rel_key: str) -> bool:
     Dangling symlinks (broken symlinks where the target doesn't exist) are
     treated as writable destinations — they are removed before writing so
     that mkdir/replace don't raise FileExistsError (issue #67).
+
+    Content-identity check (issue #313): after downloading, if the local
+    file already exists and its bytes are identical to what was fetched,
+    log "unchanged" and skip the write. This prevents false-positive
+    "updated" messages when the GitHub/CDN layer serves a cached response
+    with old bytes for a file that has not actually changed on disk.
     """
     # A dangling symlink: is_symlink() is True but exists() is False.
     # Remove it so the path is clear for writing.
@@ -217,6 +223,17 @@ def install_file(url: str, dest: Path, owned: set, rel_key: str) -> bool:
     if data is None:
         log(f"  FAILED {url}")
         return False
+    # Issue #313: compare fetched bytes against the existing local file.
+    # If they are identical the file is already up-to-date — log "unchanged"
+    # and skip the write so the operator can distinguish a genuine cache
+    # refresh from a CDN-cached no-op.
+    if dest.exists() and not dest.is_symlink():
+        try:
+            if dest.read_bytes() == data:
+                log(f"  unchanged {dest}")
+                return True
+        except OSError:
+            pass  # unreadable existing file — proceed with write
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(dest.suffix + ".tmp")
     tmp.write_bytes(data)
