@@ -25,8 +25,8 @@ tick: >
   section listing security, run `peer-review-candidates.sh --reviewer security`.
   For each candidate PR (max 2 per tick): scan the diff for secret patterns,
   injection risk, and dependency safety. Add a review comment and apply
-  `peer-reviewed:security` label. If issues found, also apply `needs-rework`.
-  Never merge, never apply `human-reviewed`, never auto-approve.
+  `peer-reviewed:security` label. If issues found, post a review comment
+  with the rework rationale. Never merge, never apply `human-reviewed`, never auto-approve.
 auto-implements: []
 never-auto-implements:
   - "security fixes must be written and reviewed by humans — never by an agent"

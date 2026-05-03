@@ -50,7 +50,7 @@ tick: >
   For each candidate PR (max 2 per tick): read the diff, check for SEO
   regressions (removed meta tags, broken canonical, dropped structured data).
   Add a review comment and apply `peer-reviewed:seo` label. If issues found,
-  also apply `needs-rework`. Never merge, never apply `human-reviewed`.
+  post a review comment with the rework rationale. Never merge, never apply `human-reviewed`.
   In chat, reply with one line: `Tick: <state> — <PR URL> · pilot: <outcome>`.
   The `pilot:` segment must always be present — see the seven canonical
   outcomes in the "Phase-B pilot receipt" table below.

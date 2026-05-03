@@ -46,8 +46,8 @@ tick: >
   section listing po, run `peer-review-candidates.sh --reviewer po`.
   For each candidate PR (max 2 per tick): check plan alignment, scope-creep
   risk, and epic binding. Add a review comment and apply `peer-reviewed:po`
-  label. If the PR implements work outside the current plan, also apply
-  `needs-rework`. Never merge, never apply `human-reviewed`.
+  label. If the PR implements work outside the current plan, post a review
+  comment with the rework rationale. Never merge, never apply `human-reviewed`.
 delegates-to: [tech, qa, seo]
 auto-implements: []
 never-auto-implements:
