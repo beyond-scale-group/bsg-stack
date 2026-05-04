@@ -65,6 +65,16 @@ tick: >
   body lacks a clear breakdown, the PO instead refiles with `--reason
   spec-clarification` so a human can clarify rather than guess. See
   "Decomposing oversized issues" below.
+  (A.6) Blocker escalation: scan the last 3 merged tech-lead/qa/seo
+  report PRs for `pilot: skipped #NN — never-auto-implements` lines.
+  For each parent #NN skipped on 2+ consecutive ticks AND with no
+  decomposition plan in the open backlog (dedup `po:decompose-NN`),
+  file a `tech-decision` plan via `file-issue.sh --reason tech-decision`
+  AND post a focused unblock comment on parent #NN with explicit
+  checkbox decisions for the human. Idempotent via
+  `<!-- bsg-po-blocker-escalation:NN -->` marker — never re-post.
+  Cap: 1 escalation per tick. See "Blocker escalation (phase A.6)"
+  below.
   (C) Peer review (#222 phase 3b): if .bsg-autopilot.yml has a peer_review
   section listing po, run `peer-review-candidates.sh --reviewer po`.
   For each candidate PR (max 2 per tick): check plan alignment, scope-creep
@@ -427,6 +437,118 @@ When issues are delegated, append to the tick receipt:
 ```
 Tick: <status>, report at $PR_URL — delegated N issues (tech:2, qa:1)
 ```
+
+### Blocker escalation (phase A.6)
+
+When the autopilot pipeline declines an issue tick after tick
+(`pilot: skipped #NN — never-auto-implements`), the PO is responsible
+for **surfacing it as a blocker** rather than letting it sit silently
+in the backlog. A skipped issue is a queue item the system can't move
+on its own — only a human design decision can unblock it. Filing a
+plan ticket isn't enough; the parent issue itself must carry an
+explicit, actionable ask aimed at the human.
+
+#### Detection
+
+1. List the last 3 merged report PRs across `output: commit` agents:
+
+   ```bash
+   gh pr list --state merged --limit 30 \
+     --search "head:reports/tech head:reports/qa head:reports/seo" \
+     --json number,headRefName,mergedAt
+   ```
+
+2. For each, fetch the report file from the merge commit and grep for
+   `pilot: skipped #NN — never-auto-implements`. Extract `NN`.
+3. Group hits by `NN`. Eligible escalation candidates are issues
+   skipped on **2+ consecutive ticks by the same agent**.
+4. For each candidate, check the open backlog for an existing
+   decomposition plan via the dedup fingerprint:
+
+   ```bash
+   gh issue list --state open --search "po:decompose-NN in:body"
+   ```
+
+   If a plan exists, also check the parent #NN for a comment containing
+   the marker `<!-- bsg-po-blocker-escalation:NN -->`. If both exist,
+   skip — already escalated, do not re-post.
+
+5. Cap at **1 escalation per tick** to avoid noise.
+
+#### Action — file plan, then comment on parent
+
+Step 1: file the decomposition plan as a `tech-decision` issue with the
+parent context in the body:
+
+```bash
+bash claude-skills/scripts/file-issue.sh \
+  --agent tech \
+  --filed-by po \
+  --reason tech-decision \
+  --type enhancement \
+  --milestone "<parent-milestone>" \
+  --dedup "po:decompose-NN" \
+  --title "plan: decompose #NN (<short>) into auto-implementable subtasks" \
+  --body "<plan: why-blocked / prerequisite human decisions / decomposition tree / migration / DoD>"
+```
+
+Step 2: post a focused unblock comment on the **parent** issue. The
+shape is mandatory — the human must be able to answer in 60 seconds:
+
+```markdown
+@<default_human_reviewer> — `@po-manager` here, surfacing this as a
+blocker rather than letting it sit silently.
+
+This issue keeps getting `pilot: skipped #NN — never-auto-implements`
+and will keep being skipped until I get the following design decisions
+from you.
+
+## What I need to unblock automation
+
+**1. <decision-1 title>** — <one sentence on why it matters>
+- ☐ option a
+- ☐ option b
+
+**2. <decision-2 title>** — …
+- ☐ option a
+- ☐ option b
+
+## What happens once you answer
+
+1. I'll file the ADRs as `tech-decision` issues
+2. I'll file the test-harness scaffolds as `bug` issues — those
+   auto-implement
+3. I'll decompose this into single-deliverable children (see #PLAN_NUM)
+4. Close #NN once the children all merge
+
+Reply with your choices and I'll move. **I will not re-ping** until
+you either reply or apply `human-reviewed` to this issue.
+
+<!-- bsg-po-blocker-escalation:NN -->
+```
+
+#### Idempotency rules
+
+- The HTML marker `<!-- bsg-po-blocker-escalation:NN -->` at the
+  bottom of the comment is the dedup key. Before posting, list comments
+  on #NN and grep for the marker. If present, **never post again** for
+  this issue.
+- The marker stays in place until the human deletes it or applies
+  `human-reviewed` to the parent. The PO does not interpret silence
+  as permission to re-ping.
+- When the human responds (reply, label change, or merge), the next
+  tick re-evaluates: if the parent now carries `human-reviewed` or has
+  human comments, the PO removes the issue from the escalation list
+  and proceeds to file the children listed in the plan.
+
+#### Why this matters
+
+The autopilot pipeline is allowed to decline work — that's the deny
+list working as designed. But declining silently turns the backlog
+into a graveyard: humans don't see the bottleneck until someone
+audits manually. This phase makes the bottleneck visible at the place
+the human will look (the parent issue) with the smallest possible ask
+(checkboxes, not paragraphs).
 
 ### Decomposing oversized issues (#363 #416)
 
