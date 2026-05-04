@@ -26,12 +26,25 @@ tick: >
   bindings — each bound issue/PR gets the milestone matching its epic slug,
   scope-creep label for unbound ones (idempotent; skip silently if the plan
   is missing or unparseable).
+  (1.4) Run `bash claude-skills/scripts/normalize-issue-labels.sh` — auto-add
+  missing type labels (Cas A) and infer + apply missing bus labels (Cas B/C)
+  on open issues. Cap at max_issues_per_tick from .bsg-autopilot.yml. Log the
+  emitted JSON list in the status report under "Label normalization". The
+  inference is keyword-based with `tech` as the strong default and posts a
+  transparency comment so humans/agents can swap on mis-route. See "Label
+  normalization (#416)" below.
   (1.5) Orphan triage: fetch open issues with no milestone, match each against
   po/PLAN.md milestones by topic/label affinity, assign the inferred milestone,
   and add `needs:<agent>` when a known bus label (tech, qa, seo) is present so
   the issue surfaces on the next sweep. Cap at max_issues_per_tick from
   .bsg-autopilot.yml (default 3). Log assignments in the status report under
   "Orphan triage". See the "Orphan triage" section below.
+  (1.6) Run `bash claude-skills/scripts/detect-stuck-issues.sh` — flag and
+  escalate eligible-but-unimplemented issues. Tier 1 (>2 days) posts an
+  @-mention nudge to the owning agent. Tier 2 (>5 days) assigns the
+  default_human_reviewer + applies needs:spec-clarification. Log fired
+  escalations in the status report under "Stuck issues". Silence-breaker if
+  any tier-2 escalation fired. See "Stuck detection (#416)" below.
   (2) Run the full status + adherence report and land it as
   po/reports/YYYY-MM-DD-status.md via open-report-pr.sh. Stay silent in chat
   unless a silence-breaker fires (see the "Tick action" section below).
@@ -43,11 +56,14 @@ tick: >
   Issues carry label:bug + target agent's bus label + label:needs-human-review
   + label:epic:<slug>. Max max_issues_per_tick (default 3) from
   .bsg-autopilot.yml. See the "Task delegation pipeline" section below.
-  Also run `bash claude-skills/scripts/po-decompose-oversized.sh` to surface
-  open issues whose estimated_loc exceeds max_loc_per_issue. The script
-  emits a JSONL list — DO NOT auto-split existing issues. Surface the list
-  in the status report under "Decomposition needed" so a human can decide
-  whether to split each one. See "Decomposing oversized issues" below.
+  Also run `bash claude-skills/scripts/po-decompose-oversized.sh` to find
+  open issues whose estimated_loc exceeds max_loc_per_issue. For each
+  oversized issue with a parseable breakdown in its body, the PO calls
+  `bash claude-skills/scripts/decompose-issue.sh --parent <num> --child
+  "<title>"...` to file sub-issues that fit the budget (#416). When the
+  body lacks a clear breakdown, the PO instead refiles with `--reason
+  spec-clarification` so a human can clarify rather than guess. See
+  "Decomposing oversized issues" below.
   (C) Peer review (#222 phase 3b): if .bsg-autopilot.yml has a peer_review
   section listing po, run `peer-review-candidates.sh --reviewer po`.
   For each candidate PR (max 2 per tick): check plan alignment, scope-creep
@@ -153,6 +169,30 @@ that nothing gets posted in chat when the project is healthy.
    not bound. Milestones are created if they don't exist yet. Scope-creep
    is removed from items that now have a milestone.
 
+1.4. **Normalize labels** — auto-route open issues into the autopilot
+   pipeline by adding missing type and bus labels. `list-pilot-candidates.sh`
+   requires three labels per issue (bus + type + milestone); without all
+   three the issue is invisible to the pilot and sits in the backlog
+   forever.
+
+   ```bash
+   bash claude-skills/scripts/normalize-issue-labels.sh
+   ```
+
+   Three cases the script handles automatically (cap: `max_issues_per_tick`):
+
+   - **Cas A** — has bus label, missing type → adds `enhancement`
+   - **Cas B** — has type, missing bus → infers bus from keywords (qa, seo,
+     or tech as default) + adds `needs:<inferred>` + posts a transparency
+     comment so a human or another agent can swap on mis-route
+   - **Cas C** — neither, but has milestone → applies both A + B in one shot
+
+   The inference is keyword-based and intentionally biased toward `tech`
+   (the largest backlog and lowest cost on a wrong route). Mis-routes are
+   self-correcting: the receiving agent's scope contract rejects out-of-
+   scope work and another tick swaps the label. A waiting-for-human label
+   decision is more expensive than a mis-route.
+
 1.5. **Triage orphan issues** (open issues with no milestone). After step 1,
    any issue still without a milestone is invisible to
    `list-pilot-candidates.sh` (which filters with `select(.milestone != null)`
@@ -188,6 +228,26 @@ that nothing gets posted in chat when the project is healthy.
      "Orphan triage" section in the status report.
 
    Skip silently when there are no orphans, no PLAN, or no clear match.
+
+1.6. **Detect stuck issues** — flag and escalate eligible-but-unimplemented
+   issues. Stuck flow is the autopilot's silent failure mode (agent picked
+   nothing up because of budget, scope contract, or circuit-breaker).
+
+   ```bash
+   bash claude-skills/scripts/detect-stuck-issues.sh
+   ```
+
+   Two-tier escalation:
+
+   - **Tier 1 (>2 days)** — comment `@<bus_label>` on the issue prompting
+     re-attempt. Idempotent via `stuck:nudged` label. No human involved.
+   - **Tier 2 (>5 days)** — agent couldn't make progress despite the
+     nudge. Assign to `default_human_reviewer` from `.bsg-autopilot.yml`,
+     apply `needs:spec-clarification` + `needs-human-review`, post an
+     @-mention comment. The issue is human-owned until a human removes
+     `needs:spec-clarification`.
+
+   Silence-breaker: any tier-2 escalation that fired in this tick.
 
 2. **Compose the full status report** (adherence at the top, then
    milestones, stale, PR flow). `generate-report.sh` collects a fresh
@@ -241,6 +301,7 @@ Break silence if **any** of these hold on the snapshot you just produced:
 | Overdue milestone                      | `milestone-progress.sh` → status `overdue` or `at_risk`     | Any                            |
 | New stale issue                        | `stale-issues.sh` (threshold 30 days)                       | Any issue crosses the 30d line |
 | PR stuck without review / merge signal | `pr-flow.sh`                                                | Any PR open > 14 days          |
+| Stuck issue escalated to human         | `detect-stuck-issues.sh` (tier 2)                           | Any tier-2 escalation fired    |
 | Missing `po/PLAN.md`                   | `adherence.sh` → `planFound: false`                         | First tick only — then silent  |
 
 The "missing PLAN" case is a one-shot: surface it once so the user sees
@@ -366,12 +427,13 @@ When issues are delegated, append to the tick receipt:
 Tick: <status>, report at <PR url> — delegated N issues (tech:2, qa:1)
 ```
 
-### Decomposing oversized issues (#363 fix #4)
+### Decomposing oversized issues (#363 #416)
 
 The phase-B implementation pilots enforce a per-issue LOC cap
-(`max_loc_per_issue` in `.bsg-autopilot.yml`, default 200). Issues
-above the cap never get picked up — they sit in the backlog until a
-human splits them. The PO surfaces them every tick:
+(`max_loc_per_issue` in `.bsg-autopilot.yml`, default 200 — bsg-stack
+sets it to 1000). Issues above the cap never get picked up — they sit
+in the backlog until they're split. The PO finds them, then **decomposes
+them automatically** so the pipeline keeps moving.
 
 ```bash
 bash claude-skills/scripts/po-decompose-oversized.sh
@@ -384,23 +446,71 @@ The script emits one JSON line per oversized issue:
  "agent": "tech", "milestone": "v2", "reason": "explicit-hint"}
 ```
 
-It looks for explicit `estimated_loc:` / `~N LOC` hints in the issue
-body. When no hint is present, it falls back to a body-length
-heuristic (> 60 lines = "likely oversized") and flags the issue for
-manual sizing.
+For each oversized issue (cap at `max_issues_per_tick` per parent),
+the PO reads the parent's body and proposes a decomposition into
+sub-tasks that each fit the budget. Then it calls the executor:
 
-**The PO does NOT auto-split.** Decomposition is a planning decision
-that requires human judgement. The script's job is to make the queue
-visible — the PO surfaces it in the status report under
-`## Decomposition needed`, and the human (or, optionally, the PO in
-a later confirmed action) calls `file-issue.sh --type enhancement`
-once for each sub-task. If the PO does file sub-issues, it must:
+```bash
+bash claude-skills/scripts/decompose-issue.sh \
+  --parent <num> \
+  --child "<sub-task title 1>" \
+  --child "<sub-task title 2>" \
+  --child "<sub-task title 3>"
+```
 
-- Route each one to the same target agent's bus label
-- Bind each one to the same milestone as the parent
-- Reference the parent in each child body
-  (`Child of #NN — see decomposition note`)
-- Cap at `max_issues_per_tick` per parent
+The script handles the mechanics — files each sub-issue via
+`file-issue.sh` with the parent's bus label, milestone, and a
+`parent:<N>` label, then posts a single comment on the parent
+listing all children.
+
+**Division of labor:**
+- The script does mechanics (filing, labeling, parent-child link)
+- The PO (LLM) makes judgment calls (which sub-tasks, what titles,
+  what scope each child should cover)
+
+If the parent's body has no clear breakdown — a one-line "do X
+better" with no detail — the PO falls back to filing the parent
+with `--reason spec-clarification` instead of guessing. Decomposition
+without a spec is a different problem than decomposition with one.
+
+### Label normalization (#416)
+
+`normalize-issue-labels.sh` runs at step 1.4 and is the primary
+defense against unrouted backlog items. The keyword inference
+covers the most common cases but is intentionally simple — when it
+mis-routes, the receiving agent's scope contract rejects the work
+and the next tick swaps the label.
+
+To keep mis-routes cheap:
+
+- Tech is the strong default (largest backlog, smallest cost on a
+  bad route)
+- Each non-trivial route (qa, seo) requires multi-word phrase matches,
+  not single keywords like `test` or `meta` which are too noisy
+- Every Cas-B/C inference posts a transparency comment so the route
+  is visible in the issue's history
+
+The script is idempotent — running it twice is a no-op.
+
+### Stuck detection (#416)
+
+`detect-stuck-issues.sh` runs at step 1.6 and catches the failure
+mode where an issue is fully labeled but the pilot can't pick it up
+(scope contract rejection, budget cap, circuit-breaker). Without
+this, those issues silently rot.
+
+Two-tier escalation aligned with "humans are the fallback":
+
+- **Tier 1 (2+ days idle)** — `@<bus_label>` nudge, no human attention
+  required. Idempotent via `stuck:nudged` label.
+- **Tier 2 (5+ days idle)** — assign to `default_human_reviewer`,
+  apply `needs:spec-clarification`, post @-mention. The issue is
+  out of the agent pipeline until a human un-stucks it by removing
+  `needs:spec-clarification`.
+
+The cap-out at tier 2 is a feature: it forces the PO to stop
+auto-trying when an agent has provably failed and needs human input
+to make a different choice.
 
 ---
 

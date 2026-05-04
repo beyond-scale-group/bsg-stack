@@ -108,6 +108,10 @@ that most repos already have.
 | `enhancement` | `a2eeef` (cyan) | Agents and humans | Standard GitHub label for feature requests and improvements. |
 | `po`, `security`, `qa`, `tech`, `seo`, `marketing`, `storytelling`, `pr-comms`, `cleaner` | `5319e7` (purple) | `file-issue.sh` with `--agent <name>`; agents apply their own on hand-off via `github-bus.sh` | The **bus label** for each agent — one label per agent, sourced from `claude-skills/agents/registry.json`. Every open issue carries exactly one. Enables filtering by ownership (`label:security` = "all security's inbox") and is what `bus_claim` keys off of. |
 | `safe-to-automate` | `c2e0c6` (light green) | **Humans only** | Gate for the `output: commit` pilot (#181). A human has reviewed the issue and declared: "I'm OK with an agent attempting this fix automatically on its next tick." Without this label, agents in `output: commit` mode must not touch the issue. Absence = default-safe. |
+| `needs:spec-clarification` | `d93f0b` (red) | Agents (`file-issue.sh --reason spec-clarification` + `detect-stuck-issues.sh` tier 2) | Awaiting human spec clarification — the agent could not proceed without it. Always paired with `needs-human-review` and an issue assignee from `default_human_reviewer`. Removed by the human as part of un-stucking the issue. See #416. |
+| `needs:tech-decision` | `d93f0b` (red) | Agents (`file-issue.sh --reason tech-decision`) | Awaiting human technical decision — the agent cannot pick the right approach without one. Always paired with `needs-human-review` and an issue assignee. See #416. |
+| `stuck:nudged` | `fbca04` (yellow) | `detect-stuck-issues.sh` (tier 1) | Marker that tier-1 stuck nudge has fired on this issue. Idempotent — keeps tier 1 from re-firing. Removed automatically when the issue moves (PR opened, label change, etc.) — agents do not need to clean it. |
+| `parent:<N>` | `ededed` (light gray) | `decompose-issue.sh` | Marks an issue as a child of issue #N. Created on demand when a parent is decomposed. Allows filtering all children of a given parent (`label:parent:292`). |
 
 Invariant every open item must satisfy — enforced by
 `claude-skills/scripts/audit-labels.sh`:
@@ -142,6 +146,20 @@ done
 gh label create safe-to-automate \
   --color c2e0c6 \
   --description "Human-applied: this item is safe for an agent's output:commit tick to attempt"
+
+# Human-in-the-loop reason labels (#416). Agents apply these when they
+# need a human decision to proceed.
+gh label create needs:spec-clarification \
+  --color d93f0b \
+  --description "Awaiting human spec clarification — agent could not proceed without it"
+
+gh label create needs:tech-decision \
+  --color d93f0b \
+  --description "Awaiting human technical decision — agent cannot pick the right approach"
+
+gh label create stuck:nudged \
+  --color fbca04 \
+  --description "detect-stuck-issues: tier-1 nudge applied (idempotent marker)"
 ```
 
 To verify compliance on any repo:
