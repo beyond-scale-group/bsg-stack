@@ -526,6 +526,33 @@ class TestSharedSkills(unittest.TestCase):
                     f"should only skip phases (A) and (A.5). See #261.",
                 )
 
+    # --------------------------------- adaptive back-off (#363)
+
+    def test_all_agents_tick_has_adaptive_backoff(self) -> None:
+        """Every agent tick must include the adaptive back-off step (0.6).
+
+        tick-idle-check.sh short-circuits the tick when there are no
+        phase-B candidates AND the audit fingerprint matches yesterday's.
+        Without it, a no-change tick-all sweep reruns the full audit
+        pipeline for every agent on every loop — the primary token-burn
+        source identified in E1-tick-hygiene. See #363 and #393.
+        """
+        for path in list_agents():
+            with self.subTest(agent=path.stem):
+                text = path.read_text()
+                fm_match = FRONTMATTER_RE.match(text)
+                self.assertIsNotNone(fm_match)
+                frontmatter = fm_match.group(1)
+                tick_body = self._extract_tick_body(frontmatter)
+                self.assertIn(
+                    "tick-idle-check.sh",
+                    tick_body,
+                    f"{path.relative_to(REPO_ROOT)}: tick field is missing the "
+                    f"adaptive back-off step (0.6). Add: eval \"$(bash "
+                    f"claude-skills/scripts/tick-idle-check.sh <agent> <bus> "
+                    f"<report-dir>)\". See #363 and #393.",
+                )
+
     # ----------------------------------------- output:pr agents have exclusions
 
     def test_pr_agents_have_never_auto_implements_clauses(self) -> None:
