@@ -1,6 +1,6 @@
 {
-  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack",
-  "generatedAt": "2026-05-04T18:02:10Z",
+  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-a83f938ff6ddf68ac",
+  "generatedAt": "2026-05-04T18:12:29Z",
   "windowDays": 30,
   "flakeWindowDays": 14,
   "coverage": {
@@ -83,6 +83,10 @@
       "commits": 8
     },
     {
+      "path": "qa/history/2026-05-04.json",
+      "commits": 8
+    },
+    {
       "path": "claude-skills/scripts/open-report-pr.sh",
       "commits": 8
     },
@@ -107,11 +111,11 @@
       "commits": 7
     },
     {
-      "path": "qa/history/2026-05-04.json",
+      "path": "claude-skills/tests/test_po_report_integration.py",
       "commits": 6
     },
     {
-      "path": "claude-skills/tests/test_po_report_integration.py",
+      "path": "claude-skills/tests/test_md_to_office.py",
       "commits": 6
     },
     {
@@ -139,16 +143,16 @@
       "commits": 5
     },
     {
-      "path": "claude-skills/tests/test_md_to_office.py",
-      "commits": 5
-    },
-    {
       "path": "claude-skills/skills/po-report/SKILL.md",
       "commits": 5
     },
     {
       "path": "claude-skills/scripts/auto-merge-or-flag.sh",
       "commits": 5
+    },
+    {
+      "path": "tech/reports/2026-05-04-health.md",
+      "commits": 4
     },
     {
       "path": "stack.yaml",
@@ -179,6 +183,10 @@
       "commits": 4
     },
     {
+      "path": "brand/reports/2026-05-04-audit.md",
+      "commits": 4
+    },
+    {
       "path": ".gitignore",
       "commits": 4
     },
@@ -187,11 +195,11 @@
       "commits": 4
     },
     {
-      "path": "tech/reports/2026-05-04-health.md",
+      "path": "tech/reports/2026-05-03-health.md",
       "commits": 3
     },
     {
-      "path": "tech/reports/2026-05-03-health.md",
+      "path": "seo/reports/2026-05-04-audit.md",
       "commits": 3
     },
     {
@@ -247,6 +255,10 @@
       "commits": 3
     },
     {
+      "path": "claude-skills/skills/md-to-office/scripts/generate-templates.py",
+      "commits": 3
+    },
+    {
       "path": "claude-skills/scripts/tick-fingerprint.sh",
       "commits": 3
     },
@@ -264,10 +276,6 @@
     },
     {
       "path": "tech/reports/2026-04-23-health.md",
-      "commits": 2
-    },
-    {
-      "path": "seo/reports/2026-05-04-audit.md",
       "commits": 2
     },
     {
@@ -411,10 +419,6 @@
       "commits": 2
     },
     {
-      "path": "claude-skills/skills/md-to-office/scripts/generate-templates.py",
-      "commits": 2
-    },
-    {
       "path": "claude-skills/skills/md-to-office/references/markdown-conventions.md",
       "commits": 2
     },
@@ -471,10 +475,6 @@
       "commits": 2
     },
     {
-      "path": "brand/reports/2026-05-04-audit.md",
-      "commits": 2
-    },
-    {
       "path": "brand/reports/2026-04-30-audit.md",
       "commits": 2
     },
@@ -515,6 +515,14 @@
       "commits": 1
     },
     {
+      "path": "seo/reports/2026-05-04-audit-1777917124.md",
+      "commits": 1
+    },
+    {
+      "path": "seo/reports/2026-05-04-audit-1777916603.md",
+      "commits": 1
+    },
+    {
       "path": "seo/reports/2026-05-02-audit.md",
       "commits": 1
     },
@@ -524,6 +532,10 @@
     },
     {
       "path": "seo/KEYWORDS.md",
+      "commits": 1
+    },
+    {
+      "path": "security/reports/2026-05-04-audit-1777916549.md",
       "commits": 1
     },
     {
@@ -563,11 +575,23 @@
       "commits": 1
     },
     {
+      "path": "qa/reports/2026-05-04-audit-7810.md",
+      "commits": 1
+    },
+    {
       "path": "qa/reports/2026-05-04-audit-7.md",
       "commits": 1
     },
     {
       "path": "qa/reports/2026-05-04-audit-2.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-audit-1952.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-audit-11.md",
       "commits": 1
     },
     {
@@ -604,6 +628,18 @@
     },
     {
       "path": "qa/history/2026-04-23.json",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-tick-1777917738.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-tick-1777917148.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-tick-1777916245.md",
       "commits": 1
     },
     {
@@ -711,6 +747,10 @@
       "commits": 1
     },
     {
+      "path": "marketing/reports/2026-05-04-audit-7704.md",
+      "commits": 1
+    },
+    {
       "path": "marketing/reports/2026-05-04-audit-2.md",
       "commits": 1
     },
@@ -796,6 +836,10 @@
     },
     {
       "path": "comms/ANNOUNCED.md",
+      "commits": 1
+    },
+    {
+      "path": "cleaner/reports/2026-05-04-hygiene-4.md",
       "commits": 1
     },
     {
@@ -1467,6 +1511,14 @@
       "commits": 1
     },
     {
+      "path": "brand/reports/2026-05-04T19-43-19-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-05-04T17-51-41-audit.md",
+      "commits": 1
+    },
+    {
       "path": "brand/reports/2026-05-04-audit-3.md",
       "commits": 1
     },
@@ -1564,6 +1616,24 @@
     }
   ],
   "ciRuns": [
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T18:07:38Z",
+      "databaseId": 25335092170,
+      "headSha": "c6bf5b02ba511174372d00e547fdd9ad773f7ad7",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25335092170"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T18:07:29Z",
+      "databaseId": 25335084837,
+      "headSha": "69432b8454d917c77d5c88f0cd16b84818131ff3",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25335084837"
+    },
     {
       "conclusion": "success",
       "createdAt": "2026-05-04T17:57:05Z",
@@ -1995,24 +2065,6 @@
       "name": "claude-skills test",
       "status": "completed",
       "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25174454817"
-    },
-    {
-      "conclusion": "success",
-      "createdAt": "2026-04-30T15:34:12Z",
-      "databaseId": 25174446032,
-      "headSha": "72afdd6ce92582b6145e497356d8a9fa3f45ef54",
-      "name": "claude-skills test",
-      "status": "completed",
-      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25174446032"
-    },
-    {
-      "conclusion": "success",
-      "createdAt": "2026-04-30T15:03:06Z",
-      "databaseId": 25172869991,
-      "headSha": "640da3e28caaa70d8bfcdfa879570485498d51a9",
-      "name": "claude-skills test",
-      "status": "completed",
-      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25172869991"
     }
   ],
   "previous": {
