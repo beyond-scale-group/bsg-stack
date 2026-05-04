@@ -135,6 +135,65 @@ gws gmail users stop  --params '{"userId":"me"}'
 Push notifications go to Pub/Sub. For local polling use `gws gmail +watch`
 which streams NDJSON of new messages as they arrive.
 
+## Compose Gmail-ready HTML from markdown (`+email-from-md`)
+
+Use `scripts/email-from-md.sh` to convert a markdown file into HTML
+that renders correctly in Gmail web: tables get inline borders, blockquotes
+get a left-border, and the sender's Gmail signature is auto-appended.
+
+**Quick usage:**
+
+```bash
+# Generate HTML body, save to temp file
+bash claude-skills/skills/google-workspace/scripts/email-from-md.sh \
+  --markdown ./memo.md \
+  --from me@example.com \
+  > /tmp/body.html
+
+# Pipe straight into gws +send as a draft
+gws gmail +send \
+  --to alice@example.com \
+  --from me@example.com \
+  --subject "Q2 recap" \
+  --body "$(bash claude-skills/skills/google-workspace/scripts/email-from-md.sh \
+              --markdown ./memo.md --from me@example.com)" \
+  --html --draft
+```
+
+**Flags:**
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--markdown FILE` | yes | Path to the markdown source file |
+| `--from ALIAS` | no | Gmail sendAs alias — used to fetch the matching signature |
+| `--no-signature` | no | Skip signature injection (useful for tests / CI) |
+
+**What it does:**
+
+1. Converts markdown to HTML via `pandoc`
+2. Inlines CSS on `<table>`, `<th>`, `<td>`, `<blockquote>` (Gmail strips
+   stylesheet; inline is required for rendering)
+3. Calls `gws gmail users settings sendAs list` to fetch the HTML signature
+   for `--from`; appends it after the body. Skipped when `--no-signature`
+   or `gws` is unavailable.
+
+**Manual workaround** (if you need a one-liner without the script):
+
+```bash
+FROM="me@example.com"
+SIG=$(gws gmail users settings sendAs list --params '{"userId":"me"}' \
+  | jq -r ".sendAs[] | select(.sendAsEmail == \"$FROM\") | .signature")
+pandoc -f markdown -t html --wrap=none body.md \
+  | sed -E \
+    -e 's|<table>|<table style="border-collapse:collapse;border:1px solid #ccc;margin:12px 0;font-family:Arial,sans-serif;font-size:13px;">|g' \
+    -e 's|<th>|<th style="background:#f4f4f4;border:1px solid #ccc;padding:8px 10px;text-align:left;font-weight:600;">|g' \
+    -e 's|<td>|<td style="border:1px solid #ccc;padding:8px 10px;vertical-align:top;">|g' \
+  > /tmp/body.html
+echo "$SIG" >> /tmp/body.html
+gws gmail +send --to "$TO" --from "$FROM" --subject "$SUBJECT" \
+  --body "$(cat /tmp/body.html)" --html --draft
+```
+
 ## Cheap patterns
 
 ```bash
