@@ -156,15 +156,23 @@ fi
 
 # Prefer auto-merge; fall back to direct squash merge if the repo has
 # no required checks / reviews configured (common for young repos).
-if ! gh pr merge --auto --squash "$pr_url" >/dev/null 2>&1; then
+# The `--delete-branch` flag cleans up the remote head ref so it
+# doesn't accumulate in `gh pr list --state all` output (#363).
+if ! gh pr merge --auto --squash --delete-branch "$pr_url" >/dev/null 2>&1; then
   echo "open-report-pr.sh: auto-merge not available, merging directly" >&2
-  gh pr merge --squash "$pr_url" >/dev/null
+  gh pr merge --squash --delete-branch "$pr_url" >/dev/null
 fi
 
 # Return to the original branch. Fast-forward pull to bring in the
 # merged commit (best-effort; ignored if the PR is still queued).
 git checkout "$original" >/dev/null 2>&1 || true
 git pull --ff-only >/dev/null 2>&1 || true
+
+# Post-merge cleanup: delete the local report branch we just pushed
+# (best-effort). The runtime / git-worktree may still hold a
+# reference; failure here doesn't matter — `prune-agent-worktrees.sh`
+# will catch the leftovers on the next tick. See #363.
+git branch -D "$branch" >/dev/null 2>&1 || true
 
 # If we're running inside an agent worktree under .claude/worktrees/agent-*,
 # release the lock so the dispatcher-level prune (or the Agent runtime)

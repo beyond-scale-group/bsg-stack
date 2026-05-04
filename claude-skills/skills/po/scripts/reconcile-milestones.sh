@@ -107,15 +107,33 @@ mapfile -t epic_lines < <(
 
 all_bound=()
 declare -A slug_to_nums
-for line in "${epic_lines[@]}"; do
+# Guard the loop body: when the plan parses but yields no epics,
+# `epic_lines` is an empty array and indexing `epic_lines[@]` under
+# `set -u` errors with "unbound variable" on older bash. The
+# `${epic_lines[@]:-}` expansion treats an unset/empty array as empty
+# without aborting the script. See #363 fix #6.
+for line in "${epic_lines[@]:-}"; do
+  [[ -z "$line" ]] && continue
   slug="${line%%$'\t'*}"
   nums="${line##*$'\t'}"
   slug_to_nums["$slug"]="$nums"
   IFS=',' read -r -a arr <<<"$nums"
-  all_bound+=("${arr[@]}")
+  # The `read -a` call may leave `arr` empty when `nums` itself is
+  # empty (no bindings on this epic). Guard the append with the same
+  # `${arr[@]:-}` defensive expansion so set -u stays happy.
+  all_bound+=("${arr[@]:-}")
 done
 
 echo "reconcile-milestones: ${#slug_to_nums[@]} epics parsed from plan"
+
+# Short-circuit: if no epic slugs were parsed, there's nothing to
+# reconcile. Skip the assign / scope-creep loops cleanly rather than
+# letting `${!slug_to_nums[@]}` iterate over an empty associative
+# array under set -u.
+if [[ "${#slug_to_nums[@]}" -eq 0 ]]; then
+  echo "reconcile-milestones: no epics with bindings — nothing to reconcile"
+  exit 0
+fi
 
 # Step 2: ensure milestones exist and assign to bound issues/PRs.
 declare -A slug_to_milestone_num

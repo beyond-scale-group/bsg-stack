@@ -38,6 +38,13 @@
 # no output (idempotent). The fingerprint is appended to the body as
 # a hidden HTML comment: `<!-- bsg-dedup:FINGERPRINT -->`.
 #
+# With `--type bug|enhancement` (default: enhancement), the script
+# always appends the type label so the issue is picked up by
+# `list-pilot-candidates.sh`, which filters on
+# `select(.labels | any(.name == "bug" or .name == "enhancement"))`.
+# Without this, agent-filed issues from phase A.5 would never become
+# phase B candidates — see #363.
+#
 # Exits with the issue URL on stdout. Exits non-zero on any real failure.
 
 set -euo pipefail
@@ -48,6 +55,7 @@ REVIEW_DESC="Awaiting a human decision (triage, merge, or scope)"
 BUS_LABEL=""
 FILED_BY=""
 DEDUP_FINGERPRINT=""
+ISSUE_TYPE="enhancement"
 
 # Target repo is whatever `gh` resolves (explicit --repo wins, else the cwd).
 repo_flag=()
@@ -73,6 +81,13 @@ while [[ $# -gt 0 ]]; do
       ;;
     --dedup)
       DEDUP_FINGERPRINT="$2"
+      shift 2
+      ;;
+    --type)
+      case "$2" in
+        bug|enhancement) ISSUE_TYPE="$2" ;;
+        *) echo "file-issue.sh: --type must be bug or enhancement, got: $2" >&2; exit 2 ;;
+      esac
       shift 2
       ;;
     *)
@@ -127,6 +142,8 @@ fi
 #   - needs-human-review (only outside autopilot mode)
 #   - (optional) the bus label that pins ownership to a specific agent
 #   - (optional) filed-by:<agent> for traceability
+#   - bug or enhancement (always — required for list-pilot-candidates.sh
+#     to recognise the issue, see #363)
 extra_labels=""
 if [[ "$APPLY_REVIEW_LABEL" == "true" ]]; then
   extra_labels="$REVIEW_LABEL"
@@ -134,6 +151,11 @@ fi
 if [[ -n "$BUS_LABEL" ]]; then
   extra_labels="${extra_labels:+$extra_labels,}$BUS_LABEL"
 fi
+
+# Always include the type label so phase-A.5 issues become phase-B
+# candidates. The caller may also pass --label "bug" explicitly; that's
+# fine — gh deduplicates labels server-side.
+extra_labels="${extra_labels:+$extra_labels,}$ISSUE_TYPE"
 if [[ -n "$FILED_BY" ]]; then
   filed_label="filed-by:${FILED_BY}"
   # Ensure the filed-by label exists.

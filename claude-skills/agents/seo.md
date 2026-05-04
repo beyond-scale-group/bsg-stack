@@ -18,6 +18,8 @@ tick: >
   (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh seo seo)"`.
   If TICK_SHORT_CIRCUIT=1, set TICK_AUDIT_RECEIPT="unchanged — see PR #$TICK_LAST_PR" and skip to (B) — phases (A) and (A.5) are gated by audit freshness, but (B) and (C) have independent triggers and must always run.
   Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
+  (0.6) Adaptive back-off (#363): run `eval "$(bash claude-skills/scripts/tick-idle-check.sh seo seo seo)"`.
+  If TICK_IDLE=1, emit TICK_IDLE_RECEIPT and stop — no candidates AND audit fingerprint matched yesterday's, so phases A/A.5/B/C would re-derive identical output. The idle decision is logged to seo/idle-ticks.log.
   (A) Run the full SEO audit (meta + links + content + sitemap), write the
   report to seo/reports/YYYY-MM-DD-audit.md. Do NOT open the report PR yet
   — defer to (B.post) so the pilot receipt is embedded in the report. Stay

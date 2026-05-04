@@ -42,6 +42,11 @@ tick: >
   Issues carry label:bug + target agent's bus label + label:needs-human-review
   + label:epic:<slug>. Max max_issues_per_tick (default 3) from
   .bsg-autopilot.yml. See the "Task delegation pipeline" section below.
+  Also run `bash claude-skills/scripts/po-decompose-oversized.sh` to surface
+  open issues whose estimated_loc exceeds max_loc_per_issue. The script
+  emits a JSONL list — DO NOT auto-split existing issues. Surface the list
+  in the status report under "Decomposition needed" so a human can decide
+  whether to split each one. See "Decomposing oversized issues" below.
   (C) Peer review (#222 phase 3b): if .bsg-autopilot.yml has a peer_review
   section listing po, run `peer-review-candidates.sh --reviewer po`.
   For each candidate PR (max 2 per tick): check plan alignment, scope-creep
@@ -359,6 +364,42 @@ When issues are delegated, append to the tick receipt:
 ```
 Tick: <status>, report at <PR url> — delegated N issues (tech:2, qa:1)
 ```
+
+### Decomposing oversized issues (#363 fix #4)
+
+The phase-B implementation pilots enforce a per-issue LOC cap
+(`max_loc_per_issue` in `.bsg-autopilot.yml`, default 200). Issues
+above the cap never get picked up — they sit in the backlog until a
+human splits them. The PO surfaces them every tick:
+
+```bash
+bash claude-skills/scripts/po-decompose-oversized.sh
+```
+
+The script emits one JSON line per oversized issue:
+
+```json
+{"number": 292, "title": "umbrella", "estimated_loc": 1500,
+ "agent": "tech", "milestone": "v2", "reason": "explicit-hint"}
+```
+
+It looks for explicit `estimated_loc:` / `~N LOC` hints in the issue
+body. When no hint is present, it falls back to a body-length
+heuristic (> 60 lines = "likely oversized") and flags the issue for
+manual sizing.
+
+**The PO does NOT auto-split.** Decomposition is a planning decision
+that requires human judgement. The script's job is to make the queue
+visible — the PO surfaces it in the status report under
+`## Decomposition needed`, and the human (or, optionally, the PO in
+a later confirmed action) calls `file-issue.sh --type enhancement`
+once for each sub-task. If the PO does file sub-issues, it must:
+
+- Route each one to the same target agent's bus label
+- Bind each one to the same milestone as the parent
+- Reference the parent in each child body
+  (`Child of #NN — see decomposition note`)
+- Cap at `max_issues_per_tick` per parent
 
 ---
 
