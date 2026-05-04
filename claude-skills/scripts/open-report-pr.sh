@@ -145,7 +145,9 @@ if git diff --cached --quiet; then
   git checkout "$original" >/dev/null 2>&1 || true
   exit 0
 fi
-git commit -m "$title" >/dev/null
+git -c "user.name=${AGENT}" \
+    -c "user.email=${AGENT}@bsg-agents.bot" \
+    commit -m "$title" >/dev/null
 git push -u origin "$branch" >/dev/null 2>&1
 
 # Reuse an existing PR targeting this branch, otherwise open a new one.
