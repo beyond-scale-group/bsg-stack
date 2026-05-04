@@ -172,8 +172,60 @@ _CSS_PATTERNS = [
 ]
 
 
+# Tailwind v4 uses @theme { --color-*-NNN: #hex; } instead of tailwind.config.js.
+# We look for the -500 or -600 scale stop (the typical anchor/primary shade) inside
+# @theme blocks. Files under apps/.../src/ are preferred over public/ demo HTML.
+
+_THEME_BLOCK_RE = re.compile(
+    r"@theme\s*\{([^}]*)\}",
+    re.DOTALL | re.IGNORECASE,
+)
+
+# Prefer the mid-range scale stops as the "primary" anchor color.
+_THEME_SCALE_PRIORITY = ("500", "600", "700", "400", "300", "DEFAULT")
+
+
+def _priority_key(path: Path) -> int:
+    """Lower value = higher priority. app source CSS wins over public/ demo HTML."""
+    parts = path.parts
+    if "public" in parts:
+        return 2
+    # apps/*/src/**  or  src/**  — real app CSS
+    if "src" in parts:
+        return 0
+    return 1
+
+
 def _scan_primary() -> str:
-    for f in _iter_files("*.css", "*.scss", "*.less"):
+    # --- Step 1: Tailwind v4 @theme block detection (highest priority) --------
+    css_files = sorted(
+        _iter_files("*.css", "*.scss", "*.less"),
+        key=_priority_key,
+    )
+    for f in css_files:
+        text = f.read_text(errors="replace")
+        for block_m in _THEME_BLOCK_RE.finditer(text):
+            block = block_m.group(1)
+            # Collect all --color-*-NNN: #hex lines in this block.
+            color_hits: dict[str, str] = {}
+            for line_m in re.finditer(
+                r"--color-[a-z0-9-]+-(" + "|".join(_THEME_SCALE_PRIORITY) + r")\s*:\s*#([0-9a-fA-F]{3,6})",
+                block,
+                re.IGNORECASE,
+            ):
+                scale_stop = line_m.group(1)
+                hex_val = line_m.group(2)
+                if scale_stop not in color_hits:
+                    color_hits[scale_stop] = hex_val
+            # Pick the best scale stop in priority order.
+            for stop in _THEME_SCALE_PRIORITY:
+                if stop in color_hits:
+                    val = _normalize_hex(color_hits[stop])
+                    _audit("primary", f"Tailwind v4 @theme in {_rel(f)}", val)
+                    return val
+
+    # --- Step 2: Classic CSS custom property patterns -------------------------
+    for f in css_files:
         text = f.read_text(errors="replace")
         for pat in _CSS_PATTERNS:
             m = re.search(pat, text, re.IGNORECASE)
