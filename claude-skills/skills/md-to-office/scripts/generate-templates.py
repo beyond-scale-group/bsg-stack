@@ -9,6 +9,26 @@ Creates:
 
 Requires: python-docx, python-pptx, openpyxl
 Run scripts/install-local.sh to install all three.
+
+tokens.json `docx` block (all optional — defaults are applied when absent):
+
+  {
+    "docx": {
+      "margins_cm": 2.5,
+      "body": {
+        "color": "#2A3340",
+        "size": 11,
+        "line_spacing": 1.25,
+        "space_after": 8
+      },
+      "title":     { "size": 32 },
+      "heading_1": { "size": 22, "before": 18, "after": 8 },
+      "heading_2": { "size": 16, "before": 14, "after": 6 },
+      "heading_3": { "size": 13, "before": 10, "after": 4 },
+      "heading_4": { "size": 11, "before": 8,  "after": 3 },
+      "footer":    "{name}  •  Confidentiel"
+    }
+  }
 """
 
 from __future__ import annotations
@@ -49,18 +69,59 @@ def _lighten(h: str, pct: float = 0.85) -> str:
 
 
 # ---------------------------------------------------------------------------
+# DOCX default constants (BPI/investor-grade)
+# ---------------------------------------------------------------------------
+
+_DOCX_DEFAULTS = {
+    "margins_cm": 2.5,
+    "body": {
+        "color": "#2A3340",
+        "size": 11,
+        "line_spacing": 1.25,
+        "space_after": 8,
+    },
+    "title":     {"size": 32},
+    "heading_1": {"size": 22, "before": 18, "after": 8},
+    "heading_2": {"size": 16, "before": 14, "after": 6},
+    "heading_3": {"size": 13, "before": 10, "after": 4},
+    "heading_4": {"size": 11, "before": 8,  "after": 3},
+    "footer":    "{name}  •  Confidentiel",
+}
+
+
+def _merge_docx_cfg(tokens: dict) -> dict:
+    """Deep-merge tokens['docx'] over _DOCX_DEFAULTS."""
+    import copy
+    cfg = copy.deepcopy(_DOCX_DEFAULTS)
+    user = tokens.get("docx", {})
+    for key, val in user.items():
+        if isinstance(val, dict) and isinstance(cfg.get(key), dict):
+            cfg[key].update(val)
+        else:
+            cfg[key] = val
+    return cfg
+
+
+# ---------------------------------------------------------------------------
 # DOCX
 # ---------------------------------------------------------------------------
 
 def _generate_docx(tokens: dict) -> None:
     from docx import Document  # type: ignore
-    from docx.shared import Pt, RGBColor  # type: ignore
+    from docx.shared import Cm, Pt, RGBColor  # type: ignore
+    from docx.enum.text import WD_LINE_SPACING  # type: ignore
 
     primary = tokens["colors"]["primary"]
     font_name = tokens["fonts"]["primary"]
+    project_name = tokens.get("name", "Project")
+
+    cfg = _merge_docx_cfg(tokens)
+
     r, g, b = _hex_to_rgb(primary)
     h2_r, h2_g, h2_b = _hex_to_rgb(_darken(primary, 0.15))
     h3_r, h3_g, h3_b = _hex_to_rgb(_darken(primary, 0.35))
+    # Muted slate for H4 — fixed colour regardless of brand primary
+    h4_r, h4_g, h4_b = 0x6B, 0x74, 0x80  # slate-500 equivalent
 
     # Bootstrap from pandoc's default reference.docx so the XML structure
     # is already what pandoc expects.
@@ -79,24 +140,79 @@ def _generate_docx(tokens: dict) -> None:
         doc = Document()
     tmp_path.unlink(missing_ok=True)
 
-    for style_name, rgb, size_pt, bold in [
-        ("Heading 1", (r, g, b),             18, True),
-        ("Heading 2", (h2_r, h2_g, h2_b),    14, True),
-        ("Heading 3", (h3_r, h3_g, h3_b),    12, True),
-    ]:
+    # --- Page margins ---
+    margins_cm = cfg["margins_cm"]
+    for section in doc.sections:
+        section.left_margin   = Cm(margins_cm)
+        section.right_margin  = Cm(margins_cm)
+        section.top_margin    = Cm(margins_cm)
+        section.bottom_margin = Cm(margins_cm)
+
+    # --- Normal body style ---
+    body_cfg = cfg["body"]
+    body_color = body_cfg.get("color", "#2A3340")
+    bc_r, bc_g, bc_b = _hex_to_rgb(body_color)
+    try:
+        normal = doc.styles["Normal"]
+        normal.font.size = Pt(body_cfg.get("size", 11))
+        normal.font.name = font_name
+        normal.font.color.rgb = RGBColor(bc_r, bc_g, bc_b)
+        normal.paragraph_format.space_after = Pt(body_cfg.get("space_after", 8))
+        normal.paragraph_format.line_spacing = body_cfg.get("line_spacing", 1.25)
+    except (KeyError, Exception):
+        pass
+
+    # --- Title style ---
+    title_cfg = cfg.get("title", {})
+    try:
+        title_style = doc.styles["Title"]
+        title_style.font.size = Pt(title_cfg.get("size", 32))
+        title_style.font.name = font_name
+        title_style.paragraph_format.space_after = Pt(18)
+    except (KeyError, Exception):
+        pass
+
+    # --- Heading styles (H1–H4) ---
+    heading_defs = [
+        ("Heading 1", (r, g, b),             cfg["heading_1"], True),
+        ("Heading 2", (h2_r, h2_g, h2_b),    cfg["heading_2"], True),
+        ("Heading 3", (h3_r, h3_g, h3_b),    cfg["heading_3"], True),
+        ("Heading 4", (h4_r, h4_g, h4_b),    cfg["heading_4"], False),
+    ]
+    for style_name, rgb, hcfg, bold in heading_defs:
         try:
             style = doc.styles[style_name]
             style.font.color.rgb = RGBColor(*rgb)
             style.font.bold = bold
-            style.font.size = Pt(size_pt)
+            style.font.size = Pt(hcfg.get("size", 11))
             style.font.name = font_name
+            if style_name == "Heading 4":
+                style.font.italic = True
+            pf = style.paragraph_format
+            before = hcfg.get("before")
+            after  = hcfg.get("after")
+            if before is not None:
+                pf.space_before = Pt(before)
+            if after is not None:
+                pf.space_after = Pt(after)
         except (KeyError, Exception):
             pass
 
+    # --- Footer ---
+    footer_tpl = cfg.get("footer", "{name}  •  Confidentiel")
+    footer_text = footer_tpl.replace("{name}", project_name)
     try:
-        normal = doc.styles["Normal"]
-        normal.font.size = Pt(11)
-        normal.font.name = font_name
+        for section in doc.sections:
+            footer = section.footer
+            # Clear existing paragraphs content
+            for para in footer.paragraphs:
+                para.clear()
+                run = para.add_run(footer_text)
+                run.font.size = Pt(8)
+                run.font.name = font_name
+                from docx.enum.text import WD_ALIGN_PARAGRAPH  # type: ignore
+                para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                break  # only set the first paragraph
     except (KeyError, Exception):
         pass
 
