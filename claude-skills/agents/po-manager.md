@@ -45,8 +45,9 @@ tick: >
   default_human_reviewer + applies needs:spec-clarification. Log fired
   escalations in the status report under "Stuck issues". Silence-breaker if
   any tier-2 escalation fired. See "Stuck detection (#416)" below.
-  (2) Run the full status + adherence report and land it as
-  po/reports/YYYY-MM-DD-status.md via open-report-pr.sh. Stay silent in chat
+  (2) Run the full status + adherence report, land it capturing the PR URL:
+  PR_URL=$(bash claude-skills/scripts/open-report-pr.sh
+  po/reports/YYYY-MM-DD-status.md --agent po-manager). Stay silent in chat
   unless a silence-breaker fires (see the "Tick action" section below).
   (A.5) Task delegation: after the report lands, if .bsg-autopilot.yml lists
   po in agents, scan the status report and open issue backlog for actionable
@@ -70,6 +71,7 @@ tick: >
   risk, and epic binding. Add a review comment and apply `peer-reviewed:po`
   label. If the PR implements work outside the current plan, post a review
   comment with the rework rationale. Never merge, never apply `human-reviewed`.
+  Include $PR_URL in the one-line tick receipt.
 delegates-to: [tech, qa, seo]
 auto-implements: []
 never-auto-implements:
@@ -132,21 +134,20 @@ Always use `date +%F` for the prefix.
 ## Landing the report (mandatory)
 
 Never `git commit` the report directly on `main`. After writing the file,
-wrap it in an auto-merge PR using the shared helper:
+wrap it in an auto-merge PR using the shared helper and capture the PR URL:
 
 ```bash
-bash ~/.claude/scripts/open-report-pr.sh \
-  po/reports/2026-04-10-status.md \
-  --agent po-manager
+PR_URL=$(bash claude-skills/scripts/open-report-pr.sh \
+  po/reports/$(date +%F)-status.md \
+  --agent po-manager)
 ```
 
 The helper branches off HEAD, commits the file, opens a PR, and enables
 auto-merge (squash). If the target repo has no branch-protection rule,
 it falls back to a direct squash merge — the file still lands on `main`.
 
-Include the returned PR URL in your chat summary so the user can click
-through. See `CLAUDE.md` → "Reporting agents output via auto-merge PRs"
-for the why.
+Include `$PR_URL` in your chat summary so the user can click through.
+See `CLAUDE.md` → "Reporting agents output via auto-merge PRs" for the why.
 
 ## Tick action (periodic run)
 
@@ -258,12 +259,12 @@ that nothing gets posted in chat when the project is healthy.
      > po/reports/$(date +%F)-status.md
    ```
 
-3. **Land it via the shared helper** — never commit to `main` directly:
+3. **Land it via the shared helper** — capture the PR URL:
 
    ```bash
-   bash ~/.claude/scripts/open-report-pr.sh \
+   PR_URL=$(bash claude-skills/scripts/open-report-pr.sh \
      po/reports/$(date +%F)-status.md \
-     --agent po-manager
+     --agent po-manager)
    ```
 
 4. **Evaluate silence-breakers** (see below). Run each breaker script
@@ -285,9 +286,9 @@ that nothing gets posted in chat when the project is healthy.
    `max_issues_per_tick` (default 3) from `.bsg-autopilot.yml`.
 
 6. **Reply**. If no breaker fired and no issues were delegated, a single
-   line — e.g. `Tick: all green, report at <PR url>` — is the whole reply.
+   line — e.g. `Tick: all green, report at $PR_URL` — is the whole reply.
    If breakers fired or issues were filed, send the 3-bullet executive
-   summary plus the PR url and a count of delegated issues.
+   summary plus `$PR_URL` and a count of delegated issues.
 
 ### Silence-breakers (what counts as "needs human attention")
 
@@ -424,7 +425,7 @@ Conventions:
 When issues are delegated, append to the tick receipt:
 
 ```
-Tick: <status>, report at <PR url> — delegated N issues (tech:2, qa:1)
+Tick: <status>, report at $PR_URL — delegated N issues (tech:2, qa:1)
 ```
 
 ### Decomposing oversized issues (#363 #416)

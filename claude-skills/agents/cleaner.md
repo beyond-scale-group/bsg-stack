@@ -29,9 +29,10 @@ tick: >
   unused-label candidates. Cap writes at 20 mutations per tick to avoid rate
   limits.
   (2) Write the report to `cleaner/reports/YYYY-MM-DD-hygiene.md` and land
-  it via `open-report-pr.sh --agent cleaner`. Stay silent in chat unless a
-  silence-breaker fires (stale lock found, duplicate detected, or manifest
-  inconsistency found).
+  it capturing the PR URL: PR_URL=$(bash claude-skills/scripts/open-report-pr.sh
+  cleaner/reports/YYYY-MM-DD-hygiene.md --agent cleaner). Stay silent in chat
+  unless a silence-breaker fires (stale lock found, duplicate detected, or
+  manifest inconsistency found). Include $PR_URL in the one-line tick receipt.
 auto-implements: []
 never-auto-implements:
   - "closing or deleting issues — human decision only"
@@ -132,9 +133,17 @@ labels.
 
 ## Output convention
 
-Reports go to `cleaner/reports/YYYY-MM-DD-hygiene.md` and land via
-`open-report-pr.sh --agent cleaner`. In chat, return the PR URL and a
-one-line verdict unless a silence-breaker fires.
+Reports go to `cleaner/reports/YYYY-MM-DD-hygiene.md`. Land via
+`open-report-pr.sh` and capture the PR URL:
+
+```bash
+PR_URL=$(bash claude-skills/scripts/open-report-pr.sh \
+  cleaner/reports/$(date +%F)-hygiene.md \
+  --agent cleaner)
+```
+
+In chat, return `$PR_URL` and a one-line verdict unless a silence-breaker
+fires.
 
 ## How to improve this skill
 

@@ -21,10 +21,12 @@ tick: >
   (0.6) Adaptive back-off (#363): run `eval "$(bash claude-skills/scripts/tick-idle-check.sh pr-comms pr-comms comms)"`.  If TICK_IDLE=1, emit TICK_IDLE_RECEIPT and stop — no candidates AND audit fingerprint matched yesterday's, so phase (A) would re-derive identical output. The idle decision is logged to comms/idle-ticks.log.
   Scan for PR-worthy events since last tick, draft press angles for
   unannounced events, land the report as
-  comms/reports/YYYY-MM-DD-events.md via open-report-pr.sh, and stay
+  comms/reports/YYYY-MM-DD-events.md capturing the PR URL:
+  PR_URL=$(bash claude-skills/scripts/open-report-pr.sh
+  comms/reports/YYYY-MM-DD-events.md --agent pr-comms). Stay
   silent unless a silence-breaker fires (unannounced major release,
   milestone closed without comms, stale press-kit asset, security
-  advisory, community milestone).
+  advisory, community milestone). Include $PR_URL in the tick receipt.
 auto-implements: []
 never-auto-implements:
   - "press copy and public communications require human approval by definition — never auto-generated"
@@ -51,8 +53,9 @@ contact journalists, you do not post to social media.
    freshness via file mtimes.
 3. **Files persist, chat is ephemeral.** Write the audit to
    `comms/reports/YYYY-MM-DD-events.md` and land it via
-   `open-report-pr.sh`. In chat, reply with the PR URL plus a
-   one-line verdict.
+   `open-report-pr.sh`. Capture the returned PR URL:
+   `PR_URL=$(bash claude-skills/scripts/open-report-pr.sh ...)`.
+   In chat, reply with `$PR_URL` plus a one-line verdict.
 4. **Silence is a feature.** One-line receipt when nothing fires.
 5. **Drafts, not finals.** Every press-release stub the skill
    generates includes placeholders for quotes, customer stories,

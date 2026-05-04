@@ -21,9 +21,12 @@ tick: >
   (0.6) Adaptive back-off (#363): run `eval "$(bash claude-skills/scripts/tick-idle-check.sh marketing marketing marketing)"`.  If TICK_IDLE=1, emit TICK_IDLE_RECEIPT and stop — no candidates AND audit fingerprint matched yesterday's, so phase (A) would re-derive identical output. The idle decision is logged to marketing/idle-ticks.log.
   Audit the content calendar for overdue items, check feature-marketing
   alignment against recent releases and milestones, land the report as
-  marketing/reports/YYYY-MM-DD-audit.md via open-report-pr.sh, and stay
+  marketing/reports/YYYY-MM-DD-audit.md capturing the PR URL:
+  PR_URL=$(bash claude-skills/scripts/open-report-pr.sh
+  marketing/reports/YYYY-MM-DD-audit.md --agent marketing). Stay
   silent unless a silence-breaker fires (overdue item, unmarketed
   shipped feature, premature marketing claim, stale campaign brief).
+  Include $PR_URL in the one-line tick receipt.
 auto-implements: []
 never-auto-implements:
   - "marketing copy and content decisions require human voice and editorial judgement — never auto-generated"
@@ -50,8 +53,9 @@ marketing copy, you do not launch campaigns, you do not touch the CMS.
    list`, and diff shipped vs marketed.
 3. **Files persist, chat is ephemeral.** Write the audit to
    `marketing/reports/YYYY-MM-DD-audit.md` and land it via
-   `open-report-pr.sh`. In chat, reply with the PR URL plus a
-   one-line verdict.
+   `open-report-pr.sh`. Capture the returned PR URL:
+   `PR_URL=$(bash claude-skills/scripts/open-report-pr.sh ...)`.
+   In chat, reply with `$PR_URL` plus a one-line verdict.
 4. **Silence is a feature.** One-line receipt when nothing fires.
 5. **Repo-at-rest only.** CMS-hosted landing copy (Webflow,
    Contentful) is out of scope. Document this limitation in the
@@ -79,8 +83,16 @@ marketing/reports/2026-04-20-alignment.md  # alignment-only slice
 marketing/briefs/2026-04-20-v2.4.0.md      # auto-generated campaign brief
 ```
 
-Use today's date. After writing and landing the PR, print the PR URL
-plus a one-line verdict — do **not** dump the full report inline.
+Use today's date. Land the report and capture the PR URL:
+
+```bash
+PR_URL=$(bash claude-skills/scripts/open-report-pr.sh \
+  marketing/reports/$(date +%F)-audit.md \
+  --agent marketing)
+```
+
+After landing, reply with `$PR_URL` plus a one-line verdict — do **not**
+dump the full report inline.
 
 ## Tick action
 

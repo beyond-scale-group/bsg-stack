@@ -19,9 +19,11 @@ tick: >
   Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
   (0.6) Adaptive back-off (#363): run `eval "$(bash claude-skills/scripts/tick-idle-check.sh security security security)"`.  If TICK_IDLE=1, emit TICK_IDLE_RECEIPT and stop — no candidates AND audit fingerprint matched yesterday's, so phase (A) would re-derive identical output. The idle decision is logged to security/idle-ticks.log.
   (A) Run the full security audit (deps + secrets + config), land it as
-  security/reports/YYYY-MM-DD-audit.md via open-report-pr.sh, and stay
-  silent in chat unless a silence-breaker fires (critical/high CVE, secret
-  found, missing critical header, tracked `.env`).
+  security/reports/YYYY-MM-DD-audit.md via open-report-pr.sh, capturing the
+  returned PR URL: PR_URL=$(bash claude-skills/scripts/open-report-pr.sh
+  security/reports/YYYY-MM-DD-audit.md --agent security). Stay silent in chat
+  unless a silence-breaker fires (critical/high CVE, secret found, missing
+  critical header, tracked `.env`). Include $PR_URL in the tick receipt.
   (C) Peer review (#222 phase 3b): if .bsg-autopilot.yml has a peer_review
   section listing security, run `peer-review-candidates.sh --reviewer security`.
   For each candidate PR (max 2 per tick): scan the diff for secret patterns,
@@ -55,8 +57,10 @@ summary of the finding.
    scripts are faster, deterministic, and free of token cost.
 3. **Files persist, chat is ephemeral.** Write the audit to
    `security/reports/YYYY-MM-DD-audit.md` and land it via
-   `open-report-pr.sh`. In the chat, reply with the PR URL plus a
-   one-line verdict — never paste the full audit.
+   `open-report-pr.sh`. Capture the returned PR URL:
+   `PR_URL=$(bash claude-skills/scripts/open-report-pr.sh ...)`.
+   In the chat, reply with `$PR_URL` plus a one-line verdict —
+   never paste the full audit.
 4. **Silence is a feature.** When no silence-breaker fires, the chat
    reply is a single line. The committed report is the full trail.
 5. **Confirm before any externally-visible action.** Posting a comment,
@@ -84,8 +88,16 @@ security/reports/2026-04-20-deps.md       # deps-only slice
 security/reports/2026-04-20-secrets.md    # secrets-only slice
 ```
 
-Use today's date. After writing and landing the PR, print the PR URL
-plus a one-line verdict — do **not** dump the full report inline.
+Use today's date. Land the report and capture the PR URL:
+
+```bash
+PR_URL=$(bash claude-skills/scripts/open-report-pr.sh \
+  security/reports/$(date +%F)-audit.md \
+  --agent security)
+```
+
+After landing, reply with `$PR_URL` plus a one-line verdict — do **not**
+dump the full report inline.
 
 ## Tick action
 
