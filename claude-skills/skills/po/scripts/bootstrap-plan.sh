@@ -82,15 +82,49 @@ EPICS
 # Infer epic candidates: issues that are referenced by >= 2 closing PRs
 # are likely parents of sub-work. Fall back to issues with sub-issue
 # labels (`epic`, `type:epic`) if any exist.
+# When neither exists and >= 3 open issues are present, cluster by title
+# token similarity and emit auto-suggested epics (issue #115).
 printf '%s' "$snapshot" | jq -r '
-  ([.pullRequests[].closingIssues[]] | group_by(.) | map({num: .[0], refs: length}) | map(select(.refs >= 2))) as $by_refs
-  | ([.issues[] | select(.labels | index("epic") or index("type:epic"))] | map({num: .number, title: .title})) as $by_label
-  | ($by_refs | map(.num) | map(. as $n | (.[$n] // null))) as $_skip
+  ["feat","fix","add","the","and","for","with","from","into","that","this","when",
+   "page","flow","base","data","query","adds","sets","gets","puts","runs","make",
+   "move","also","both","each","some","upon","have","been","will",
+   "were","more","than","then","back","like","such","only"] as $stops
+  | [.issues[] | select(.state == "OPEN")] as $open
+  | ([.pullRequests[].closingIssues[]] | group_by(.) | map({num: .[0], refs: length}) | map(select(.refs >= 2))) as $by_refs
+  | ([.issues[] | select(.labels | (type == "array") and any(.[]; . == "epic" or . == "type:epic"))] | map({num: .number, title: .title})) as $by_label
   | ($by_refs | map("- #\(.num) (referenced by \(.refs) PRs)    [epic:#\(.num)]")) as $lines_refs
   | ($by_label | map("- \(.title)    [epic:#\(.num)]")) as $lines_label
-  | ($lines_refs + $lines_label)
-  | if (. | length) == 0 then "- _No epic candidates detected. Add parent issues manually._"
-    else (. | join("\n"))
+  | ($lines_refs + $lines_label) as $traditional
+  | if ($traditional | length) > 0 then
+      ($traditional | join("\n"))
+    elif ($open | length) >= 3 then
+      (($open | map({
+          num: .number,
+          title: .title,
+          tokens: (.title | ascii_downcase | gsub("[^a-z0-9]"; " ") | split(" ")
+                   | map(select(length >= 4))
+                   | map(select(. as $t | $stops | any(.[]; . == $t) | not)))
+        })) as $tagged
+      | ([$tagged[].tokens[]] | group_by(.) | map({tok: .[0], cnt: length})
+         | map(select(.cnt >= 2)) | sort_by(-.cnt)) as $hot_toks
+      | ($hot_toks | map(.tok as $tok | {
+          label: $tok,
+          issues: [$tagged[] | select(.tokens | any(.[]; . == $tok)) | {num: .num, title: .title}]
+        }) | map(select((.issues | length) >= 2))) as $clusters
+      | if ($clusters | length) == 0 then
+          "- _No epic candidates detected. Add parent issues manually._"
+        else
+          (["_Auto-suggested epic clusters based on title similarity. Review wording before committing._"] +
+           ($clusters | map(
+             "### E-\(.label) _auto-suggested, review wording_\n\n" +
+             "> Scope: _set this_\n\n" +
+             "**Binds:** \(.issues | map("#" + (.num | tostring)) | join(", "))\n" +
+             "**Done when:** _set this_\n" +
+             (.issues | map("- #\(.num) \(.title)    [epic:#\(.num)]") | join("\n"))
+           ))) | join("\n\n")
+        end)
+    else
+      "- _No epic candidates detected. Add parent issues manually._"
     end
 '
 
