@@ -44,24 +44,35 @@ fi
 
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 TODAY=$(date +%F)
+# Freeze HH-MM-SS at script start so every consumer of this run sees
+# the same slug — and so multiple ticks in the same day produce
+# distinct filenames instead of fighting over `${TODAY}-<role>.md`
+# (the cause of merge-conflict storms like #338).
+NOW_HMS=$(date +%H-%M-%S)
+TIMESTAMP="${TODAY}T${NOW_HMS}"
 
 # ---------------------------------------------------------------- helpers
 
-slug_for_agent() {
+# Per-agent role suffix appended to the timestamped slug. Kept separate
+# from the timestamp so the same-day idempotency lookup can glob
+# `${TODAY}*-${ROLE}.md` and find any earlier tick from today
+# (including pre-timestamp files written before this change).
+role_for_agent() {
   case "$1" in
-    po-manager)   echo "${TODAY}-status" ;;
-    security)     echo "${TODAY}-audit" ;;
-    qa)           echo "${TODAY}-audit" ;;
-    tech-lead)    echo "${TODAY}-health" ;;
-    seo)          echo "${TODAY}-audit" ;;
-    marketing)    echo "${TODAY}-audit" ;;
-    storytelling) echo "${TODAY}-audit" ;;
-    pr-comms)     echo "${TODAY}-events" ;;
-    *)            echo "${TODAY}-report" ;;
+    po-manager)   echo "status" ;;
+    security)     echo "audit" ;;
+    qa)           echo "audit" ;;
+    tech-lead)    echo "health" ;;
+    seo)          echo "audit" ;;
+    marketing)    echo "audit" ;;
+    storytelling) echo "audit" ;;
+    pr-comms)     echo "events" ;;
+    *)            echo "report" ;;
   esac
 }
 
-SLUG=$(slug_for_agent "$AGENT")
+ROLE=$(role_for_agent "$AGENT")
+SLUG="${TIMESTAMP}-${ROLE}"
 REPORT_FILE="${REPO_ROOT}/${REPORT_DIR}/reports/${SLUG}.md"
 
 # ------------------------------------------------ compute current fingerprint
@@ -96,16 +107,28 @@ TICK_FINGERPRINT=$(printf '%s' "$fingerprint_inputs" | shasum -a 256 | cut -c1-1
 TICK_SHORT_CIRCUIT=0
 TICK_LAST_PR=""
 
-if [[ -f "$REPORT_FILE" ]]; then
-  stored_fp=$(sed -n 's/^<!-- fingerprint: \(.*\) -->/\1/p' "$REPORT_FILE" | head -1)
+# Look for any same-day report (current or earlier tick) whose stored
+# fingerprint matches the current input state. The glob covers both
+# the new timestamped slug `${TODAY}T${HH-MM-SS}-${ROLE}` and any
+# legacy `${TODAY}-${ROLE}` files from before this change. Most-recent
+# match wins via `ls -t`.
+matched_file=""
+matched_slug=""
+for candidate in $(ls -t "${REPO_ROOT}/${REPORT_DIR}/reports/${TODAY}"*"-${ROLE}.md" 2>/dev/null); do
+  stored_fp=$(sed -n 's/^<!-- fingerprint: \(.*\) -->/\1/p' "$candidate" | head -1)
   if [[ "$stored_fp" == "$TICK_FINGERPRINT" ]]; then
-    # Find the PR that merged this report
-    branch_pattern="reports/${AGENT}/${SLUG}"
-    TICK_LAST_PR=$(gh pr list --state merged --head "$branch_pattern" --limit 1 \
-      --json number --jq '.[0].number' 2>/dev/null || echo "")
-    if [[ -n "$TICK_LAST_PR" ]]; then
-      TICK_SHORT_CIRCUIT=1
-    fi
+    matched_file="$candidate"
+    matched_slug=$(basename "$candidate" .md)
+    break
+  fi
+done
+
+if [[ -n "$matched_file" ]]; then
+  branch_pattern="reports/${AGENT}/${matched_slug}"
+  TICK_LAST_PR=$(gh pr list --state merged --head "$branch_pattern" --limit 1 \
+    --json number --jq '.[0].number' 2>/dev/null || echo "")
+  if [[ -n "$TICK_LAST_PR" ]]; then
+    TICK_SHORT_CIRCUIT=1
   fi
 fi
 
