@@ -21,6 +21,7 @@ tick: >
   (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh po-manager po)"`.
   If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
   Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
+  (0.6) Adaptive back-off (#363): run `eval "$(bash claude-skills/scripts/tick-idle-check.sh po-manager po po)"`.  If TICK_IDLE=1, emit TICK_IDLE_RECEIPT and stop — no candidates AND audit fingerprint matched yesterday's, so phase (A) would re-derive identical output. The idle decision is logged to po/idle-ticks.log.
   (1) Run `reconcile-milestones.sh` to assign GitHub milestones from po/PLAN.md
   bindings — each bound issue/PR gets the milestone matching its epic slug,
   scope-creep label for unbound ones (idempotent; skip silently if the plan

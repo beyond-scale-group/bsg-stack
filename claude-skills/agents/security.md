@@ -17,6 +17,7 @@ tick: >
   (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh security security)"`.
   If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
   Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
+  (0.6) Adaptive back-off (#363): run `eval "$(bash claude-skills/scripts/tick-idle-check.sh security security security)"`.  If TICK_IDLE=1, emit TICK_IDLE_RECEIPT and stop — no candidates AND audit fingerprint matched yesterday's, so phase (A) would re-derive identical output. The idle decision is logged to security/idle-ticks.log.
   (A) Run the full security audit (deps + secrets + config), land it as
   security/reports/YYYY-MM-DD-audit.md via open-report-pr.sh, and stay
   silent in chat unless a silence-breaker fires (critical/high CVE, secret
