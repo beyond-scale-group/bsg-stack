@@ -18,6 +18,7 @@ tick: >
   (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh storytelling brand)"`.
   If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
   Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
+  (0.6) Adaptive back-off (#363): run `eval "$(bash claude-skills/scripts/tick-idle-check.sh storytelling storytelling brand)"`.  If TICK_IDLE=1, emit TICK_IDLE_RECEIPT and stop — no candidates AND audit fingerprint matched yesterday's, so phase (A) would re-derive identical output. The idle decision is logged to brand/idle-ticks.log.
   Audit public-facing repo assets against brand/NARRATIVE.md (voice
   consistency, key-message coverage, talking points for unnarrated
   releases), land the report as brand/reports/YYYY-MM-DD-audit.md via

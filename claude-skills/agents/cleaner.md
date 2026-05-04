@@ -21,6 +21,7 @@ tick: >
   (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh cleaner cleaner)"`.
   If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
   Otherwise export TICK_FINGERPRINT so the report embeds it.
+  (0.6) Adaptive back-off (#363): run `eval "$(bash claude-skills/scripts/tick-idle-check.sh cleaner cleaner cleaner)"`.  If TICK_IDLE=1, emit TICK_IDLE_RECEIPT and stop — no candidates AND audit fingerprint matched yesterday's, so phase (A) would re-derive identical output. The idle decision is logged to cleaner/idle-ticks.log.
   (1) Run the hygiene pass: remove orphaned `agent:lock:*` labels (held > 2h),
   remove `needs:*` labels from closed issues, remove `agent:done` from
   re-opened issues, post duplicate-detection comments (Levenshtein ≤ 10% on

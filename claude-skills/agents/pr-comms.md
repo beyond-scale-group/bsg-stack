@@ -18,6 +18,7 @@ tick: >
   (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh pr-comms comms)"`.
   If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
   Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
+  (0.6) Adaptive back-off (#363): run `eval "$(bash claude-skills/scripts/tick-idle-check.sh pr-comms pr-comms comms)"`.  If TICK_IDLE=1, emit TICK_IDLE_RECEIPT and stop — no candidates AND audit fingerprint matched yesterday's, so phase (A) would re-derive identical output. The idle decision is logged to comms/idle-ticks.log.
   Scan for PR-worthy events since last tick, draft press angles for
   unannounced events, land the report as
   comms/reports/YYYY-MM-DD-events.md via open-report-pr.sh, and stay

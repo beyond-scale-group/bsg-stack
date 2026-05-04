@@ -18,6 +18,7 @@ tick: >
   (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh marketing marketing)"`.
   If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
   Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
+  (0.6) Adaptive back-off (#363): run `eval "$(bash claude-skills/scripts/tick-idle-check.sh marketing marketing marketing)"`.  If TICK_IDLE=1, emit TICK_IDLE_RECEIPT and stop — no candidates AND audit fingerprint matched yesterday's, so phase (A) would re-derive identical output. The idle decision is logged to marketing/idle-ticks.log.
   Audit the content calendar for overdue items, check feature-marketing
   alignment against recent releases and milestones, land the report as
   marketing/reports/YYYY-MM-DD-audit.md via open-report-pr.sh, and stay
