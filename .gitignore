@@ -4,6 +4,7 @@
 # Claude Code / Superconductor runtime state — session locks and
 # per-agent worktrees live here. Never committed.
 .claude/
+.clone/
 
 # Python bytecode caches produced by running claude-skills/tests locally.
 __pycache__/
