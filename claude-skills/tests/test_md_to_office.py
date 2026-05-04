@@ -430,6 +430,49 @@ class TestScanBrand(unittest.TestCase):
         tw.write_text("module.exports = { theme: { colors: { primary: '#6d28d9' } } }\n")
         self.assertEqual(self._scan()["colors"]["primary"], "#6d28d9")
 
+    def test_primary_from_tailwind_v4_theme_block(self) -> None:
+        """#241: Tailwind v4 @theme blocks with --color-* tokens must be parsed."""
+        apps_css = self.tmp / "apps" / "web-app" / "src" / "app"
+        apps_css.mkdir(parents=True)
+        (apps_css / "globals.css").write_text(
+            "@theme {\n"
+            "  --color-ef-blue-50: #eff6ff;\n"
+            "  --color-ef-blue-500: #1A56DB;\n"
+            "  --color-ef-blue-900: #1e3a5f;\n"
+            "}\n"
+        )
+        result = self._scan()["colors"]["primary"]
+        self.assertEqual(
+            result.lower(),
+            "#1a56db",
+            f"Expected #1a56db from Tailwind v4 @theme block, got {result}",
+        )
+
+    def test_primary_app_css_preferred_over_public_html(self) -> None:
+        """#241: main app CSS should win over stray HTML files under public/."""
+        # Stray demo HTML in public/ with a different color
+        pub = self.tmp / "public" / "images" / "brand"
+        pub.mkdir(parents=True)
+        (pub / "index.html").write_text(
+            "<link href='https://fonts.googleapis.com/css2?family=Outfit' rel='stylesheet'>\n"
+            "<style>:root { --primary-color: #badcol; }</style>\n"
+        )
+        # Real app globals.css with the actual brand color
+        apps_css = self.tmp / "apps" / "web-app" / "src" / "app"
+        apps_css.mkdir(parents=True)
+        (apps_css / "globals.css").write_text(
+            "@theme {\n"
+            "  --color-ef-blue-500: #1A56DB;\n"
+            "}\n"
+        )
+        result = self._scan()["colors"]["primary"]
+        self.assertEqual(
+            result.lower(),
+            "#1a56db",
+            f"Expected #1a56db from app globals.css, got {result} (stray public HTML color leaked)",
+        )
+
+
     def test_primary_from_tokens_json(self) -> None:
         (self.tmp / "tokens.json").write_text(
             json.dumps({"colors": {"primary": "#ff6b35"}})
