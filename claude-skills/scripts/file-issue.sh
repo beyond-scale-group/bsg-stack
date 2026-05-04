@@ -45,6 +45,22 @@
 # Without this, agent-filed issues from phase A.5 would never become
 # phase B candidates — see #363.
 #
+# With `--reason spec-clarification|tech-decision`, the issue is filed
+# as explicitly human-gated. The helper:
+#   - Applies `needs:<reason>` so the reason for human attention is
+#     visible in label filters
+#   - Applies `needs-human-review` even in autopilot mode
+#   - Reads `default_human_reviewer` from `.bsg-autopilot.yml` and
+#     assigns the issue to that user (or to the value of `--assign-to`
+#     if explicitly passed)
+#   - Prepends `@<human>` to the body so the assignee gets an
+#     @-mention notification
+# This is the only legitimate path for an agent to surface human
+# attention. See CLAUDE.md → "Restreindre les triggers humains".
+#
+# With `--assign-to <login>`, override the default human reviewer for
+# this single issue. Useful when a specific person owns the domain.
+#
 # Exits with the issue URL on stdout. Exits non-zero on any real failure.
 
 set -euo pipefail
@@ -56,6 +72,8 @@ BUS_LABEL=""
 FILED_BY=""
 DEDUP_FINGERPRINT=""
 ISSUE_TYPE="enhancement"
+HUMAN_REASON=""
+ASSIGN_TO=""
 
 # Target repo is whatever `gh` resolves (explicit --repo wins, else the cwd).
 repo_flag=()
@@ -90,6 +108,17 @@ while [[ $# -gt 0 ]]; do
       esac
       shift 2
       ;;
+    --reason)
+      case "$2" in
+        spec-clarification|tech-decision) HUMAN_REASON="$2" ;;
+        *) echo "file-issue.sh: --reason must be spec-clarification or tech-decision, got: $2" >&2; exit 2 ;;
+      esac
+      shift 2
+      ;;
+    --assign-to)
+      ASSIGN_TO="$2"
+      shift 2
+      ;;
     *)
       args+=("$1")
       shift
@@ -115,12 +144,24 @@ fi
 # autopilot mode. In autopilot mode the repo-level opt-in is the gate
 # and `filed-by:<agent>` is the traceability marker — applying
 # needs-human-review on every agent-filed issue would be redundant noise.
+# EXCEPTION: when --reason is passed, the issue is explicitly
+# human-gated and gets the label regardless of autopilot mode.
 APPLY_REVIEW_LABEL=true
 if [[ -f .bsg-autopilot.yml ]]; then
   enabled=$(grep -E '^\s*enabled\s*:' .bsg-autopilot.yml 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
   if [[ "$enabled" == "true" ]]; then
     APPLY_REVIEW_LABEL=false
   fi
+fi
+if [[ -n "$HUMAN_REASON" ]]; then
+  APPLY_REVIEW_LABEL=true
+fi
+
+# Resolve the human assignee for --reason flows. Explicit --assign-to
+# wins; otherwise read default_human_reviewer from .bsg-autopilot.yml.
+if [[ -n "$HUMAN_REASON" && -z "$ASSIGN_TO" && -f .bsg-autopilot.yml ]]; then
+  ASSIGN_TO=$(grep -E '^\s*default_human_reviewer\s*:' .bsg-autopilot.yml 2>/dev/null \
+    | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]"' | tr -d "'")
 fi
 
 # Idempotently ensure the review label exists on the target repo when
@@ -171,13 +212,53 @@ if [[ -n "$FILED_BY" ]]; then
   extra_labels="${extra_labels:+$extra_labels,}$filed_label"
 fi
 
+# Reason label for the human-in-the-loop trigger.
+if [[ -n "$HUMAN_REASON" ]]; then
+  reason_label="needs:${HUMAN_REASON}"
+  if ! gh label list "${repo_flag[@]}" --json name \
+       --jq '.[] | select(.name == "'"$reason_label"'") | .name' \
+       2>/dev/null | grep -qxF "$reason_label"; then
+    case "$HUMAN_REASON" in
+      spec-clarification)
+        reason_color="d93f0b"
+        reason_desc="Awaiting human spec clarification — agent could not proceed without it"
+        ;;
+      tech-decision)
+        reason_color="d93f0b"
+        reason_desc="Awaiting human technical decision — agent cannot pick the right approach without one"
+        ;;
+    esac
+    gh label create "$reason_label" \
+      "${repo_flag[@]}" \
+      --color "$reason_color" \
+      --description "$reason_desc" \
+      >/dev/null 2>&1 || true
+  fi
+  extra_labels="${extra_labels:+$extra_labels,}$reason_label"
+fi
+
 # `gh issue create --label` accepts either a comma-separated list or
 # multiple flags — we normalise to one `--label` flag with $extra_labels
-# appended to whatever was passed. If --dedup was used, inject the
-# fingerprint as a hidden HTML comment into --body.
+# appended to whatever was passed. We also transform --body to inject
+# the dedup fingerprint and the human @-mention when applicable.
+mention_prefix=""
+if [[ -n "$HUMAN_REASON" && -n "$ASSIGN_TO" ]]; then
+  case "$HUMAN_REASON" in
+    spec-clarification)
+      mention_prefix="@${ASSIGN_TO} please clarify the spec — agent cannot proceed without it.
+
+"
+      ;;
+    tech-decision)
+      mention_prefix="@${ASSIGN_TO} please make the technical decision — agent cannot pick the right approach without one.
+
+"
+      ;;
+  esac
+fi
+
 final_args=()
 label_merged=0
-body_injected=0
 i=0
 while [[ $i -lt ${#args[@]} ]]; do
   arg="${args[$i]}"
@@ -190,12 +271,15 @@ while [[ $i -lt ${#args[@]} ]]; do
     fi
     label_merged=1
     i=$((i+2))
-  elif [[ "$arg" == "--body" && -n "$DEDUP_FINGERPRINT" ]]; then
+  elif [[ "$arg" == "--body" ]]; then
     existing_body="${args[$((i+1))]}"
-    final_args+=(--body "${existing_body}
+    new_body="${mention_prefix}${existing_body}"
+    if [[ -n "$DEDUP_FINGERPRINT" ]]; then
+      new_body="${new_body}
 
-<!-- bsg-dedup:${DEDUP_FINGERPRINT} -->")
-    body_injected=1
+<!-- bsg-dedup:${DEDUP_FINGERPRINT} -->"
+    fi
+    final_args+=(--body "$new_body")
     i=$((i+2))
   else
     final_args+=("$arg")
@@ -204,6 +288,9 @@ while [[ $i -lt ${#args[@]} ]]; do
 done
 if [[ $label_merged -eq 0 && -n "$extra_labels" ]]; then
   final_args+=(--label "$extra_labels")
+fi
+if [[ -n "$ASSIGN_TO" ]]; then
+  final_args+=(--assignee "$ASSIGN_TO")
 fi
 
 exec gh issue create "${final_args[@]}"
