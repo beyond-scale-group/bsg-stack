@@ -62,7 +62,26 @@ if [[ "$AUTO_MERGE" == "true" ]]; then
   # Swap labels BEFORE merging — `gh pr edit` after `--delete-branch` can hit
   # a transient eventual-consistency window where the edit silently no-ops.
   gh pr edit "$PR_NUMBER" --add-label human-reviewed --remove-label needs-human-review >/dev/null 2>&1 || true
+  # Capture the head ref before merging — `gh pr merge --delete-branch`
+  # nukes the remote branch, but a local worktree may still reference it
+  # and we want to clean that up too (#363).
+  HEAD_REF=$(gh pr view "$PR_NUMBER" --json headRefName --jq '.headRefName' 2>/dev/null || echo "")
   gh pr merge "$PR_NUMBER" --squash --delete-branch >/dev/null
+  # Post-merge cleanup: if a local worktree was checked out on this
+  # branch, remove it and delete the local branch ref. Best-effort —
+  # never fail the merge over cleanup. See #363.
+  if [[ -n "$HEAD_REF" ]]; then
+    wt_path=$(git worktree list --porcelain \
+      | awk -v b="refs/heads/$HEAD_REF" '
+          $1 == "worktree" {p=$2}
+          $1 == "branch" && $2 == b {print p; exit}
+        ')
+    if [[ -n "$wt_path" ]]; then
+      git worktree unlock "$wt_path" 2>/dev/null || true
+      git worktree remove --force "$wt_path" 2>/dev/null || true
+    fi
+    git branch -D "$HEAD_REF" 2>/dev/null || true
+  fi
   [[ -n "$LINKED_ISSUE" ]] && bus_unlock "$LINKED_ISSUE" "$AGENT" || true
   # Advance the PO inbox: drop needs:<agent> from the linked issue so the
   # next tick picks the next priority claim. #199 (E7-bus-activation).

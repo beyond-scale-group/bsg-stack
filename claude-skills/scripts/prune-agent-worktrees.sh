@@ -19,6 +19,13 @@
 # names, main, sibling worktrees outside .claude/worktrees/ — is left
 # alone. The script is safe to run anytime and emits a one-line summary.
 #
+# After the worktree pass, the script also deletes orphaned local
+# branches matching `worktree-agent-*` whose backing worktree is gone
+# (the runtime never deletes them, so they accumulate — see #363).
+# `git branch -D` is used because these scratch branches don't get
+# pushed and the standard `git branch -d` would refuse "not fully
+# merged" branches.
+#
 # Usage:
 #   bash claude-skills/scripts/prune-agent-worktrees.sh
 #
@@ -101,4 +108,21 @@ done < <(git worktree list --porcelain; echo)
 
 git worktree prune
 
-echo "prune-agent-worktrees: pruned=${pruned} kept=${kept}"
+# After pruning the worktrees, sweep orphaned worktree-agent-* branches
+# whose backing worktree is gone (#363). Build a set of branches still
+# referenced by an active worktree, then delete every other
+# worktree-agent-* local branch.
+active_branches=$(git worktree list --porcelain \
+  | awk '$1 == "branch" {sub("^refs/heads/", "", $2); print $2}')
+branch_pruned=0
+while IFS= read -r br; do
+  [[ -z "$br" ]] && continue
+  if grep -Fxq "$br" <<<"$active_branches"; then
+    continue
+  fi
+  if git branch -D "$br" >/dev/null 2>&1; then
+    branch_pruned=$((branch_pruned + 1))
+  fi
+done < <(git for-each-ref --format='%(refname:short)' 'refs/heads/worktree-agent-*')
+
+echo "prune-agent-worktrees: pruned=${pruned} kept=${kept} branches-pruned=${branch_pruned}"
