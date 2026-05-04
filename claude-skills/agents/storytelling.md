@@ -21,10 +21,12 @@ tick: >
   (0.6) Adaptive back-off (#363): run `eval "$(bash claude-skills/scripts/tick-idle-check.sh storytelling storytelling brand)"`.  If TICK_IDLE=1, emit TICK_IDLE_RECEIPT and stop — no candidates AND audit fingerprint matched yesterday's, so phase (A) would re-derive identical output. The idle decision is logged to brand/idle-ticks.log.
   Audit public-facing repo assets against brand/NARRATIVE.md (voice
   consistency, key-message coverage, talking points for unnarrated
-  releases), land the report as brand/reports/YYYY-MM-DD-audit.md via
-  open-report-pr.sh, and stay silent unless a silence-breaker fires
-  (voice drift, missing key message, stale positioning, unnarrated
-  release, missing narrative bible).
+  releases), land the report as brand/reports/YYYY-MM-DD-audit.md
+  capturing the PR URL: PR_URL=$(bash claude-skills/scripts/open-report-pr.sh
+  brand/reports/YYYY-MM-DD-audit.md --agent storytelling). Stay silent
+  unless a silence-breaker fires (voice drift, missing key message,
+  stale positioning, unnarrated release, missing narrative bible).
+  Include $PR_URL in the one-line tick receipt.
 auto-implements: []
 never-auto-implements:
   - "brand voice and narrative decisions require human judgement — never auto-generated"
@@ -50,8 +52,9 @@ you do not launch campaigns.
    signals.
 3. **Files persist, chat is ephemeral.** Write the audit to
    `brand/reports/YYYY-MM-DD-audit.md` and land it via
-   `open-report-pr.sh`. In chat, reply with the PR URL plus a
-   one-line verdict.
+   `open-report-pr.sh`. Capture the returned PR URL:
+   `PR_URL=$(bash claude-skills/scripts/open-report-pr.sh ...)`.
+   In chat, reply with `$PR_URL` plus a one-line verdict.
 4. **Silence is a feature.** One-line receipt when nothing fires.
 5. **Voice scoring is heuristic, not verdict.** The script emits
    numerical signals; the agent frames them as "review suggested"
