@@ -1,6 +1,6 @@
 {
-  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-a8f128a5dc5667789",
-  "generatedAt": "2026-05-04T17:41:56Z",
+  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-a83230bcf22e27af5",
+  "generatedAt": "2026-05-04T17:51:48Z",
   "windowDays": 30,
   "flakeWindowDays": 14,
   "coverage": {
@@ -99,6 +99,10 @@
       "commits": 8
     },
     {
+      "path": "qa/history/2026-05-04.json",
+      "commits": 7
+    },
+    {
       "path": "claude-skills/scripts/update-bsg-skills.py",
       "commits": 7
     },
@@ -107,7 +111,7 @@
       "commits": 7
     },
     {
-      "path": "qa/history/2026-05-04.json",
+      "path": "claude-skills/tests/test_po_report_integration.py",
       "commits": 6
     },
     {
@@ -128,10 +132,6 @@
     },
     {
       "path": "INSTALL.md",
-      "commits": 5
-    },
-    {
-      "path": "claude-skills/tests/test_po_report_integration.py",
       "commits": 5
     },
     {
@@ -195,6 +195,10 @@
       "commits": 3
     },
     {
+      "path": "seo/reports/2026-05-04-audit.md",
+      "commits": 3
+    },
+    {
       "path": "seo/reports/2026-04-30-audit.md",
       "commits": 3
     },
@@ -251,6 +255,10 @@
       "commits": 3
     },
     {
+      "path": "brand/reports/2026-05-04-audit.md",
+      "commits": 3
+    },
+    {
       "path": "brand/reports/2026-05-03-audit.md",
       "commits": 3
     },
@@ -260,10 +268,6 @@
     },
     {
       "path": "tech/reports/2026-04-23-health.md",
-      "commits": 2
-    },
-    {
-      "path": "seo/reports/2026-05-04-audit.md",
       "commits": 2
     },
     {
@@ -371,6 +375,10 @@
       "commits": 2
     },
     {
+      "path": "claude-skills/skills/po/scripts/bootstrap-plan.sh",
+      "commits": 2
+    },
+    {
       "path": "claude-skills/skills/po/scripts/adherence.sh",
       "commits": 2
     },
@@ -467,10 +475,6 @@
       "commits": 2
     },
     {
-      "path": "brand/reports/2026-05-04-audit.md",
-      "commits": 2
-    },
-    {
       "path": "brand/reports/2026-04-30-audit.md",
       "commits": 2
     },
@@ -495,6 +499,10 @@
       "commits": 1
     },
     {
+      "path": "tech/reports/2026-05-04-health-2.md",
+      "commits": 1
+    },
+    {
       "path": "tech/reports/2026-05-03-health-3.md",
       "commits": 1
     },
@@ -507,6 +515,10 @@
       "commits": 1
     },
     {
+      "path": "seo/reports/2026-05-04-audit-1777916603.md",
+      "commits": 1
+    },
+    {
       "path": "seo/reports/2026-05-02-audit.md",
       "commits": 1
     },
@@ -516,6 +528,10 @@
     },
     {
       "path": "seo/KEYWORDS.md",
+      "commits": 1
+    },
+    {
+      "path": "security/reports/2026-05-04-audit-1777916549.md",
       "commits": 1
     },
     {
@@ -560,6 +576,10 @@
     },
     {
       "path": "qa/reports/2026-05-04-audit-2.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-audit-11.md",
       "commits": 1
     },
     {
@@ -1127,10 +1147,6 @@
       "commits": 1
     },
     {
-      "path": "claude-skills/skills/po/scripts/bootstrap-plan.sh",
-      "commits": 1
-    },
-    {
       "path": "claude-skills/skills/po/references/trends.md",
       "commits": 1
     },
@@ -1463,6 +1479,10 @@
       "commits": 1
     },
     {
+      "path": "brand/reports/2026-05-04T19-43-19-audit.md",
+      "commits": 1
+    },
+    {
       "path": "brand/reports/2026-05-04-audit-3.md",
       "commits": 1
     },
@@ -1560,6 +1580,33 @@
     }
   ],
   "ciRuns": [
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T17:46:46Z",
+      "databaseId": 25334092572,
+      "headSha": "855e261d98769df982c27ac531a89003297f5484",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25334092572"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T17:45:12Z",
+      "databaseId": 25334017760,
+      "headSha": "05ac471631ba3f7d6a80f752aa152c2bf09cdbed",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25334017760"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T17:45:01Z",
+      "databaseId": 25334008614,
+      "headSha": "145884069f5d7afffef1608182ccda207723e54f",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25334008614"
+    },
     {
       "conclusion": "success",
       "createdAt": "2026-05-04T13:31:37Z",
@@ -1982,33 +2029,6 @@
       "name": "claude-skills test",
       "status": "completed",
       "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25171769626"
-    },
-    {
-      "conclusion": "success",
-      "createdAt": "2026-04-30T14:41:35Z",
-      "databaseId": 25171760497,
-      "headSha": "0bde7925196f35a3cfb1e787af0e4037fc5ec17b",
-      "name": "claude-skills test",
-      "status": "completed",
-      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25171760497"
-    },
-    {
-      "conclusion": "success",
-      "createdAt": "2026-04-30T14:32:49Z",
-      "databaseId": 25171314050,
-      "headSha": "b859ce39d2241f4e3437af18e9f6119436eda3a2",
-      "name": "claude-skills test",
-      "status": "completed",
-      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25171314050"
-    },
-    {
-      "conclusion": "success",
-      "createdAt": "2026-04-30T14:32:39Z",
-      "databaseId": 25171305419,
-      "headSha": "e989d3e98fbaa714b2e3b83b6eed45591bcb3bd9",
-      "name": "claude-skills test",
-      "status": "completed",
-      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25171305419"
     }
   ],
   "previous": {
