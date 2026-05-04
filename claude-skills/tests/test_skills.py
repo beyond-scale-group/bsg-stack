@@ -578,6 +578,50 @@ class TestSharedSkills(unittest.TestCase):
                     f"explaining why auto-implementation is out of scope.",
                 )
 
+    # -------------------- output:pr agents capture PR URL from open-report-pr.sh (#462)
+
+    def test_pr_agents_tick_captures_pr_url(self) -> None:
+        """output: pr agents that call open-report-pr.sh must capture the
+        returned PR URL so the tick receipt includes a GitHub URL, not a
+        local worktree path.
+
+        open-report-pr.sh emits the PR URL as its final stdout line.
+        Agents must capture it: PR_URL=$(bash ... open-report-pr.sh ...)
+        and include it in the one-line tick receipt.
+
+        See #462 and CLAUDE.md → "The tick convention" (one-line receipt
+        format: `Tick: <state> — <PR url>`).
+        """
+        for path in list_agents():
+            with self.subTest(agent=path.stem):
+                text = path.read_text()
+                fm_match = FRONTMATTER_RE.match(text)
+                self.assertIsNotNone(fm_match)
+                frontmatter = fm_match.group(1)
+                scalars = dict(FRONTMATTER_SCALAR_RE.findall(frontmatter))
+                if scalars.get("output") != "pr":
+                    continue
+                # Only check agents whose tick field mentions open-report-pr.sh
+                tick_body = self._extract_tick_body(frontmatter)
+                if "open-report-pr.sh" not in tick_body:
+                    continue
+                # The tick frontmatter must show variable capture of the URL.
+                # Accept either shell-style capture (PR_URL=$(...)) or
+                # explicit instruction to "capture" / "store" the stdout URL.
+                has_capture = bool(
+                    re.search(r"PR_URL\s*=\s*\$\(", tick_body)
+                    or re.search(r"PR_URL\s*=\s*\$\(", text)
+                )
+                self.assertTrue(
+                    has_capture,
+                    f"{path.relative_to(REPO_ROOT)}: output: pr agent tick "
+                    f"calls open-report-pr.sh but does not capture its stdout "
+                    f"into PR_URL. Add: "
+                    f"PR_URL=$(bash claude-skills/scripts/open-report-pr.sh ...) "
+                    f"so the tick receipt emits a GitHub PR URL, not a local "
+                    f"worktree path. See #462.",
+                )
+
     # ----------------------------------------------------------- catalog sync
 
     def test_install_md_commands_catalog_in_sync(self) -> None:
