@@ -1,6 +1,6 @@
 {
-  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-ac2374b74efd86d76",
-  "generatedAt": "2026-05-04T03:43:40Z",
+  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-a60466029bd6ba766",
+  "generatedAt": "2026-05-04T10:17:44Z",
   "windowDays": 30,
   "flakeWindowDays": 14,
   "coverage": {
@@ -20,30 +20,30 @@
     },
     {
       "path": "claude-skills/agents/po-manager.md",
-      "commits": 19
+      "commits": 20
     },
     {
       "path": "CLAUDE.md",
       "commits": 18
     },
     {
+      "path": "claude-skills/agents/tech-lead.md",
+      "commits": 17
+    },
+    {
+      "path": "claude-skills/agents/seo.md",
+      "commits": 17
+    },
+    {
       "path": "qa/history/2026-04-22.json",
       "commits": 16
     },
     {
-      "path": "claude-skills/agents/tech-lead.md",
-      "commits": 16
-    },
-    {
-      "path": "claude-skills/agents/seo.md",
-      "commits": 16
+      "path": "claude-skills/agents/qa.md",
+      "commits": 15
     },
     {
       "path": "qa/reports/2026-04-22-audit.md",
-      "commits": 14
-    },
-    {
-      "path": "claude-skills/agents/qa.md",
       "commits": 14
     },
     {
@@ -91,19 +91,19 @@
       "commits": 7
     },
     {
+      "path": "claude-skills/scripts/open-report-pr.sh",
+      "commits": 7
+    },
+    {
       "path": "claude-skills/agents/security.md",
       "commits": 7
     },
     {
-      "path": "claude-skills/scripts/open-report-pr.sh",
-      "commits": 6
+      "path": ".bsg-autopilot.yml",
+      "commits": 7
     },
     {
       "path": "claude-skills/agents/storytelling.md",
-      "commits": 6
-    },
-    {
-      "path": ".bsg-autopilot.yml",
       "commits": 6
     },
     {
@@ -127,6 +127,14 @@
       "commits": 5
     },
     {
+      "path": "claude-skills/scripts/file-issue.sh",
+      "commits": 5
+    },
+    {
+      "path": "claude-skills/scripts/auto-merge-or-flag.sh",
+      "commits": 5
+    },
+    {
       "path": "claude-skills/agents/pr-comms.md",
       "commits": 5
     },
@@ -136,6 +144,10 @@
     },
     {
       "path": "stack.yaml",
+      "commits": 4
+    },
+    {
+      "path": "qa/history/2026-05-03.json",
       "commits": 4
     },
     {
@@ -155,20 +167,16 @@
       "commits": 4
     },
     {
-      "path": "claude-skills/scripts/file-issue.sh",
-      "commits": 4
-    },
-    {
-      "path": "claude-skills/scripts/auto-merge-or-flag.sh",
-      "commits": 4
-    },
-    {
       "path": "claude-skills/agents/registry.json",
       "commits": 4
     },
     {
       "path": ".github/workflows/ci-claude-skills-test.yaml",
       "commits": 4
+    },
+    {
+      "path": "tech/reports/2026-05-03-health.md",
+      "commits": 3
     },
     {
       "path": "seo/reports/2026-04-30-audit.md",
@@ -191,7 +199,7 @@
       "commits": 3
     },
     {
-      "path": "qa/history/2026-05-03.json",
+      "path": "po/reports/2026-05-04-status.md",
       "commits": 3
     },
     {
@@ -235,15 +243,15 @@
       "commits": 3
     },
     {
-      "path": "tech/reports/2026-05-03-health.md",
-      "commits": 2
-    },
-    {
       "path": "tech/reports/2026-04-23-health.md",
       "commits": 2
     },
     {
       "path": "seo/reports/2026-05-03-audit.md",
+      "commits": 2
+    },
+    {
+      "path": "security/reports/2026-05-04-audit.md",
       "commits": 2
     },
     {
@@ -256,10 +264,6 @@
     },
     {
       "path": "qa/history/2026-04-30.json",
-      "commits": 2
-    },
-    {
-      "path": "po/reports/2026-05-04-status.md",
       "commits": 2
     },
     {
@@ -320,6 +324,10 @@
     },
     {
       "path": "claude-skills/skills/pr-comms-report/scripts/generate-report.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/po/scripts/reconcile-milestones.sh",
       "commits": 2
     },
     {
@@ -407,6 +415,10 @@
       "commits": 2
     },
     {
+      "path": "claude-skills/scripts/prune-agent-worktrees.sh",
+      "commits": 2
+    },
+    {
       "path": "claude-skills/scripts/pilot-circuit-breaker.sh",
       "commits": 2
     },
@@ -471,10 +483,6 @@
       "commits": 1
     },
     {
-      "path": "security/reports/2026-05-04-audit.md",
-      "commits": 1
-    },
-    {
       "path": "security/reports/2026-05-03-audit.md",
       "commits": 1
     },
@@ -503,6 +511,14 @@
       "commits": 1
     },
     {
+      "path": "qa/reports/2026-05-04-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-03-audit-6.md",
+      "commits": 1
+    },
+    {
       "path": "qa/reports/2026-05-03-audit-4.md",
       "commits": 1
     },
@@ -519,6 +535,10 @@
       "commits": 1
     },
     {
+      "path": "qa/history/2026-05-04.json",
+      "commits": 1
+    },
+    {
       "path": "qa/history/2026-05-02.json",
       "commits": 1
     },
@@ -528,6 +548,14 @@
     },
     {
       "path": "qa/history/2026-04-23.json",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-5.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-4.md",
       "commits": 1
     },
     {
@@ -983,10 +1011,6 @@
       "commits": 1
     },
     {
-      "path": "claude-skills/skills/po/scripts/reconcile-milestones.sh",
-      "commits": 1
-    },
-    {
       "path": "claude-skills/skills/po/scripts/pr-flow.sh",
       "commits": 1
     },
@@ -1231,6 +1255,10 @@
       "commits": 1
     },
     {
+      "path": "claude-skills/scripts/tick-idle-check.sh",
+      "commits": 1
+    },
+    {
       "path": "claude-skills/scripts/test/seed-test-backlog.sh",
       "commits": 1
     },
@@ -1251,7 +1279,7 @@
       "commits": 1
     },
     {
-      "path": "claude-skills/scripts/prune-agent-worktrees.sh",
+      "path": "claude-skills/scripts/po-decompose-oversized.sh",
       "commits": 1
     },
     {
@@ -1404,6 +1432,24 @@
     }
   ],
   "ciRuns": [
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T10:09:04Z",
+      "databaseId": 25313193216,
+      "headSha": "69612b830fac7c2ae8cc7f7aa6c86a9f894d769f",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25313193216"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T07:04:27Z",
+      "databaseId": 25305691682,
+      "headSha": "c34547426e9ee8809749cd6375ba33eb4d1c7951",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25305691682"
+    },
     {
       "conclusion": "success",
       "createdAt": "2026-05-04T00:17:19Z",
@@ -1835,28 +1881,10 @@
       "name": "claude-skills test",
       "status": "completed",
       "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25159369970"
-    },
-    {
-      "conclusion": "success",
-      "createdAt": "2026-04-30T09:54:03Z",
-      "databaseId": 25159082882,
-      "headSha": "22fdbe61de239dcc86d7bef71212cd0ba14ee29e",
-      "name": "claude-skills test",
-      "status": "completed",
-      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25159082882"
-    },
-    {
-      "conclusion": "success",
-      "createdAt": "2026-04-30T09:53:52Z",
-      "databaseId": 25159074759,
-      "headSha": "1ae64d2d0be1a9e693cedfdbc3d471c1e59ac512",
-      "name": "claude-skills test",
-      "status": "completed",
-      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25159074759"
     }
   ],
   "previous": {
-    "date": "2026-05-03",
+    "date": "2026-05-04",
     "coverage": {
       "found": false,
       "format": "none",
