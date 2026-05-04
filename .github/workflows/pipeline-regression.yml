@@ -1,0 +1,45 @@
+name: pipeline regression (unit)
+
+# Runs assert-invariants.sh unit tests and the test_assert_invariants.sh
+# harness on every PR that touches the pipeline scripts or agent definitions.
+#
+# NB: this workflow executes the *test harness* only — it does NOT run the
+# full 30-minute compressed run against a live test repo. That heavier run
+# is triggered manually via:
+#   bash claude-skills/scripts/test/run-pipeline-test.sh \
+#     --repo beyond-scale-group/bsg-stack-test-harness --duration 30m
+#
+# This distinction is intentional: CI runs fast invariant unit tests;
+# the live harness is a human-initiated regression run per CLAUDE.md
+# ("Do not add CI automation for these agents").
+
+on:
+  pull_request:
+    paths:
+      - 'claude-skills/scripts/**'
+      - 'claude-skills/agents/**'
+      - 'claude-skills/commands/tick-all.md'
+      - '.bsg-autopilot.yml'
+      - '.github/workflows/pipeline-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'claude-skills/scripts/**'
+      - 'claude-skills/agents/**'
+      - 'claude-skills/commands/tick-all.md'
+      - '.bsg-autopilot.yml'
+
+jobs:
+  invariant-unit-tests:
+    name: assert-invariants unit tests (I1-I8)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify required tooling
+        run: |
+          jq --version
+          python3 --version
+
+      - name: Run assert-invariants I5-I8 unit tests
+        run: bash claude-skills/tests/test_assert_invariants.sh

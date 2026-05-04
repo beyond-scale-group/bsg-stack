@@ -12,8 +12,6 @@
 
 set -euo pipefail
 
-SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../scripts/test/assert-invariants.sh"; pwd)/$(basename claude-skills/scripts/test/assert-invariants.sh)"
-# Resolve relative to repo root
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.."; pwd)"
 SCRIPT="$REPO_ROOT/claude-skills/scripts/test/assert-invariants.sh"
 
@@ -22,11 +20,6 @@ FAIL=0
 
 ok()   { echo "  PASS  $1"; PASS=$((PASS+1)); }
 fail() { echo "  FAIL  $1"; FAIL=$((FAIL+1)); }
-
-run_assert() {   # $1=label  args…
-  local label="$1"; shift
-  bash "$SCRIPT" "$@" 2>&1
-}
 
 # ---- helpers ----------------------------------------------------------------
 
@@ -49,11 +42,22 @@ write_baselines() {  # dir json
   echo "$2" > "$1/latest.json"
 }
 
+# Minimal valid PR JSON that won't trigger I1/I2 errors — two buses, no report PRs
+BASE_PRS='[
+  {"number":1,"title":"fix: something","state":"OPEN","createdAt":"2026-05-04T10:00:00Z",
+   "labels":[{"name":"tech"}],"body":"","additions":10,"deletions":5,"changedFiles":2},
+  {"number":2,"title":"fix: other","state":"OPEN","createdAt":"2026-05-04T10:01:00Z",
+   "labels":[{"name":"qa"}],"body":"","additions":5,"deletions":2,"changedFiles":1}
+]'
+
+# Minimal valid issues JSON (empty)
+BASE_ISSUES='[]'
+
 # ---- I5 — issue dedup -------------------------------------------------------
 
 test_i5_pass() {
   local d; d=$(make_logs)
-  write_prs "$d" "[]"
+  write_prs "$d" "$BASE_PRS"
   # Two issues with different fingerprints
   write_issues "$d" '[
     {"number":1,"body":"fingerprint: tech:stale-todo:foo.py:10","labels":[{"name":"filed-by:tech"}],"state":"OPEN"},
@@ -70,7 +74,7 @@ test_i5_pass() {
 
 test_i5_fail() {
   local d; d=$(make_logs)
-  write_prs "$d" "[]"
+  write_prs "$d" "$BASE_PRS"
   # Two issues sharing the same fingerprint = dedup violation
   write_issues "$d" '[
     {"number":1,"body":"fingerprint: tech:stale-todo:foo.py:10","labels":[{"name":"filed-by:tech"}],"state":"OPEN"},
@@ -91,12 +95,16 @@ test_i6_pass() {
   local d; d=$(make_logs)
   # Issue created at T, PR opened at T+3min (within 5min SLA)
   write_issues "$d" '[
-    {"number":10,"labels":[{"name":"tech"},{"name":"bug"},{"name":"safe-to-automate"}],
+    {"number":10,"labels":[{"name":"tech"},{"name":"bug"}],
      "state":"OPEN","createdAt":"2026-05-04T10:00:00Z"}
   ]'
   write_prs "$d" '[
-    {"number":100,"body":"Closes #10","state":"OPEN","createdAt":"2026-05-04T10:03:00Z",
-     "labels":[{"name":"tech"}]}
+    {"number":1,"title":"fix: baseline-a","state":"OPEN","createdAt":"2026-05-04T09:00:00Z",
+     "labels":[{"name":"tech"}],"body":"","additions":10,"deletions":5,"changedFiles":2},
+    {"number":2,"title":"fix: baseline-b","state":"OPEN","createdAt":"2026-05-04T09:01:00Z",
+     "labels":[{"name":"qa"}],"body":"","additions":5,"deletions":2,"changedFiles":1},
+    {"number":100,"title":"fix: issue 10","state":"OPEN","createdAt":"2026-05-04T10:03:00Z",
+     "labels":[{"name":"tech"}],"body":"Closes #10","additions":20,"deletions":5,"changedFiles":2}
   ]'
   local out; out=$(bash "$SCRIPT" --logs "$d" 2>&1) || true
   if echo "$out" | grep -q "I6.*✓"; then
@@ -111,12 +119,16 @@ test_i6_fail() {
   local d; d=$(make_logs)
   # Issue created at T, PR opened at T+10min (exceeds 5min SLA)
   write_issues "$d" '[
-    {"number":10,"labels":[{"name":"tech"},{"name":"bug"},{"name":"safe-to-automate"}],
+    {"number":10,"labels":[{"name":"tech"},{"name":"bug"}],
      "state":"OPEN","createdAt":"2026-05-04T10:00:00Z"}
   ]'
   write_prs "$d" '[
-    {"number":100,"body":"Closes #10","state":"OPEN","createdAt":"2026-05-04T10:10:00Z",
-     "labels":[{"name":"tech"}]}
+    {"number":1,"title":"fix: baseline-a","state":"OPEN","createdAt":"2026-05-04T09:00:00Z",
+     "labels":[{"name":"tech"}],"body":"","additions":10,"deletions":5,"changedFiles":2},
+    {"number":2,"title":"fix: baseline-b","state":"OPEN","createdAt":"2026-05-04T09:01:00Z",
+     "labels":[{"name":"qa"}],"body":"","additions":5,"deletions":2,"changedFiles":1},
+    {"number":100,"title":"fix: slow pr","state":"OPEN","createdAt":"2026-05-04T10:10:00Z",
+     "labels":[{"name":"tech"}],"body":"Closes #10","additions":20,"deletions":5,"changedFiles":2}
   ]'
   local out; out=$(bash "$SCRIPT" --logs "$d" 2>&1) || true
   if echo "$out" | grep -q "I6.*✗"; then
@@ -132,8 +144,8 @@ test_i6_fail() {
 test_i7_pass() {
   local d; d=$(make_logs)
   local bdir; bdir=$(mktemp -d)
-  write_prs "$d" "[]"
-  write_issues "$d" "[]"
+  write_prs "$d" "$BASE_PRS"
+  write_issues "$d" "$BASE_ISSUES"
   write_baselines "$bdir" '{"total_tokens":1000000}'
   # current tokens = 1.1× baseline (within 20% drift)
   local out; out=$(bash "$SCRIPT" --logs "$d" --baseline-dir "$bdir" --tokens 1100000 2>&1) || true
@@ -148,8 +160,8 @@ test_i7_pass() {
 test_i7_fail() {
   local d; d=$(make_logs)
   local bdir; bdir=$(mktemp -d)
-  write_prs "$d" "[]"
-  write_issues "$d" "[]"
+  write_prs "$d" "$BASE_PRS"
+  write_issues "$d" "$BASE_ISSUES"
   write_baselines "$bdir" '{"total_tokens":1000000}'
   # current tokens = 1.3× baseline (exceeds 20% drift)
   local out; out=$(bash "$SCRIPT" --logs "$d" --baseline-dir "$bdir" --tokens 1300000 2>&1) || true
@@ -165,11 +177,16 @@ test_i7_fail() {
 
 test_i8_pass() {
   local d; d=$(make_logs)
-  write_issues "$d" "[]"
-  # Merged PR carries human-reviewed
+  write_issues "$d" "$BASE_ISSUES"
+  # All merged PRs carry human-reviewed (plus 2 open ones for I1)
   write_prs "$d" '[
-    {"number":200,"state":"MERGED","mergedAt":"2026-05-04T11:00:00Z",
-     "labels":[{"name":"human-reviewed"},{"name":"tech"}]}
+    {"number":1,"title":"fix: open-a","state":"OPEN","createdAt":"2026-05-04T09:00:00Z",
+     "labels":[{"name":"tech"}],"body":"","additions":5,"deletions":2,"changedFiles":1},
+    {"number":2,"title":"fix: open-b","state":"OPEN","createdAt":"2026-05-04T09:01:00Z",
+     "labels":[{"name":"qa"}],"body":"","additions":5,"deletions":2,"changedFiles":1},
+    {"number":200,"title":"fix: merged","state":"MERGED","mergedAt":"2026-05-04T11:00:00Z",
+     "createdAt":"2026-05-04T10:00:00Z","labels":[{"name":"human-reviewed"},{"name":"tech"}],
+     "body":"","additions":10,"deletions":5,"changedFiles":2}
   ]'
   local out; out=$(bash "$SCRIPT" --logs "$d" 2>&1) || true
   if echo "$out" | grep -q "I8.*✓"; then
@@ -182,11 +199,16 @@ test_i8_pass() {
 
 test_i8_fail() {
   local d; d=$(make_logs)
-  write_issues "$d" "[]"
+  write_issues "$d" "$BASE_ISSUES"
   # Merged PR missing human-reviewed
   write_prs "$d" '[
-    {"number":201,"state":"MERGED","mergedAt":"2026-05-04T11:00:00Z",
-     "labels":[{"name":"tech"}]}
+    {"number":1,"title":"fix: open-a","state":"OPEN","createdAt":"2026-05-04T09:00:00Z",
+     "labels":[{"name":"tech"}],"body":"","additions":5,"deletions":2,"changedFiles":1},
+    {"number":2,"title":"fix: open-b","state":"OPEN","createdAt":"2026-05-04T09:01:00Z",
+     "labels":[{"name":"qa"}],"body":"","additions":5,"deletions":2,"changedFiles":1},
+    {"number":201,"title":"fix: merged no label","state":"MERGED","mergedAt":"2026-05-04T11:00:00Z",
+     "createdAt":"2026-05-04T10:00:00Z","labels":[{"name":"tech"}],
+     "body":"","additions":10,"deletions":5,"changedFiles":2}
   ]'
   local out; out=$(bash "$SCRIPT" --logs "$d" 2>&1) || true
   if echo "$out" | grep -q "I8.*✗"; then
