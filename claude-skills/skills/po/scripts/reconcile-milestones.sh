@@ -107,6 +107,14 @@ mapfile -t epic_lines < <(
 
 all_bound=()
 declare -A slug_to_nums
+# Touch the array with a sentinel key so bash 5.x considers it "set" under
+# set -u before the loop runs. Without this, referencing ${#slug_to_nums[@]}
+# or ${!slug_to_nums[@]} on a never-populated associative array aborts the
+# script with "slug_to_nums: unbound variable" when epic_lines is empty.
+# The sentinel is immediately removed so it has no effect on the map contents.
+# Fixes #546. Matches the ${epic_lines[@]:-} pattern already used below.
+slug_to_nums["__init__"]=""
+unset 'slug_to_nums[__init__]'
 # Guard the loop body: when the plan parses but yields no epics,
 # `epic_lines` is an empty array and indexing `epic_lines[@]` under
 # `set -u` errors with "unbound variable" on older bash. The
