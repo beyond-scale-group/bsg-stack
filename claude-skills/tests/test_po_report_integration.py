@@ -472,5 +472,97 @@ class TestPoReportIntegration(unittest.TestCase):
         self.assertIn("plan-schema.md", out)
 
 
+
+    def test_bootstrap_plan_seeds_epics_from_issues_when_no_milestones(self) -> None:
+        """#115: when no milestones and no epic labels exist, bootstrap seeds
+        epics from open issues by token-clustering — not a bare placeholder."""
+        snapshot = {
+            'repo': 'test-org/test-repo',
+            'generatedAt': '2026-05-04T00:00:00Z',
+            'meta': {},
+            'issues': [
+                {
+                    'number': 1,
+                    'title': 'feat: add authentication login page',
+                    'state': 'OPEN',
+                    'labels': ['enhancement'],
+                    'assignees': [],
+                    'createdAt': '2026-01-01T00:00:00Z',
+                    'updatedAt': '2026-01-01T00:00:00Z',
+                    'lastCommentedAt': None,
+                    'closedAt': None,
+                },
+                {
+                    'number': 2,
+                    'title': 'feat: add authentication logout flow',
+                    'state': 'OPEN',
+                    'labels': ['enhancement'],
+                    'assignees': [],
+                    'createdAt': '2026-01-01T00:00:00Z',
+                    'updatedAt': '2026-01-01T00:00:00Z',
+                    'lastCommentedAt': None,
+                    'closedAt': None,
+                },
+                {
+                    'number': 3,
+                    'title': 'feat: authentication session refresh',
+                    'state': 'OPEN',
+                    'labels': ['enhancement'],
+                    'assignees': [],
+                    'createdAt': '2026-01-01T00:00:00Z',
+                    'updatedAt': '2026-01-01T00:00:00Z',
+                    'lastCommentedAt': None,
+                    'closedAt': None,
+                },
+                {
+                    'number': 4,
+                    'title': 'fix: database query timeout',
+                    'state': 'OPEN',
+                    'labels': ['bug'],
+                    'assignees': [],
+                    'createdAt': '2026-01-01T00:00:00Z',
+                    'updatedAt': '2026-01-01T00:00:00Z',
+                    'lastCommentedAt': None,
+                    'closedAt': None,
+                },
+            ],
+            'pullRequests': [],
+            'milestones': [],
+            'releases': [],
+        }
+        with tempfile.NamedTemporaryFile(
+            mode='w', suffix='.json', delete=False, dir=self.workdir
+        ) as fh:
+            json.dump(snapshot, fh)
+            snap_path = fh.name
+
+        result = subprocess.run(
+            ['bash', str(SCRIPTS / 'bootstrap-plan.sh'), '--snapshot', snap_path],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(
+            result.returncode, 0,
+            f'bootstrap-plan.sh failed: {result.stderr}',
+        )
+        out = result.stdout
+        # Must not emit the bare placeholder when >= 3 issues are available.
+        self.assertNotIn(
+            '- _No epic candidates detected. Add parent issues manually._',
+            out,
+            'bootstrap-plan.sh fell back to bare placeholder despite >= 3 open issues',
+        )
+        # Must contain at least one auto-suggested epic cluster.
+        self.assertIn(
+            '_auto-suggested',
+            out,
+            'bootstrap-plan.sh did not emit any _auto-suggested epic clusters',
+        )
+        # The issues should be bound in the suggestion.
+        self.assertIn('#1', out)
+        self.assertIn('#2', out)
+        self.assertIn('#3', out)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
