@@ -1,0 +1,2296 @@
+{
+  "repoRoot": "/Users/gdumas/superconductor/projects/bsg-stack/.claude/worktrees/agent-aeffd77a223219e24",
+  "generatedAt": "2026-05-05T05:02:47Z",
+  "windowDays": 30,
+  "flakeWindowDays": 14,
+  "coverage": {
+    "found": false,
+    "format": "none",
+    "perFile": [],
+    "overall": {
+      "line": null,
+      "branch": null,
+      "zeroCoverage": null
+    }
+  },
+  "churn": [
+    {
+      "path": "claude-skills/INSTALL.md",
+      "commits": 29
+    },
+    {
+      "path": "claude-skills/agents/po-manager.md",
+      "commits": 24
+    },
+    {
+      "path": "CLAUDE.md",
+      "commits": 18
+    },
+    {
+      "path": "claude-skills/agents/tech-lead.md",
+      "commits": 17
+    },
+    {
+      "path": "claude-skills/agents/seo.md",
+      "commits": 17
+    },
+    {
+      "path": "qa/history/2026-04-22.json",
+      "commits": 16
+    },
+    {
+      "path": "tech/reports/2026-05-04-health.md",
+      "commits": 15
+    },
+    {
+      "path": "claude-skills/agents/qa.md",
+      "commits": 15
+    },
+    {
+      "path": "qa/reports/2026-04-22-audit.md",
+      "commits": 14
+    },
+    {
+      "path": "security/reports/2026-04-22-audit.md",
+      "commits": 13
+    },
+    {
+      "path": "brand/reports/2026-04-22-audit.md",
+      "commits": 13
+    },
+    {
+      "path": "seo/reports/2026-04-22-audit.md",
+      "commits": 12
+    },
+    {
+      "path": "qa/history/2026-05-04.json",
+      "commits": 11
+    },
+    {
+      "path": "po/reports/2026-04-23-status.md",
+      "commits": 11
+    },
+    {
+      "path": "claude-skills/tests/test_skills.py",
+      "commits": 11
+    },
+    {
+      "path": "marketing/reports/2026-04-22-audit.md",
+      "commits": 10
+    },
+    {
+      "path": "tech/reports/2026-04-30-health.md",
+      "commits": 9
+    },
+    {
+      "path": "comms/reports/2026-04-22-events.md",
+      "commits": 9
+    },
+    {
+      "path": "claude-skills/agents/security.md",
+      "commits": 9
+    },
+    {
+      "path": "README.md",
+      "commits": 8
+    },
+    {
+      "path": "claude-skills/scripts/open-report-pr.sh",
+      "commits": 8
+    },
+    {
+      "path": "claude-skills/scripts/list-pilot-candidates.sh",
+      "commits": 8
+    },
+    {
+      "path": "claude-skills/agents/storytelling.md",
+      "commits": 8
+    },
+    {
+      "path": ".bsg-autopilot.yml",
+      "commits": 8
+    },
+    {
+      "path": "claude-skills/scripts/update-bsg-skills.py",
+      "commits": 7
+    },
+    {
+      "path": "claude-skills/agents/pr-comms.md",
+      "commits": 7
+    },
+    {
+      "path": "claude-skills/agents/marketing.md",
+      "commits": 7
+    },
+    {
+      "path": "claude-skills/tests/test_po_report_integration.py",
+      "commits": 6
+    },
+    {
+      "path": "claude-skills/tests/test_md_to_office.py",
+      "commits": 6
+    },
+    {
+      "path": "claude-skills/scripts/file-issue.sh",
+      "commits": 6
+    },
+    {
+      "path": "seo/reports/2026-05-04-audit.md",
+      "commits": 5
+    },
+    {
+      "path": "po/reports/2026-05-04-status.md",
+      "commits": 5
+    },
+    {
+      "path": "po/reports/2026-04-30-status.md",
+      "commits": 5
+    },
+    {
+      "path": "INSTALL.md",
+      "commits": 5
+    },
+    {
+      "path": "claude-skills/tests/test_pilot_candidates.sh",
+      "commits": 5
+    },
+    {
+      "path": "claude-skills/skills/po-report/SKILL.md",
+      "commits": 5
+    },
+    {
+      "path": "claude-skills/scripts/auto-merge-or-flag.sh",
+      "commits": 5
+    },
+    {
+      "path": "brand/reports/2026-05-04-audit.md",
+      "commits": 5
+    },
+    {
+      "path": "stack.yaml",
+      "commits": 4
+    },
+    {
+      "path": "security/reports/2026-05-04-audit.md",
+      "commits": 4
+    },
+    {
+      "path": "qa/history/2026-05-03.json",
+      "commits": 4
+    },
+    {
+      "path": "po/PLAN.md",
+      "commits": 4
+    },
+    {
+      "path": "marketing/reports/2026-05-04-audit.md",
+      "commits": 4
+    },
+    {
+      "path": "claude-skills/skills/md-to-office/SKILL.md",
+      "commits": 4
+    },
+    {
+      "path": "claude-skills/skills/google-workspace/SKILL.md",
+      "commits": 4
+    },
+    {
+      "path": "claude-skills/agents/registry.json",
+      "commits": 4
+    },
+    {
+      "path": ".gitignore",
+      "commits": 4
+    },
+    {
+      "path": ".github/workflows/ci-claude-skills-test.yaml",
+      "commits": 4
+    },
+    {
+      "path": "tech/reports/2026-05-03-health.md",
+      "commits": 3
+    },
+    {
+      "path": "seo/reports/2026-04-30-audit.md",
+      "commits": 3
+    },
+    {
+      "path": "seo/reports/2026-04-23-audit.md",
+      "commits": 3
+    },
+    {
+      "path": "renovate/README.md",
+      "commits": 3
+    },
+    {
+      "path": "qa/reports/2026-05-03-audit.md",
+      "commits": 3
+    },
+    {
+      "path": "qa/reports/2026-04-30-audit.md",
+      "commits": 3
+    },
+    {
+      "path": "po/reports/2026-04-22-status.md",
+      "commits": 3
+    },
+    {
+      "path": "marketing/reports/2026-04-30-audit.md",
+      "commits": 3
+    },
+    {
+      "path": "docs/workflows.md",
+      "commits": 3
+    },
+    {
+      "path": "docs/renovate.md",
+      "commits": 3
+    },
+    {
+      "path": "claude-skills/skills/po/scripts/reconcile-milestones.sh",
+      "commits": 3
+    },
+    {
+      "path": "claude-skills/skills/po-report/scripts/generate-report.sh",
+      "commits": 3
+    },
+    {
+      "path": "claude-skills/skills/md-to-office/scripts/scan-brand.py",
+      "commits": 3
+    },
+    {
+      "path": "claude-skills/skills/md-to-office/scripts/init-brand.sh",
+      "commits": 3
+    },
+    {
+      "path": "claude-skills/skills/md-to-office/scripts/generate-templates.py",
+      "commits": 3
+    },
+    {
+      "path": "claude-skills/scripts/tick-fingerprint.sh",
+      "commits": 3
+    },
+    {
+      "path": "claude-skills/commands/tick-all.md",
+      "commits": 3
+    },
+    {
+      "path": "claude-skills/agents/cleaner.md",
+      "commits": 3
+    },
+    {
+      "path": "brand/reports/2026-05-03-audit.md",
+      "commits": 3
+    },
+    {
+      "path": "brand/reports/2026-04-24-audit.md",
+      "commits": 3
+    },
+    {
+      "path": "tech/reports/2026-04-23-health.md",
+      "commits": 2
+    },
+    {
+      "path": "seo/reports/2026-05-03-audit.md",
+      "commits": 2
+    },
+    {
+      "path": "renovate/scala_config.json",
+      "commits": 2
+    },
+    {
+      "path": "renovate/react_config.json",
+      "commits": 2
+    },
+    {
+      "path": "qa/reports/2026-05-04-audit.md",
+      "commits": 2
+    },
+    {
+      "path": "qa/history/2026-04-30.json",
+      "commits": 2
+    },
+    {
+      "path": "po/reports/2026-04-24-status.md",
+      "commits": 2
+    },
+    {
+      "path": "marketing/reports/2026-05-03-audit.md",
+      "commits": 2
+    },
+    {
+      "path": "docs/reorganisation-plan.md",
+      "commits": 2
+    },
+    {
+      "path": "docs/po-agent-plan.md",
+      "commits": 2
+    },
+    {
+      "path": "docs/migration-v2.md",
+      "commits": 2
+    },
+    {
+      "path": "docs/known-false-positives.md",
+      "commits": 2
+    },
+    {
+      "path": "cleaner/reports/2026-05-04-hygiene.md",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/tests/test_github_bus.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/tech-report/scripts/generate-report.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/storytelling-report/SKILL.md",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/storytelling-report/scripts/generate-report.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/storytelling-report/scripts/collect.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/seo-report/scripts/generate-report.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/security-report/scripts/generate-report.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/qa-report/scripts/generate-report.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/pr-comms-report/scripts/generate-report.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/po/scripts/reconcile-labels.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/po/scripts/parse-plan.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/po/scripts/generate-report.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/po/scripts/bootstrap-plan.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/po/scripts/adherence.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/po-report/scripts/status.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/po-report/scripts/stale-issues.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/po-report/scripts/milestone-progress.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/po-report/references/status.md",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/po-report/references/stale.md",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/po-report/references/milestones.md",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/md-to-office/scripts/md-to-office.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/md-to-office/references/markdown-conventions.md",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/marketing-report/scripts/generate-report.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/google-workspace/scripts/auth-login.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/google-workspace/references/helpers.md",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/google-workspace/references/gmail.md",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/browser/SKILL.md",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/skills/browser/scripts/onboard.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/settings.json",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/scripts/test/assert-invariants.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/scripts/prune-agent-worktrees.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/scripts/pilot-circuit-breaker.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/scripts/audit-labels.sh",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/README.md",
+      "commits": 2
+    },
+    {
+      "path": "claude-skills/commands/babysit.md",
+      "commits": 2
+    },
+    {
+      "path": "brand/reports/2026-04-30-audit.md",
+      "commits": 2
+    },
+    {
+      "path": ".securityignore",
+      "commits": 2
+    },
+    {
+      "path": ".github/workflows/scala_test.yaml",
+      "commits": 2
+    },
+    {
+      "path": ".github/workflows/review_app_deploy.yaml",
+      "commits": 2
+    },
+    {
+      "path": ".github/workflows/deploy-review-app.yaml",
+      "commits": 2
+    },
+    {
+      "path": "tests/pipeline-baselines/.gitkeep",
+      "commits": 1
+    },
+    {
+      "path": "tech/reports/2026-05-04-health-3.md",
+      "commits": 1
+    },
+    {
+      "path": "tech/reports/2026-05-04-health-2023.md",
+      "commits": 1
+    },
+    {
+      "path": "tech/reports/2026-05-04-health-2.md",
+      "commits": 1
+    },
+    {
+      "path": "tech/reports/2026-05-04-health-1777923812.md",
+      "commits": 1
+    },
+    {
+      "path": "tech/reports/2026-05-03-health-3.md",
+      "commits": 1
+    },
+    {
+      "path": "tech/reports/2026-05-02-health.md",
+      "commits": 1
+    },
+    {
+      "path": "tech/reports/2026-04-22-health.md",
+      "commits": 1
+    },
+    {
+      "path": "seo/reports/2026-05-04-audit-215213.md",
+      "commits": 1
+    },
+    {
+      "path": "seo/reports/2026-05-04-audit-1777923133.md",
+      "commits": 1
+    },
+    {
+      "path": "seo/reports/2026-05-04-audit-1777921953.md",
+      "commits": 1
+    },
+    {
+      "path": "seo/reports/2026-05-04-audit-1777918322.md",
+      "commits": 1
+    },
+    {
+      "path": "seo/reports/2026-05-04-audit-1777917124.md",
+      "commits": 1
+    },
+    {
+      "path": "seo/reports/2026-05-04-audit-1777916603.md",
+      "commits": 1
+    },
+    {
+      "path": "seo/reports/2026-05-04-audit-11.md",
+      "commits": 1
+    },
+    {
+      "path": "seo/reports/2026-05-02-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "seo/reports/2026-04-24-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "seo/KEYWORDS.md",
+      "commits": 1
+    },
+    {
+      "path": "security/reports/2026-05-04-audit-2.md",
+      "commits": 1
+    },
+    {
+      "path": "security/reports/2026-05-04-audit-1777923500.md",
+      "commits": 1
+    },
+    {
+      "path": "security/reports/2026-05-04-audit-1777922110.md",
+      "commits": 1
+    },
+    {
+      "path": "security/reports/2026-05-04-audit-1777920819.md",
+      "commits": 1
+    },
+    {
+      "path": "security/reports/2026-05-04-audit-1777919590.md",
+      "commits": 1
+    },
+    {
+      "path": "security/reports/2026-05-04-audit-1777918899.md",
+      "commits": 1
+    },
+    {
+      "path": "security/reports/2026-05-04-audit-1777916549.md",
+      "commits": 1
+    },
+    {
+      "path": "security/reports/2026-05-03-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "security/reports/2026-05-02-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "security/reports/2026-04-30-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "security/reports/2026-04-24-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "security/reports/2026-04-23-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "renovate/scala.json",
+      "commits": 1
+    },
+    {
+      "path": "renovate/react.json",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-audit-9535.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-audit-9.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-audit-8954.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-audit-8.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-audit-7810.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-audit-7.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-audit-21.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-audit-2.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-audit-1952.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-audit-1777924387.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-audit-12.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-audit-11.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-audit-10.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-210202-audit-1777921374.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-204214-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-185229-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-04-1777923126-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-03-audit-6.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-03-audit-4.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-05-02-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-04-24-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/reports/2026-04-23-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "qa/history/2026-05-02.json",
+      "commits": 1
+    },
+    {
+      "path": "qa/history/2026-04-24.json",
+      "commits": 1
+    },
+    {
+      "path": "qa/history/2026-04-23.json",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04T22-39-49-status.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04T21-43-29-status.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04T20-23-48-status.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-tick-1777921348.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-tick-1777917738.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-tick-1777917148.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-tick-1777916245.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-9.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-8.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-7.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-6.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-5.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-4.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-3.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-2.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-1777927443.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-1777924335.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-1777921919.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-1777920736.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-1777920136.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-1777918316.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-12.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-11.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-04-status-10.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-03-status.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-05-03-status-2.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-04-30-status-5.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-04-30-status-4.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-04-30-dev-order.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-04-23-tick.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-04-23-status-tick7.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-04-23-status-tick5.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-04-23-status-tick4.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-04-23-status-tick3.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-04-23-status-tick2.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-04-23-status-tick10.md",
+      "commits": 1
+    },
+    {
+      "path": "po/reports/2026-04-20-status.md",
+      "commits": 1
+    },
+    {
+      "path": "po/history/.gitkeep",
+      "commits": 1
+    },
+    {
+      "path": "po/drafts/2026-04-23-plan-bootstrap.md",
+      "commits": 1
+    },
+    {
+      "path": "marketing/reports/2026-05-04-audit-8318.md",
+      "commits": 1
+    },
+    {
+      "path": "marketing/reports/2026-05-04-audit-7704.md",
+      "commits": 1
+    },
+    {
+      "path": "marketing/reports/2026-05-04-audit-214216.md",
+      "commits": 1
+    },
+    {
+      "path": "marketing/reports/2026-05-04-audit-2052.md",
+      "commits": 1
+    },
+    {
+      "path": "marketing/reports/2026-05-04-audit-2.md",
+      "commits": 1
+    },
+    {
+      "path": "marketing/reports/2026-05-04-audit-1777927434.md",
+      "commits": 1
+    },
+    {
+      "path": "marketing/reports/2026-05-04-audit-0131.md",
+      "commits": 1
+    },
+    {
+      "path": "marketing/reports/2026-05-02-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "marketing/reports/2026-04-24-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "marketing/reports/2026-04-23-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "marketing/CALENDAR.md",
+      "commits": 1
+    },
+    {
+      "path": "marketing/briefs/.gitkeep",
+      "commits": 1
+    },
+    {
+      "path": "docs/label-taxonomy.md",
+      "commits": 1
+    },
+    {
+      "path": "docs/intent-files-spec.md",
+      "commits": 1
+    },
+    {
+      "path": "docs/claude-skills.md",
+      "commits": 1
+    },
+    {
+      "path": "comms/reports/2026-05-04-events.md",
+      "commits": 1
+    },
+    {
+      "path": "comms/reports/2026-05-03-events.md",
+      "commits": 1
+    },
+    {
+      "path": "comms/reports/2026-05-02-events.md",
+      "commits": 1
+    },
+    {
+      "path": "comms/reports/2026-04-30-events.md",
+      "commits": 1
+    },
+    {
+      "path": "comms/reports/2026-04-24-events.md",
+      "commits": 1
+    },
+    {
+      "path": "comms/reports/2026-04-23-events.md",
+      "commits": 1
+    },
+    {
+      "path": "comms/reports/2026-04-22-events-c.md",
+      "commits": 1
+    },
+    {
+      "path": "comms/reports/2026-04-22-events-b.md",
+      "commits": 1
+    },
+    {
+      "path": "comms/reports/2026-04-22-events-4.md",
+      "commits": 1
+    },
+    {
+      "path": "comms/press-releases/.gitkeep",
+      "commits": 1
+    },
+    {
+      "path": "comms/press-kit/contact.md",
+      "commits": 1
+    },
+    {
+      "path": "comms/press-kit/boilerplate.md",
+      "commits": 1
+    },
+    {
+      "path": "comms/ANNOUNCED.md",
+      "commits": 1
+    },
+    {
+      "path": "cleaner/reports/2026-05-04-hygiene-4.md",
+      "commits": 1
+    },
+    {
+      "path": "cleaner/reports/2026-05-04-hygiene-3.md",
+      "commits": 1
+    },
+    {
+      "path": "cleaner/reports/2026-05-04-hygiene-2.md",
+      "commits": 1
+    },
+    {
+      "path": "cleaner/reports/2026-05-04-hygiene-1777920826.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/tests/test_validate_plan.py",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/tests/test_updater_stale_cache.py",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/tests/test_updater_resilience.py",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/tests/test_tick_fingerprint.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/tests/test_reconcile_milestones_unbound.py",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/tests/test_read_intent_file.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/tests/test_po_milestone_reconcile.py",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/tests/test_no_needs_rework_in_peer_review.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/tests/test_learn_skill_dedup.py",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/tests/test_email_from_md.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/tests/test_circuit_breaker.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/tests/test_bus_handler.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/tests/test_assert_invariants.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/templates/SEO.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/templates/SECURITY.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/templates/ROADMAP.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/templates/QUALITY.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/templates/MARKETING.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/templates/COMMS.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/templates/BRAND.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/templates/ARCHITECTURE.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/tech-report/SKILL.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/tech-report/scripts/quality.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/tech-report/scripts/deps.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/tech-report/scripts/debt.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/tech-report/scripts/collect.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/tech-report/scripts/adr.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/tech-report/references/quality.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/tech-report/references/deps.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/tech-report/references/debt.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/tech-report/references/adr.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/storytelling-report/scripts/voice.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/storytelling-report/scripts/talking-points.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/storytelling-report/scripts/alignment.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/storytelling-report/references/voice.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/storytelling-report/references/talking-points.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/storytelling-report/references/positioning.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/storytelling-report/references/narrative.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/seo-report/SKILL.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/seo-report/scripts/technical.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/seo-report/scripts/meta.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/seo-report/scripts/links.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/seo-report/scripts/content.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/seo-report/scripts/collect.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/seo-report/references/technical.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/seo-report/references/structured-data.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/seo-report/references/meta.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/seo-report/references/links.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/seo-report/references/content.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/security-report/SKILL.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/security-report/scripts/secrets.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/security-report/scripts/headers.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/security-report/scripts/deps.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/security-report/scripts/collect.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/security-report/references/secrets.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/security-report/references/owasp.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/security-report/references/headers.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/security-report/references/deps.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/qa-report/SKILL.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/qa-report/scripts/risk.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/qa-report/scripts/flaky.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/qa-report/scripts/coverage.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/qa-report/scripts/collect.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/qa-report/references/test-plan.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/qa-report/references/risk.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/qa-report/references/flaky.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/qa-report/references/coverage.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/pr-comms-report/SKILL.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/pr-comms-report/scripts/press-kit.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/pr-comms-report/scripts/events.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/pr-comms-report/scripts/draft.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/pr-comms-report/scripts/collect.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/pr-comms-report/references/press-release.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/pr-comms-report/references/press-kit.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/pr-comms-report/references/plan.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/pr-comms-report/references/events.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po/SKILL.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po/scripts/trends.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po/scripts/status.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po/scripts/stale-issues.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po/scripts/render-adherence.jq",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po/scripts/pr-flow.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po/scripts/milestone-progress.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po/scripts/collect.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po/references/trends.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po/references/status.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po/references/stale.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po/references/pr-flow.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po/references/plan-schema.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po/references/milestones.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po/references/adherence.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po-report/scripts/trends.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po-report/scripts/render-adherence.jq",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po-report/scripts/pr-flow.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po-report/scripts/parse-plan.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po-report/scripts/collect.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po-report/scripts/bootstrap-plan.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po-report/scripts/adherence.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po-report/references/trends.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po-report/references/pr-flow.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po-report/references/plan-schema.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/po-report/references/adherence.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/ocr/SKILL.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/ocr/scripts/run-vision.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/ocr/scripts/run-tesseract.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/ocr/scripts/run-mistral.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/ocr/scripts/ocr.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/ocr/scripts/install-local.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/ocr/scripts/detect-engine.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/ocr/references/install.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/ocr/references/engines.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/md-to-office/scripts/resolve-template.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/md-to-office/scripts/render-pptx.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/md-to-office/scripts/render-pptx.py",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/md-to-office/scripts/render-docx.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/md-to-office/scripts/install-local.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/marketing-report/SKILL.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/marketing-report/scripts/collect.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/marketing-report/scripts/calendar.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/marketing-report/scripts/brief.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/marketing-report/scripts/alignment.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/marketing-report/references/messaging.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/marketing-report/references/calendar.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/marketing-report/references/brief.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/marketing-report/references/alignment.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/learn/SKILL.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/google-workspace/scripts/onboard.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/google-workspace/scripts/fix-iam-403.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/google-workspace/scripts/email-from-md.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/google-workspace/scripts/doctor.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/google-workspace/references/sheets.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/google-workspace/references/recipes.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/google-workspace/references/raw-api.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/google-workspace/references/drive.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/google-workspace/references/calendar.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/github-compliance/SKILL.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/github-compliance/scripts/check_compliance.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/github-compliance/references/org_structure.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/browser/scripts/with-profile.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/browser/scripts/login-yousign.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/skills/browser/scripts/login-google.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/scripts/validate-plan.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/scripts/tick-idle-check.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/scripts/test/seed-test-backlog.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/scripts/test/run-pipeline-test.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/scripts/test/README.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/scripts/read-intent-file.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/scripts/po-decompose-oversized.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/scripts/pilot-status.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/scripts/peer-review-candidates.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/scripts/normalize-issue-labels.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/scripts/migrate-epics-to-milestones.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/scripts/mark-reviewed.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/scripts/github-bus.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/scripts/detect-stuck-issues.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/scripts/decompose-issue.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/scripts/bus-handler.sh",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/prds/008-md-to-office.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/prds/007-pr-comms.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/prds/006-storytelling.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/prds/005-marketing.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/prds/004-seo.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/prds/003-tech-lead.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/prds/002-qa.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/prds/001-security.md",
+      "commits": 1
+    },
+    {
+      "path": "claude-skills/commands/ocr.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/talking-points/.gitkeep",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-05-04T19-43-19-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-05-04T17-51-41-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-05-04-audit-5199de.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-05-04-audit-3.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-05-04-audit-2b2708.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-05-04-audit-2534.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-05-04-audit-2142.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-05-04-audit-193641.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-05-04-audit-1777928323.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-05-04-audit-1777919533.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-05-04-audit-1307.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-05-04-213204-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-05-04-2111-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-05-04-2051-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-05-03-audit-2.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-05-02-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-04-23-audit.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/reports/2026-04-22-audit-a2452778.md",
+      "commits": 1
+    },
+    {
+      "path": "brand/NARRATIVE.md",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/test-scala.yaml",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/test-react-vite.yaml",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/sync_branches_with_ai.yaml",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/report-junit.yaml",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/report-cobertura.yaml",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/release-semantic.yaml",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/release-pr-lint.yaml",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/release-branch-create.yaml",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/pipeline-regression.yml",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/maint-cleanup-artifacts.yaml",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/deploy-docker.yaml",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/deploy-clever-cloud.yaml",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/claude_skills_test.yaml",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/auto-sync-branches.yaml",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/auto-sync-branches-ai.yaml",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/auto-pr-create.yaml",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/auto-pr-add-project.yaml",
+      "commits": 1
+    },
+    {
+      "path": ".github/workflows/auto-notify-discord.yaml",
+      "commits": 1
+    }
+  ],
+  "ciRuns": [
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T21:13:05Z",
+      "databaseId": 25343842998,
+      "headSha": "a9027b3fa0b7a59bc389fef18a18a5c19ec63ed1",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25343842998"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T21:13:05Z",
+      "databaseId": 25343842982,
+      "headSha": "a9027b3fa0b7a59bc389fef18a18a5c19ec63ed1",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25343842982"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T21:12:18Z",
+      "databaseId": 25343809288,
+      "headSha": "ca06a3e788da4d9688c058a8212ac21c144cd3fd",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25343809288"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T21:12:18Z",
+      "databaseId": 25343809283,
+      "headSha": "ca06a3e788da4d9688c058a8212ac21c144cd3fd",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25343809283"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T18:53:51Z",
+      "databaseId": 25337278731,
+      "headSha": "365fd6a80b3c4cb5f58e3512710c16bd7a7aad8b",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25337278731"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T18:53:34Z",
+      "databaseId": 25337266359,
+      "headSha": "365fd6a80b3c4cb5f58e3512710c16bd7a7aad8b",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25337266359"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T18:47:40Z",
+      "databaseId": 25336987708,
+      "headSha": "089bc85fc05a82f41e3802ed8245f4b4e0d83648",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25336987708"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T18:46:31Z",
+      "databaseId": 25336934488,
+      "headSha": "9ae61ef8e81b511ec976c4fafa0b9b0e2a4ee203",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25336934488"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T18:46:31Z",
+      "databaseId": 25336934512,
+      "headSha": "9ae61ef8e81b511ec976c4fafa0b9b0e2a4ee203",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25336934512"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T18:46:21Z",
+      "databaseId": 25336927026,
+      "headSha": "f43ceed802796a7cb6cfa41c60fef6b40ac31c03",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25336927026"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T18:46:21Z",
+      "databaseId": 25336927049,
+      "headSha": "f43ceed802796a7cb6cfa41c60fef6b40ac31c03",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25336927049"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T18:17:09Z",
+      "databaseId": 25335534319,
+      "headSha": "119b9aba8a0ad0215fb57ff89e97c7b2e2cd6405",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25335534319"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T18:17:02Z",
+      "databaseId": 25335529404,
+      "headSha": "78155e22346a50df5fa17d98045ea6d904a28e24",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25335529404"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T18:07:38Z",
+      "databaseId": 25335092170,
+      "headSha": "c6bf5b02ba511174372d00e547fdd9ad773f7ad7",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25335092170"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T18:07:29Z",
+      "databaseId": 25335084837,
+      "headSha": "69432b8454d917c77d5c88f0cd16b84818131ff3",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25335084837"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T17:57:05Z",
+      "databaseId": 25334582383,
+      "headSha": "c03d58d8c18df457bdf0a2f7fa2e384062287e35",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25334582383"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T17:56:55Z",
+      "databaseId": 25334574157,
+      "headSha": "7e2932ef3dfd0692c6f9cbe163b66e43801bd86d",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25334574157"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T17:53:44Z",
+      "databaseId": 25334424061,
+      "headSha": "44da335384df52f3a964e5bc855ebae98de96245",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25334424061"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T17:53:17Z",
+      "databaseId": 25334402343,
+      "headSha": "44da335384df52f3a964e5bc855ebae98de96245",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25334402343"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T17:46:46Z",
+      "databaseId": 25334092572,
+      "headSha": "855e261d98769df982c27ac531a89003297f5484",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25334092572"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T17:45:12Z",
+      "databaseId": 25334017760,
+      "headSha": "05ac471631ba3f7d6a80f752aa152c2bf09cdbed",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25334017760"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T17:45:01Z",
+      "databaseId": 25334008614,
+      "headSha": "145884069f5d7afffef1608182ccda207723e54f",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25334008614"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T13:31:37Z",
+      "databaseId": 25321937500,
+      "headSha": "17442c385cd8c220dfc8c2a6df8d6fcd5f86a78d",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25321937500"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T13:31:37Z",
+      "databaseId": 25321937381,
+      "headSha": "17442c385cd8c220dfc8c2a6df8d6fcd5f86a78d",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25321937381"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T13:09:36Z",
+      "databaseId": 25320867890,
+      "headSha": "4852f62dadeb8ab7560639e04d65bf55e2fefbea",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25320867890"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T13:09:36Z",
+      "databaseId": 25320867861,
+      "headSha": "4852f62dadeb8ab7560639e04d65bf55e2fefbea",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25320867861"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T13:08:25Z",
+      "databaseId": 25320811889,
+      "headSha": "2adcad9f3eb77adb0f1e3d52c16f00bfca976a7b",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25320811889"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T13:08:25Z",
+      "databaseId": 25320811895,
+      "headSha": "2adcad9f3eb77adb0f1e3d52c16f00bfca976a7b",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25320811895"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T13:08:18Z",
+      "databaseId": 25320806955,
+      "headSha": "d3b4515390290f68d46274649a15d6f850dc89e1",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25320806955"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T13:08:18Z",
+      "databaseId": 25320806936,
+      "headSha": "d3b4515390290f68d46274649a15d6f850dc89e1",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25320806936"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T13:07:18Z",
+      "databaseId": 25320760834,
+      "headSha": "bc2aec2ebb6458af4bda5ccb6f4e32bf736c5460",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25320760834"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T13:07:18Z",
+      "databaseId": 25320760825,
+      "headSha": "bc2aec2ebb6458af4bda5ccb6f4e32bf736c5460",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25320760825"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T13:07:11Z",
+      "databaseId": 25320754705,
+      "headSha": "68b00e5dfa3aff68171bf922aaf367bf4054fad8",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25320754705"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T13:07:11Z",
+      "databaseId": 25320754662,
+      "headSha": "68b00e5dfa3aff68171bf922aaf367bf4054fad8",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25320754662"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T11:59:25Z",
+      "databaseId": 25317702718,
+      "headSha": "2281c1244ea6dbaa2eccf6adbbf3efb2626421f4",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25317702718"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T11:59:25Z",
+      "databaseId": 25317702715,
+      "headSha": "2281c1244ea6dbaa2eccf6adbbf3efb2626421f4",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25317702715"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T11:59:15Z",
+      "databaseId": 25317695931,
+      "headSha": "b1ff888de6ca6e954530cb3e9400441b1fdb8da3",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25317695931"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T11:59:15Z",
+      "databaseId": 25317695936,
+      "headSha": "b1ff888de6ca6e954530cb3e9400441b1fdb8da3",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25317695936"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T11:44:54Z",
+      "databaseId": 25317090814,
+      "headSha": "5aa13dcf7ed7772b6763c540f6b482d772754af4",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25317090814"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T11:44:54Z",
+      "databaseId": 25317090824,
+      "headSha": "5aa13dcf7ed7772b6763c540f6b482d772754af4",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25317090824"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T11:44:46Z",
+      "databaseId": 25317085339,
+      "headSha": "8f65e257535627ee2aba6e5e90d770b0f6122cf4",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25317085339"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T11:44:46Z",
+      "databaseId": 25317085324,
+      "headSha": "8f65e257535627ee2aba6e5e90d770b0f6122cf4",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25317085324"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T11:35:02Z",
+      "databaseId": 25316674959,
+      "headSha": "f77b86bc28d910c28553adb9495e7168ec78a3ea",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25316674959"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T11:35:02Z",
+      "databaseId": 25316674944,
+      "headSha": "f77b86bc28d910c28553adb9495e7168ec78a3ea",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25316674944"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T11:34:53Z",
+      "databaseId": 25316668809,
+      "headSha": "f968658fe623c34459d2479b5d8b5a980f5a8485",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25316668809"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T11:34:53Z",
+      "databaseId": 25316668821,
+      "headSha": "f968658fe623c34459d2479b5d8b5a980f5a8485",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25316668821"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T10:47:37Z",
+      "databaseId": 25314752977,
+      "headSha": "8ab22332cf56b45ea22ee80c8ff5e37e585bcb10",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25314752977"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T10:47:37Z",
+      "databaseId": 25314752975,
+      "headSha": "8ab22332cf56b45ea22ee80c8ff5e37e585bcb10",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25314752975"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T10:47:28Z",
+      "databaseId": 25314747269,
+      "headSha": "44709201823fbf82b353a5df3560b04defcb086e",
+      "name": "pipeline regression (unit)",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25314747269"
+    },
+    {
+      "conclusion": "success",
+      "createdAt": "2026-05-04T10:47:28Z",
+      "databaseId": 25314747274,
+      "headSha": "44709201823fbf82b353a5df3560b04defcb086e",
+      "name": "claude-skills test",
+      "status": "completed",
+      "url": "https://github.com/beyond-scale-group/bsg-stack/actions/runs/25314747274"
+    }
+  ],
+  "previous": {
+    "date": "2026-05-04",
+    "coverage": {
+      "found": false,
+      "format": "none",
+      "perFile": [],
+      "overall": {
+        "line": null,
+        "branch": null,
+        "zeroCoverage": null
+      }
+    }
+  },
+  "testSuiteFound": true
+}
