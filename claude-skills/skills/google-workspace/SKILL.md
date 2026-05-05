@@ -163,6 +163,39 @@ The wrapper:
 5. Falls back to the raw API path automatically when `--reply-to` is set
    (the `+send` helper doesn't expose that header)
 
+### Markdown elements that survive the pipeline
+
+Pandoc renders the markdown source; `email-from-md.sh` then merges
+inline CSS onto the tags Gmail strips styles from. The following
+elements are explicitly tested in `tests/test_email_from_md.sh`:
+
+| Element                                | HTML tag(s)        | Inline CSS? |
+|----------------------------------------|--------------------|-------------|
+| Headings                               | `<h1>`–`<h4>`      | yes (font sizes, margins) |
+| Bold / italic / strikethrough          | `<strong>` / `<em>` / `<del>` | no (Gmail-default OK) |
+| Inline code / fenced code blocks       | `<code>` / `<pre>` | yes (monospace + bg) |
+| Links                                  | `<a href>`         | no (Gmail-default OK) |
+| Horizontal rule                        | `<hr>`             | yes (subtle border) |
+| Unordered / ordered / nested lists     | `<ul>` / `<ol>` / `<li>` | yes (margins, indent) |
+| Blockquotes                            | `<blockquote>`     | yes (left border, bg) |
+| Tables                                 | `<table>` / `<th>` / `<td>` | yes (borders, padding) |
+| Images                                 | `<img src>`        | yes (max-width:100%) |
+| Definition lists                       | `<dl>` / `<dt>` / `<dd>` | yes (bold term, indent body) |
+| Footnotes                              | `<sup>` + footer `<ol>` | inherits `<ol>` |
+| Task lists `- [x]` / `- [ ]`           | `<input type="checkbox">` | n/a (text-only in Gmail) |
+
+What **doesn't** survive cleanly:
+
+- **Pandoc syntax-highlighting spans** in fenced code blocks — stripped
+  via `pandoc --no-highlight`. Code renders as plain monospace; if
+  syntax color is critical, ship the email as a plain text fallback or
+  a hosted gist link.
+- **`<figcaption>` wrappers** around images — stripped server-side
+  before send; only the `<img>` is retained (Gmail otherwise renders
+  the caption as orphan text).
+- **Raw HTML embedded in the markdown** — passed through by pandoc
+  but won't get any inline-CSS treatment from this script.
+
 ## Preflight (run first, every session)
 
 Before issuing any `gws` command, run these three checks once per session.

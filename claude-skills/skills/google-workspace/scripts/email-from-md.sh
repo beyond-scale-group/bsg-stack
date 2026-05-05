@@ -67,21 +67,80 @@ if ! command -v pandoc &>/dev/null; then
 fi
 
 # ---------- convert markdown to HTML ----------
-RAW_HTML=$(pandoc -f markdown -t html --wrap=none "$MARKDOWN_FILE")
+# `--no-highlight` strips pandoc's syntax-highlighting <span class="...">
+# wrappers — Gmail strips the matching CSS anyway, leaving meaningless
+# spans that break copy-paste from the rendered email.
+RAW_HTML=$(pandoc -f markdown -t html --wrap=none --no-highlight "$MARKDOWN_FILE")
 
-# ---------- inline CSS on tables ----------
-# Table container: collapse borders, readable font
-STYLED_HTML=$(printf '%s' "$RAW_HTML" | sed \
-  -e 's|<table>|<table style="border-collapse:collapse;border:1px solid #ccc;margin:12px 0;font-family:Arial,sans-serif;font-size:13px;">|g' \
-  -e 's|<th>|<th style="background:#f4f4f4;border:1px solid #ccc;padding:8px 10px;text-align:left;font-weight:600;">|g' \
-  -e 's|<th \([^>]*\)>|<th \1 style="background:#f4f4f4;border:1px solid #ccc;padding:8px 10px;text-align:left;font-weight:600;">|g' \
-  -e 's|<td>|<td style="border:1px solid #ccc;padding:8px 10px;vertical-align:top;">|g' \
-  -e 's|<td \([^>]*\)>|<td \1 style="border:1px solid #ccc;padding:8px 10px;vertical-align:top;">|g' \
-)
+# ---------- inline CSS for Gmail rendering ----------
+# Gmail strips <style> blocks — every visual rule must live on the tag
+# itself. We use a Python pass for tag rewriting so we can reason about
+# attribute lists instead of fighting sed regex collisions (the previous
+# sed approach silently emitted duplicated `style="..."` attributes on
+# <th>/<td> when the bare and attribute-bearing patterns both matched).
+STYLED_HTML=$(printf '%s' "$RAW_HTML" | python3 -c '
+import re, sys
 
-# ---------- inline CSS on blockquotes ----------
+html = sys.stdin.read()
+
+# Inline-CSS rules applied to specific tags.  Each rule is the CSS string
+# to be merged into the existing `style=""` attribute (or added as a
+# fresh `style="..."` when none exists).  Order is purely declarative.
+RULES = {
+    "table":      "border-collapse:collapse;border:1px solid #ccc;margin:12px 0;font-family:Arial,sans-serif;font-size:13px;",
+    "th":         "background:#f4f4f4;border:1px solid #ccc;padding:8px 10px;text-align:left;font-weight:600;",
+    "td":         "border:1px solid #ccc;padding:8px 10px;vertical-align:top;",
+    "blockquote": "border-left:3px solid #ccc;padding:6px 12px;margin:12px 0;color:#444;background:#fafafa;",
+    "h1":         "font-family:Arial,sans-serif;font-size:24px;font-weight:600;margin:18px 0 8px 0;line-height:1.25;",
+    "h2":         "font-family:Arial,sans-serif;font-size:20px;font-weight:600;margin:16px 0 8px 0;line-height:1.25;",
+    "h3":         "font-family:Arial,sans-serif;font-size:16px;font-weight:600;margin:14px 0 6px 0;line-height:1.25;",
+    "h4":         "font-family:Arial,sans-serif;font-size:14px;font-weight:600;margin:12px 0 6px 0;line-height:1.25;",
+    "pre":        "background:#f6f8fa;border:1px solid #e1e4e8;border-radius:4px;padding:10px 12px;margin:12px 0;font-family:Menlo,Consolas,monospace;font-size:12px;line-height:1.45;overflow-x:auto;",
+    "code":       "font-family:Menlo,Consolas,monospace;font-size:12px;background:#f6f8fa;padding:1px 4px;border-radius:3px;",
+    "hr":         "border:none;border-top:1px solid #e1e4e8;margin:18px 0;",
+    "ul":         "margin:8px 0;padding-left:24px;",
+    "ol":         "margin:8px 0;padding-left:24px;",
+    "li":         "margin:4px 0;",
+    "img":        "max-width:100%;height:auto;border:0;",
+    "dl":         "margin:8px 0;",
+    "dt":         "font-weight:600;margin-top:8px;",
+    "dd":         "margin:0 0 8px 16px;",
+}
+
+def merge_style(tag_match: re.Match) -> str:
+    """Inject/merge `style="…"` on a single open tag."""
+    tag = tag_match.group(1).lower()
+    rest = tag_match.group(2)  # everything between tag name and closing >
+    css = RULES.get(tag)
+    if css is None:
+        return tag_match.group(0)
+    # If the tag already has a style attribute, merge by appending.
+    style_match = re.search(r"\bstyle\s*=\s*\"([^\"]*)\"", rest, re.IGNORECASE)
+    if style_match:
+        existing = style_match.group(1).strip()
+        sep = "" if existing.endswith(";") or not existing else ";"
+        merged = existing + sep + css
+        rest_new = (
+            rest[: style_match.start(1)] + merged + rest[style_match.end(1):]
+        )
+        return f"<{tag}{rest_new}>"
+    # No existing style — append one before the closing >.
+    rest_stripped = rest.rstrip("/").rstrip()
+    self_close = "/" if rest.rstrip().endswith("/") else ""
+    space = "" if not rest_stripped else " "
+    return f"<{tag}{rest_stripped}{space}style=\"{css}\"{self_close}>"
+
+# Match each opening tag exactly once.
+TAG_RE = re.compile(r"<([a-zA-Z][a-zA-Z0-9]*)((?:\s[^>]*)?)>")
+sys.stdout.write(TAG_RE.sub(merge_style, html))
+')
+
+# ---------- post-render cleanup ----------
+# Pandoc wraps every figure in <figure>…<figcaption>. Gmail keeps the
+# wrapper but renders the caption as orphan text, which is rarely what
+# the author wants. Strip the figcaption while keeping the <img>.
 STYLED_HTML=$(printf '%s' "$STYLED_HTML" | sed \
-  -e 's|<blockquote>|<blockquote style="border-left:3px solid #ccc;padding:6px 12px;margin:12px 0;color:#444;background:#fafafa;">|g' \
+  -e 's|<figcaption[^>]*>[^<]*</figcaption>||g' \
 )
 
 # ---------- fetch and append signature ----------
