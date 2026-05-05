@@ -228,6 +228,103 @@ else
   PASS=$((PASS + 1))
 fi
 
+# ============================================================================
+# Edge case suite — verifies the three Gmail-rendering pitfalls are fixed:
+#   - syntax highlighting in fenced code blocks
+#   - task-list checkboxes
+#   - raw HTML embedded inside markdown
+# ============================================================================
+
+echo "--- Edge case 1: syntax highlighting on fenced code blocks ---"
+SH_MD="$TMPDIR_TEST/syntax.md"
+cat > "$SH_MD" <<'MD'
+```python
+def greet(name: str) -> str:
+    # comment
+    return f"hi {name}"
+```
+MD
+SH_OUT=$(bash "$SUT" --markdown "$SH_MD" --no-signature 2>/dev/null)
+
+# Skylighting must produce inline color styles, not bare class spans.
+assert_contains "E1: keyword has GitHub red color"   'style="color:#d73a49;">def'    "$SH_OUT"
+assert_contains "E2: keyword has GitHub red on return" 'style="color:#d73a49;">return' "$SH_OUT"
+assert_contains "E3: builtin has GitHub blue color"  'style="color:#005cc5;">str'    "$SH_OUT"
+assert_contains "E4: comment has GitHub grey color"  'style="color:#6a737d;"># comment' "$SH_OUT"
+assert_contains "E5: string has GitHub deep blue"    'style="color:#032f62;">'       "$SH_OUT"
+
+# Regression: pandoc's two-letter class spans must be replaced (not duplicated).
+LEFTOVER_CLASS=$( { printf '%s' "$SH_OUT" | grep -oE '<span class="(kw|st|fu|at|bu|cf|op|co|va)">' || true; } | wc -l | tr -d ' ')
+if [[ "$LEFTOVER_CLASS" -eq 0 ]]; then
+  echo "PASS: E6: no pandoc class spans leaked through (all replaced with inline color)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL: E6: $LEFTOVER_CLASS pandoc class spans leaked through"
+  FAIL=$((FAIL + 1))
+fi
+
+# Regression: line-anchor <a href="#cb1-N"> markers must be stripped.
+LINE_ANCHORS=$( { printf '%s' "$SH_OUT" | grep -oE '<a [^>]*href="#cb[0-9]+-[0-9]+"' || true; } | wc -l | tr -d ' ')
+if [[ "$LINE_ANCHORS" -eq 0 ]]; then
+  echo "PASS: E7: pandoc line-number anchors stripped"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL: E7: $LINE_ANCHORS line-number anchors still present"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "--- Edge case 2: task-list checkboxes are Unicode glyphs ---"
+TL_MD="$TMPDIR_TEST/tasklist.md"
+cat > "$TL_MD" <<'MD'
+- [ ] unchecked task
+- [x] checked task
+MD
+TL_OUT=$(bash "$SUT" --markdown "$TL_MD" --no-signature 2>/dev/null)
+
+assert_contains "E8: unchecked → ☐ glyph"    "☐"      "$TL_OUT"
+assert_contains "E9: checked → ☑ glyph"      "☑"      "$TL_OUT"
+
+# Regression: raw <input type="checkbox"> must be gone.
+LEFTOVER_INPUT=$( { printf '%s' "$TL_OUT" | grep -oE '<input [^>]*type="checkbox"' || true; } | wc -l | tr -d ' ')
+if [[ "$LEFTOVER_INPUT" -eq 0 ]]; then
+  echo "PASS: E10: no raw <input type=checkbox> left in output"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL: E10: $LEFTOVER_INPUT <input> elements still present"
+  FAIL=$((FAIL + 1))
+fi
+
+echo "--- Edge case 3: raw HTML in markdown gets inline CSS treatment ---"
+RAW_MD="$TMPDIR_TEST/rawhtml.md"
+cat > "$RAW_MD" <<'MD'
+A paragraph.
+
+<table>
+<tr><th>Header</th><td>Cell</td></tr>
+</table>
+
+<blockquote>Raw blockquote.</blockquote>
+MD
+RAW_OUT=$(bash "$SUT" --markdown "$RAW_MD" --no-signature 2>/dev/null)
+
+assert_contains "E11: raw <table> styled"      "border-collapse:collapse"  "$RAW_OUT"
+assert_contains "E12: raw <th> styled"         "background:#f4f4f4"        "$RAW_OUT"
+assert_contains "E13: raw <td> styled"         "padding:8px 10px"          "$RAW_OUT"
+assert_contains "E14: raw <blockquote> styled" "border-left:3px solid"     "$RAW_OUT"
+
+echo "--- Edge case 4: tags without attributes get a space before style= ---"
+# Regression: previously `<li>` became `<listyle="…">` because the
+# attribute-list space was conditional on existing attrs.
+NS_OUT=$(printf '%s' "$RAW_OUT" "$TL_OUT" "$SH_OUT")
+MASHED=$( { printf '%s' "$NS_OUT" | grep -oE '<(li|p|h[1-6]|ul|ol|hr|pre|code|dt|dd|table|th|td|blockquote)style=' || true; } | wc -l | tr -d ' ')
+if [[ "$MASHED" -eq 0 ]]; then
+  echo "PASS: E15: no tag-name+style= concatenation (e.g. <listyle=)"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL: E15: $MASHED concatenated tag/style instances detected"
+  FAIL=$((FAIL + 1))
+fi
+
 # ---------- Summary ----------
 echo ""
 echo "=== $((PASS + FAIL)) tests: $PASS passed, $FAIL failed ==="

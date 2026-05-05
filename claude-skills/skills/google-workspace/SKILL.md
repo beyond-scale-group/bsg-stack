@@ -182,19 +182,38 @@ elements are explicitly tested in `tests/test_email_from_md.sh`:
 | Images                                 | `<img src>`        | yes (max-width:100%) |
 | Definition lists                       | `<dl>` / `<dt>` / `<dd>` | yes (bold term, indent body) |
 | Footnotes                              | `<sup>` + footer `<ol>` | inherits `<ol>` |
-| Task lists `- [x]` / `- [ ]`           | `<input type="checkbox">` | n/a (text-only in Gmail) |
+| Task lists `- [x]` / `- [ ]`           | Unicode `☑` / `☐` | yes (renders in every email client) |
+| Fenced code blocks (syntax-highlighted) | `<pre>` + colored `<span>` | yes (GitHub-flavored colors per token) |
+| Raw HTML inside markdown               | tag passes through | yes (any styled tag is recognized by name) |
 
-What **doesn't** survive cleanly:
+The pipeline goes the extra distance for three Gmail-rendering pitfalls:
 
-- **Pandoc syntax-highlighting spans** in fenced code blocks — stripped
-  via `pandoc --no-highlight`. Code renders as plain monospace; if
-  syntax color is critical, ship the email as a plain text fallback or
-  a hosted gist link.
+- **Syntax color in code blocks.** Pandoc's skylighting emits
+  `<span class="kw">` (keyword), `<span class="st">` (string), `co`
+  (comment), `fu` (function), `bu` (builtin), and ~25 more two-letter
+  classes. Gmail strips the matching `<style>` block, so those classes
+  render colorless. The script maps each class to a GitHub-flavored
+  inline `style="color:#…"` so code blocks land in the inbox with full
+  syntax color across every email client.
+
+- **Task list checkboxes.** The raw `<input type="checkbox">` element
+  Gmail renders inconsistently (or strips entirely) is rewritten to
+  Unicode `☑` / `☐` glyphs in a monospace span — universal rendering,
+  no JS, no client-specific quirks.
+
+- **Raw HTML embedded in markdown.** When the author drops a `<table>`
+  or `<blockquote>` directly into the markdown source, the same
+  inline-CSS pass picks it up by tag name and styles it identically to
+  pandoc-rendered output. No special handling required.
+
+What **does not** survive cleanly:
+
 - **`<figcaption>` wrappers** around images — stripped server-side
   before send; only the `<img>` is retained (Gmail otherwise renders
-  the caption as orphan text).
-- **Raw HTML embedded in the markdown** — passed through by pandoc
-  but won't get any inline-CSS treatment from this script.
+  the caption as orphan text underneath every image).
+- **Non-standard HTML elements** the styling rules don't recognize —
+  pandoc passes them through but they receive no inline CSS, so any
+  `<style>` they rely on will be dropped by Gmail.
 
 ## Preflight (run first, every session)
 

@@ -67,10 +67,11 @@ if ! command -v pandoc &>/dev/null; then
 fi
 
 # ---------- convert markdown to HTML ----------
-# `--no-highlight` strips pandoc's syntax-highlighting <span class="...">
-# wrappers — Gmail strips the matching CSS anyway, leaving meaningless
-# spans that break copy-paste from the rendered email.
-RAW_HTML=$(pandoc -f markdown -t html --wrap=none --no-highlight "$MARKDOWN_FILE")
+# Keep pandoc's skylighting on — we inline GitHub-flavored colors per
+# token class in the Python pass below so code blocks render with
+# syntax color in Gmail/Outlook (they normally strip <style> blocks
+# but inline styles survive).
+RAW_HTML=$(pandoc -f markdown -t html --wrap=none "$MARKDOWN_FILE")
 
 # ---------- inline CSS for Gmail rendering ----------
 # Gmail strips <style> blocks — every visual rule must live on the tag
@@ -83,9 +84,10 @@ import re, sys
 
 html = sys.stdin.read()
 
-# Inline-CSS rules applied to specific tags.  Each rule is the CSS string
+# ---------------------------------------------------------------- 1. tag CSS
+# Inline-CSS rules applied to specific tags. Each rule is the CSS string
 # to be merged into the existing `style=""` attribute (or added as a
-# fresh `style="..."` when none exists).  Order is purely declarative.
+# fresh `style="..."` when none exists). Order is purely declarative.
 RULES = {
     "table":      "border-collapse:collapse;border:1px solid #ccc;margin:12px 0;font-family:Arial,sans-serif;font-size:13px;",
     "th":         "background:#f4f4f4;border:1px solid #ccc;padding:8px 10px;text-align:left;font-weight:600;",
@@ -95,7 +97,7 @@ RULES = {
     "h2":         "font-family:Arial,sans-serif;font-size:20px;font-weight:600;margin:16px 0 8px 0;line-height:1.25;",
     "h3":         "font-family:Arial,sans-serif;font-size:16px;font-weight:600;margin:14px 0 6px 0;line-height:1.25;",
     "h4":         "font-family:Arial,sans-serif;font-size:14px;font-weight:600;margin:12px 0 6px 0;line-height:1.25;",
-    "pre":        "background:#f6f8fa;border:1px solid #e1e4e8;border-radius:4px;padding:10px 12px;margin:12px 0;font-family:Menlo,Consolas,monospace;font-size:12px;line-height:1.45;overflow-x:auto;",
+    "pre":        "background:#f6f8fa;border:1px solid #e1e4e8;border-radius:4px;padding:10px 12px;margin:12px 0;font-family:Menlo,Consolas,monospace;font-size:12px;line-height:1.45;overflow-x:auto;color:#24292e;",
     "code":       "font-family:Menlo,Consolas,monospace;font-size:12px;background:#f6f8fa;padding:1px 4px;border-radius:3px;",
     "hr":         "border:none;border-top:1px solid #e1e4e8;margin:18px 0;",
     "ul":         "margin:8px 0;padding-left:24px;",
@@ -107,32 +109,123 @@ RULES = {
     "dd":         "margin:0 0 8px 16px;",
 }
 
-def merge_style(tag_match: re.Match) -> str:
-    """Inject/merge `style="…"` on a single open tag."""
+# ---------------------------------------------------------------- 2. syntax
+# GitHub-flavored token colors for pandoc skylighting `<span class="…">`
+# wrappers inside fenced code blocks. Pandoc emits two-letter class
+# names (kw=keyword, st=string, co=comment, fu=function, …); Gmail
+# strips the matching <style> block, so we map each class to an inline
+# `style="color:…"` here.
+SKYLIGHTING_COLORS = {
+    "kw": "#d73a49",  # keyword (def, class, function …)
+    "cf": "#d73a49",  # control flow (return, if, while)
+    "im": "#d73a49",  # import
+    "pp": "#d73a49",  # preprocessor / decorator
+    "op": "#d73a49",  # operator (=, ->, +)
+    "st": "#032f62",  # string literal
+    "ss": "#032f62",  # special string (f-string body)
+    "sc": "#005cc5",  # special char inside string (e.g. {…} in f-string)
+    "vs": "#032f62",  # verbatim string
+    "ch": "#005cc5",  # character literal
+    "co": "#6a737d",  # comment
+    "do": "#6a737d",  # documentation comment
+    "an": "#6a737d",  # annotation
+    "cv": "#6a737d",  # comment variable
+    "fu": "#6f42c1",  # function call
+    "at": "#6f42c1",  # attribute (CLI flag, decorator)
+    "bu": "#005cc5",  # builtin
+    "dt": "#005cc5",  # datatype
+    "cn": "#005cc5",  # constant
+    "dv": "#005cc5",  # decimal value
+    "bn": "#005cc5",  # binary value
+    "fl": "#005cc5",  # float
+    "va": "#e36209",  # variable
+    "ot": "#22863a",  # other token
+    "er": "#cb2431",  # error
+    "wa": "#b08800",  # warning
+}
+
+def merge_style_attr(rest: str, css: str) -> str:
+    """Add or extend a style attribute on a tag attribute list.
+
+    `rest` is whatever the TAG_RE captured between the tag name and the
+    closing `>`. When the tag had no attributes the regex captured the
+    empty string, so we must always emit a leading space before the
+    new `style="…"` attribute — otherwise `<li>` becomes
+    `<listyle="…">` (broken HTML, browsers ignore the style).
+    """
+    sm = re.search(r"\bstyle\s*=\s*\"([^\"]*)\"", rest, re.IGNORECASE)
+    if sm:
+        existing = sm.group(1).strip()
+        sep = "" if existing.endswith(";") or not existing else ";"
+        merged = existing + sep + css
+        return rest[: sm.start(1)] + merged + rest[sm.end(1):]
+    # No existing style attribute. Detect XHTML self-closing slash and
+    # emit `[<existing-attrs>] style="…"` with a guaranteed leading
+    # space so it never collides with the tag name.
+    body = rest.rstrip()
+    self_close = ""
+    if body.endswith("/"):
+        body = body[:-1].rstrip()
+        self_close = " /"
+    return f"{body} style=\"{css}\"{self_close}"
+
+def style_open_tag(tag_match: re.Match) -> str:
     tag = tag_match.group(1).lower()
-    rest = tag_match.group(2)  # everything between tag name and closing >
+    rest = tag_match.group(2)
     css = RULES.get(tag)
     if css is None:
         return tag_match.group(0)
-    # If the tag already has a style attribute, merge by appending.
-    style_match = re.search(r"\bstyle\s*=\s*\"([^\"]*)\"", rest, re.IGNORECASE)
-    if style_match:
-        existing = style_match.group(1).strip()
-        sep = "" if existing.endswith(";") or not existing else ";"
-        merged = existing + sep + css
-        rest_new = (
-            rest[: style_match.start(1)] + merged + rest[style_match.end(1):]
-        )
-        return f"<{tag}{rest_new}>"
-    # No existing style — append one before the closing >.
-    rest_stripped = rest.rstrip("/").rstrip()
-    self_close = "/" if rest.rstrip().endswith("/") else ""
-    space = "" if not rest_stripped else " "
-    return f"<{tag}{rest_stripped}{space}style=\"{css}\"{self_close}>"
+    return f"<{tag}{merge_style_attr(rest, css)}>"
 
-# Match each opening tag exactly once.
+# Apply tag-level CSS to every opening tag once.
 TAG_RE = re.compile(r"<([a-zA-Z][a-zA-Z0-9]*)((?:\s[^>]*)?)>")
-sys.stdout.write(TAG_RE.sub(merge_style, html))
+html = TAG_RE.sub(style_open_tag, html)
+
+# ---------------------------------------------------------------- 3. spans
+# Match `<span class="kw">` / `<span class="kw foo">` and inject the
+# matching color. Multiple classes are tolerated; the first matching
+# class wins.
+def style_highlight_span(m: re.Match) -> str:
+    classes = m.group(1).split()
+    for cls in classes:
+        color = SKYLIGHTING_COLORS.get(cls)
+        if color:
+            return f"<span style=\"color:{color};\">"
+    return m.group(0)
+
+html = re.sub(
+    r"<span class=\"([^\"]+)\">",
+    style_highlight_span,
+    html,
+)
+
+# ---------------------------------------------------------------- 4. cleanup
+# Strip pandoc'\''s line-number anchors inside fenced code blocks — these
+# are `<a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>` markers
+# that are clickable "go to line N" links in pandoc HTML but completely
+# inert (and visually noisy) inside an email.
+html = re.sub(
+    r"<a [^>]*href=\"#cb\d+-\d+\"[^>]*>\s*</a>",
+    "",
+    html,
+)
+
+# Replace pandoc'\''s task-list `<input type="checkbox">` markers with
+# Unicode glyphs (☑ checked, ☐ unchecked). Gmail/Outlook render the
+# raw <input> as a non-interactive control or strip it entirely; the
+# Unicode form is consistent across every email client.
+html = re.sub(
+    r"<input [^>]*type=\"checkbox\"[^>]*checked[^>]*/?>",
+    "<span style=\"font-family:monospace;\">☑</span>&nbsp;",
+    html,
+)
+html = re.sub(
+    r"<input [^>]*type=\"checkbox\"[^>]*/?>",
+    "<span style=\"font-family:monospace;\">☐</span>&nbsp;",
+    html,
+)
+
+sys.stdout.write(html)
 ')
 
 # ---------- post-render cleanup ----------
