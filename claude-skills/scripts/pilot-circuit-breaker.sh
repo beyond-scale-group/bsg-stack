@@ -29,6 +29,9 @@
 
 set -euo pipefail
 
+# shellcheck source=_bsg-paths.sh disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/_bsg-paths.sh"
+
 REPO_FLAG=()
 BUS=""
 
@@ -47,12 +50,12 @@ done
 DEFAULT_CAP=3
 MAX_PRS=$DEFAULT_CAP
 
-if [[ -f .bsg-autopilot.yml ]]; then
+if [[ -f "$BSG_AUTOPILOT_FILE" ]]; then
   # Detect whether max_prs_per_day is a scalar or a map.
   # A scalar appears as:   max_prs_per_day: 200
   # A map appears as:      max_prs_per_day:\n    _default: 200\n    tech: 50
   # Note: grep -E and awk on macOS do not support \s — use [ \t]* instead.
-  scalar=$(grep -E '^[ \t]*max_prs_per_day[ \t]*:[ \t]*[0-9]+[ \t]*$' .bsg-autopilot.yml 2>/dev/null \
+  scalar=$(grep -E '^[ \t]*max_prs_per_day[ \t]*:[ \t]*[0-9]+[ \t]*$' "$BSG_AUTOPILOT_FILE" 2>/dev/null \
              | head -1 | sed 's/.*:[ \t]*//' | tr -d '[:space:]' || true)
 
   if [[ -n "$scalar" && "$scalar" =~ ^[0-9]+$ ]]; then
@@ -65,7 +68,7 @@ if [[ -f .bsg-autopilot.yml ]]; then
       /^[ \t]*max_prs_per_day[ \t]*:[ \t]*$/ { in_block=1; next }
       in_block && /^[^ \t]/ { in_block=0 }
       in_block { print }
-    ' .bsg-autopilot.yml)
+    ' "$BSG_AUTOPILOT_FILE")
 
     bus_cap=$(echo "$map_block" \
       | grep -E "^[ \t]+${BUS}[ \t]*:[ \t]*[0-9]+" \

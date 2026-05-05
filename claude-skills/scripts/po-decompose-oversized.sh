@@ -36,6 +36,9 @@
 
 set -euo pipefail
 
+# shellcheck source=_bsg-paths.sh disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/_bsg-paths.sh"
+
 REPO_FLAG=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -50,8 +53,8 @@ done
 
 # Read max_loc_per_issue from .bsg-autopilot.yml — fall back to 200.
 MAX_LOC=200
-if [[ -f .bsg-autopilot.yml ]]; then
-  configured=$(grep -E '^\s*max_loc_per_issue\s*:' .bsg-autopilot.yml 2>/dev/null \
+if [[ -f "$BSG_AUTOPILOT_FILE" ]]; then
+  configured=$(grep -E '^\s*max_loc_per_issue\s*:' "$BSG_AUTOPILOT_FILE" 2>/dev/null \
     | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
   if [[ -n "$configured" ]]; then
     MAX_LOC="$configured"

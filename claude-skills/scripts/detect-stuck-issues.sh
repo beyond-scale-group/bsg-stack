@@ -35,6 +35,9 @@
 
 set -euo pipefail
 
+# shellcheck source=_bsg-paths.sh disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/_bsg-paths.sh"
+
 REPO_FLAG=()
 DRY_RUN=false
 NUDGE_DAYS=2
@@ -57,8 +60,8 @@ done
 # Read default_human_reviewer from .bsg-autopilot.yml. If absent, tier 2
 # escalation falls back to the issue creator (next best human).
 HUMAN_REVIEWER=""
-if [[ -f .bsg-autopilot.yml ]]; then
-  HUMAN_REVIEWER=$(grep -E '^\s*default_human_reviewer\s*:' .bsg-autopilot.yml 2>/dev/null \
+if [[ -f "$BSG_AUTOPILOT_FILE" ]]; then
+  HUMAN_REVIEWER=$(grep -E '^\s*default_human_reviewer\s*:' "$BSG_AUTOPILOT_FILE" 2>/dev/null \
     | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]"' | tr -d "'")
 fi
 

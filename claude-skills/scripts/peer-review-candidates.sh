@@ -16,6 +16,9 @@
 
 set -euo pipefail
 
+# shellcheck source=_bsg-paths.sh disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/_bsg-paths.sh"
+
 REVIEWER=""
 REPO_FLAG=()
 while [[ $# -gt 0 ]]; do
@@ -37,11 +40,11 @@ fi
 
 # Read the review matrix from .bsg-autopilot.yml.
 # The reviewer must be listed, and we extract which agents it reviews.
-if [[ ! -f .bsg-autopilot.yml ]]; then
+if [[ ! -f "$BSG_AUTOPILOT_FILE" ]]; then
   exit 0
 fi
 
-enabled=$(grep -E '^\s*enabled\s*:' .bsg-autopilot.yml 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
+enabled=$(grep -E '^\s*enabled\s*:' "$BSG_AUTOPILOT_FILE" 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
 if [[ "$enabled" != "true" ]]; then
   exit 0
 fi
@@ -94,7 +97,7 @@ while IFS= read -r line; do
       fi
     fi
   fi
-done < .bsg-autopilot.yml
+done < "$BSG_AUTOPILOT_FILE"
 
 if [[ ${#reviews_list[@]} -eq 0 ]]; then
   exit 0

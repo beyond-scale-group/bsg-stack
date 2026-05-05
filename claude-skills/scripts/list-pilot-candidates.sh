@@ -34,6 +34,9 @@
 
 set -euo pipefail
 
+# shellcheck source=_bsg-paths.sh disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/_bsg-paths.sh"
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Source bus primitives (best-effort — missing file is non-fatal).
 # shellcheck source=claude-skills/scripts/github-bus.sh
@@ -57,14 +60,14 @@ done
 # Without the file, with `enabled: false`, or when this agent is not
 # listed under `agents:`, we emit no candidates — the agent's tick
 # becomes audit-only. See #286.
-if [[ ! -f .bsg-autopilot.yml ]]; then
+if [[ ! -f "$BSG_AUTOPILOT_FILE" ]]; then
   exit 0
 fi
-enabled=$(grep -E '^\s*enabled\s*:' .bsg-autopilot.yml 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
+enabled=$(grep -E '^\s*enabled\s*:' "$BSG_AUTOPILOT_FILE" 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
 if [[ "$enabled" != "true" ]]; then
   exit 0
 fi
-if ! grep -qE "^\s*-\s+$AGENT\s*$" .bsg-autopilot.yml 2>/dev/null; then
+if ! grep -qE "^\s*-\s+$AGENT\s*$" "$BSG_AUTOPILOT_FILE" 2>/dev/null; then
   exit 0
 fi
 
