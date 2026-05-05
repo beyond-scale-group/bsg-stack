@@ -135,6 +135,122 @@ gws gmail users stop  --params '{"userId":"me"}'
 Push notifications go to Pub/Sub. For local polling use `gws gmail +watch`
 which streams NDJSON of new messages as they arrive.
 
+## sendAs aliases & signatures
+
+Gmail's "Send mail as" feature lets a single account send from multiple
+verified addresses (custom domains, work aliases, etc.). Each alias has
+its own `displayName`, `replyToAddress`, and `signature` — independent
+of the primary login. The Gmail API exposes them under
+`gmail.users.settings.sendAs.*`.
+
+### List every alias on the account
+
+```bash
+gws gmail users settings sendAs list --params '{"userId":"me"}' \
+  | jq '.sendAs[] | {sendAsEmail, isPrimary, isDefault, displayName, verificationStatus, signature_len: (.signature // "" | length)}'
+```
+
+Returned fields per entry:
+
+| Field | Meaning |
+|---|---|
+| `sendAsEmail`        | The "From:" address |
+| `isPrimary`          | Read-only — true for the login address |
+| `isDefault`          | True for the default "From:" (vacation auto-replies use this) |
+| `displayName`        | Friendly name in the From header |
+| `replyToAddress`     | Optional Reply-To (e.g. shared inbox) |
+| `treatAsAlias`       | True for true aliases of the primary address |
+| `verificationStatus` | `accepted` / `pending` for custom froms |
+| `signature`          | HTML signature (Gmail sanitizes on save) |
+
+### Get a single alias
+
+```bash
+gws gmail users settings sendAs get \
+  --params '{"userId":"me","sendAsEmail":"me@example.com"}'
+```
+
+### Patch an alias (update signature, displayName, replyTo)
+
+```bash
+gws gmail users settings sendAs patch \
+  --params '{"userId":"me","sendAsEmail":"me@example.com"}' \
+  --json '{"signature":"<p><strong>Jane Doe</strong></p>","displayName":"Jane Doe","replyToAddress":"jane@example.com"}'
+```
+
+`patch` is partial — fields you omit are left unchanged. Gmail
+sanitizes the HTML server-side before storing it (script tags, dangerous
+attributes get stripped).
+
+### Audit the account in one call → `signature-audit.sh`
+
+For day-to-day use, prefer the bundled audit script over hand-rolling
+the jq:
+
+```bash
+bash claude-skills/skills/google-workspace/scripts/signature-audit.sh
+bash claude-skills/skills/google-workspace/scripts/signature-audit.sh --format json
+bash claude-skills/skills/google-workspace/scripts/signature-audit.sh --alias me@x.com
+```
+
+It enumerates every alias, computes per-alias warnings
+(`signature_missing`, `plain_text_only`, `empty_after_strip`,
+`primary_missing_display_name`), and exits non-zero when any signature
+is missing or plain-text-only.
+
+### Pull a signature out of an existing email → `signature-extract.sh`
+
+```bash
+bash claude-skills/skills/google-workspace/scripts/signature-extract.sh --alias me@x.com
+bash claude-skills/skills/google-workspace/scripts/signature-extract.sh --message-id 18b... --preview
+```
+
+Looks at the 5 most recent sent messages from the alias, decodes the
+text/html part, and isolates the `<div class="gmail_signature">…</div>`
+block. Falls back to RFC-3676 `-- ` separator when the wrapper is
+absent. Use `--raw` to dump the whole HTML body for manual inspection.
+
+### Write a signature → `signature-set.sh`
+
+```bash
+# From a recent sent email:
+bash claude-skills/skills/google-workspace/scripts/signature-set.sh \
+  --alias me@x.com --from-latest-sent
+
+# Inline:
+bash claude-skills/skills/google-workspace/scripts/signature-set.sh \
+  --alias me@x.com --html '<p><strong>Jane</strong></p>'
+
+# From a file:
+bash claude-skills/skills/google-workspace/scripts/signature-set.sh \
+  --alias me@x.com --html-file ./signature.html
+
+# Pipe extract → set (copy from one alias to another):
+bash signature-extract.sh --alias me@old.com \
+  | bash signature-set.sh --alias me@new.com --html-stdin
+```
+
+Always shows a text-only preview and asks for confirmation. `--dry-run`
+prints the JSON body without calling Google. `--yes` skips the prompt
+for scripted use.
+
+### Why "send one email from Gmail web first" is sometimes required
+
+`signature-extract.sh` relies on the `<div class="gmail_signature">`
+wrapper that the **Gmail web composer / mobile app** auto-injects.
+Messages sent via the API (including `gws gmail +send`) don't carry
+that wrapper unless the caller already appended it. If the user has
+never composed an email from a given alias in Gmail web, extract has
+nothing to read and falls back to the `-- ` heuristic — which can be
+brittle. The reliable workflow is:
+
+1. User composes & sends one email from the alias in Gmail web.
+2. `signature-audit.sh` confirms the signature is now visible on the
+   alias.
+3. If the alias is missing the wrapper but Gmail web shows it correctly,
+   the signature is registered on the alias's settings already (no fix
+   needed) — re-run audit to confirm.
+
 ## Compose Gmail-ready HTML from markdown (`+email-from-md`)
 
 Use `scripts/email-from-md.sh` to convert a markdown file into HTML
