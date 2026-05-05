@@ -55,6 +55,9 @@
 
 set -euo pipefail
 
+# shellcheck source=_bsg-paths.sh disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/_bsg-paths.sh"
+
 REPO_FLAG=()
 DRY_RUN=false
 while [[ $# -gt 0 ]]; do
@@ -71,8 +74,8 @@ done
 
 # Cap per tick — read from .bsg-autopilot.yml.
 MAX_ISSUES=10
-if [[ -f .bsg-autopilot.yml ]]; then
-  configured=$(grep -E '^\s*max_issues_per_tick\s*:' .bsg-autopilot.yml 2>/dev/null \
+if [[ -f "$BSG_AUTOPILOT_FILE" ]]; then
+  configured=$(grep -E '^\s*max_issues_per_tick\s*:' "$BSG_AUTOPILOT_FILE" 2>/dev/null \
     | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
   if [[ -n "$configured" ]]; then
     MAX_ISSUES="$configured"

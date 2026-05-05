@@ -26,6 +26,9 @@
 
 set -euo pipefail
 
+# shellcheck source=_bsg-paths.sh disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/_bsg-paths.sh"
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=claude-skills/scripts/github-bus.sh
 source "$SCRIPT_DIR/github-bus.sh"
@@ -38,7 +41,7 @@ fi
 PR_NUMBER="$1"
 AGENT="$2"
 
-AUTOPILOT_FILE=".bsg-autopilot.yml"
+AUTOPILOT_FILE=""$BSG_AUTOPILOT_FILE""
 AUTO_MERGE=false
 
 if [[ -f "$AUTOPILOT_FILE" ]]; then

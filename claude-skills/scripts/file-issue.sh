@@ -65,6 +65,9 @@
 
 set -euo pipefail
 
+# shellcheck source=_bsg-paths.sh disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/_bsg-paths.sh"
+
 REVIEW_LABEL="needs-human-review"
 REVIEW_COLOR="fbca04"
 REVIEW_DESC="Awaiting a human decision (triage, merge, or scope)"
@@ -147,8 +150,8 @@ fi
 # EXCEPTION: when --reason is passed, the issue is explicitly
 # human-gated and gets the label regardless of autopilot mode.
 APPLY_REVIEW_LABEL=true
-if [[ -f .bsg-autopilot.yml ]]; then
-  enabled=$(grep -E '^\s*enabled\s*:' .bsg-autopilot.yml 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
+if [[ -f "$BSG_AUTOPILOT_FILE" ]]; then
+  enabled=$(grep -E '^\s*enabled\s*:' "$BSG_AUTOPILOT_FILE" 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
   if [[ "$enabled" == "true" ]]; then
     APPLY_REVIEW_LABEL=false
   fi
@@ -159,8 +162,8 @@ fi
 
 # Resolve the human assignee for --reason flows. Explicit --assign-to
 # wins; otherwise read default_human_reviewer from .bsg-autopilot.yml.
-if [[ -n "$HUMAN_REASON" && -z "$ASSIGN_TO" && -f .bsg-autopilot.yml ]]; then
-  ASSIGN_TO=$(grep -E '^\s*default_human_reviewer\s*:' .bsg-autopilot.yml 2>/dev/null \
+if [[ -n "$HUMAN_REASON" && -z "$ASSIGN_TO" && -f "$BSG_AUTOPILOT_FILE" ]]; then
+  ASSIGN_TO=$(grep -E '^\s*default_human_reviewer\s*:' "$BSG_AUTOPILOT_FILE" 2>/dev/null \
     | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]"' | tr -d "'")
 fi
 
