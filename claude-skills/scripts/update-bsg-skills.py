@@ -73,6 +73,13 @@ LOGS_DIR = CLAUDE_DIR / "logs"
 LOG_FILE = LOGS_DIR / "update-bsg-skills.log"
 MANIFEST_FILE = SCRIPTS_DIR / ".bsg-skills-manifest.json"
 SETTINGS_FILE = CLAUDE_DIR / "settings.json"
+COOLDOWN_FILE = SCRIPTS_DIR / ".bsg-skills-last-run"
+COOLDOWN_SECONDS = 3600
+
+# Early exit before any network I/O if we ran recently.
+if COOLDOWN_FILE.exists():
+    if time.time() - COOLDOWN_FILE.stat().st_mtime < COOLDOWN_SECONDS:
+        sys.exit(0)
 
 API_BASE = f"https://api.github.com/repos/{REPO}/contents"
 API_HEADERS = {
@@ -479,6 +486,7 @@ def main() -> int:
     manifest = load_manifest()
     manifest = reconcile(manifest)
     save_manifest(manifest)
+    COOLDOWN_FILE.touch()
     log("done.")
     return 0
 
