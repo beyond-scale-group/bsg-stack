@@ -55,9 +55,18 @@ bash claude-skills/skills/bsg-stack/scripts/doctor.sh
 # One-line status
 bash claude-skills/skills/bsg-stack/scripts/doctor.sh --status
 
-# Bootstrap a fresh repo (interactive, opens PRs)
-@bsg-stack init
+# Bootstrap a fresh repo (writes files; you commit + PR)
+bash claude-skills/skills/bsg-stack/scripts/init.sh
+bash claude-skills/skills/bsg-stack/scripts/init.sh --dry-run     # preview
+bash claude-skills/skills/bsg-stack/scripts/init.sh --skip-labels # files only
+
+# Refresh stale docs (default 90-day staleness threshold)
+bash claude-skills/skills/bsg-stack/scripts/update.sh
+bash claude-skills/skills/bsg-stack/scripts/update.sh --max-age-days 30
 ```
+
+The chat-driven equivalents — `@bsg-stack doctor`, `@bsg-stack init`,
+etc. — route to the same scripts and add the PR-opening step on top.
 
 ## What `doctor` checks
 
