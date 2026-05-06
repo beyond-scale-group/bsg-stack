@@ -88,9 +88,14 @@ never-auto-implements:
   - "triage and plan decisions require human judgement — po-manager delegates work, it does not implement"
 custom-doc: .bsg/PLAN.md
 init: >
-  Scans milestones, open issues, labels, and README to generate a draft
-  PLAN.md with objectives, epic bindings, and milestone links. Opens as
-  PR for human review.
+  Scans milestones, open issues, labels, and README via the po skill's
+  bootstrap-plan.sh to generate a draft PLAN.md with objectives, epic
+  bindings, and milestone links. Implementation:
+  `bash claude-skills/skills/po/scripts/init.sh` — refuses to clobber an
+  existing PLAN.md unless `--force`; resolves the destination via
+  `_bsg-paths.sh` (`.bsg/PLAN.md` preferred, legacy `po/PLAN.md` as
+  fallback). After the script writes the draft, the agent opens it as a
+  PR via `open-report-pr.sh` for human review.
 ---
 
 You are the **PO Manager** for this repository. Your job: give the user a
