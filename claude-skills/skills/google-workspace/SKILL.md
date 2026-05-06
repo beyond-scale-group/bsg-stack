@@ -69,6 +69,152 @@ or service failing). Auto-repairs missing scopes by re-running
 `auth-login.sh` and re-checking — only escalates to manual if the scope
 is missing from the consent-screen registration.
 
+## Gmail audit → aliases & signatures
+
+The skill ships three companion scripts that close the loop on the most
+common per-account hygiene gap: aliases that don't have an HTML
+signature, or where the signature lives only inside Gmail's web composer
+and was never copied into the sendAs settings.
+
+| Script | Purpose | Mutates? |
+|---|---|---|
+| `scripts/signature-audit.sh`   | List every sendAs alias + signature status | no |
+| `scripts/signature-extract.sh` | Pull the HTML signature out of a recent sent email | no |
+| `scripts/signature-set.sh`     | Patch the signature on a sendAs alias | **yes** |
+| `scripts/email-md-send.sh`     | Markdown → styled HTML body + alias signature → draft/send | yes |
+
+Run the audit first (read-only, never modifies anything):
+
+```bash
+bash scripts/signature-audit.sh                 # table summary
+bash scripts/signature-audit.sh --format json   # machine-readable
+bash scripts/signature-audit.sh --alias me@x.com  # narrow to one alias
+```
+
+The audit reports, per alias: `isPrimary`, `isDefault`, `displayName`,
+`replyToAddress`, `verificationStatus`, signature length, whether it's
+HTML or plain text, and a list of warnings (`signature_missing`,
+`plain_text_only`, `empty_after_strip`,
+`primary_missing_display_name`). Exits `1` when any alias is missing a
+signature or carries plain text only — wire into a hook to surface
+drift over time.
+
+When the audit flags a missing or weak signature on an alias, two paths
+to fix it:
+
+```bash
+# Path 1 — preview & write inline:
+bash scripts/signature-set.sh --alias me@x.com \
+  --html '<p><strong>Jane Doe</strong><br>CEO · <a href="https://x.com">x.com</a></p>'
+
+# Path 2 — pull the HTML from a recent sent email and apply it:
+bash scripts/signature-set.sh --alias me@x.com --from-latest-sent
+
+# Cross-alias: copy a beautiful signature from one alias to another:
+bash scripts/signature-extract.sh --alias me@old.com \
+  | bash scripts/signature-set.sh --alias me@new.com --html-stdin
+```
+
+`signature-set.sh` always shows a text-only preview and asks for
+confirmation before patching. Pass `--dry-run` to render the JSON body
+without calling Google, or `--yes` to skip the prompt in scripted
+flows.
+
+> **Why the user must send at least one email from each alias first.**
+> `signature-extract.sh` reads the gmail web composer's
+> `<div class="gmail_signature">` wrapper out of recent sent
+> messages — only present on emails sent from the Gmail web UI (or
+> mobile app). API-sent messages (including those from `gws gmail
+> +send`) don't carry that wrapper. If extract fails, ask the user to
+> compose & send one email from each alias in Gmail web first, then
+> re-run.
+
+## Markdown email → drafted/sent → with alias signature
+
+When the user wants to "turn this markdown into a real email", route to
+`scripts/email-md-send.sh`. It composes `email-from-md.sh` (markdown
+→ Gmail-ready HTML with table/blockquote inline CSS + alias signature
+auto-appended) with `gws gmail +send`, validating the alias along the
+way:
+
+```bash
+# Default: render to draft so the user can review in Gmail
+bash scripts/email-md-send.sh \
+  --markdown ./memo.md \
+  --to alice@example.com \
+  --subject 'Q2 recap' \
+  --from me@bsg-holding.fr     # picks up the alias's HTML signature
+
+# Actually deliver:
+bash scripts/email-md-send.sh ... --send
+
+# Multiple recipients + cc/bcc + reply-to:
+bash scripts/email-md-send.sh ... \
+  --to 'alice@x.com,bob@x.com' --cc carol@x.com \
+  --bcc archives@x.com --reply-to support@x.com
+```
+
+The wrapper:
+1. Validates `--from` is a configured sendAs alias (warns if not)
+2. Warns when the alias has no signature (offers `signature-set.sh` hint)
+3. Renders markdown → styled HTML via `email-from-md.sh`
+4. Defaults to **`--draft`** for safety; only delivers when `--send` is
+   explicitly passed (and asks for confirmation unless `--yes`)
+5. Falls back to the raw API path automatically when `--reply-to` is set
+   (the `+send` helper doesn't expose that header)
+
+### Markdown elements that survive the pipeline
+
+Pandoc renders the markdown source; `email-from-md.sh` then merges
+inline CSS onto the tags Gmail strips styles from. The following
+elements are explicitly tested in `tests/test_email_from_md.sh`:
+
+| Element                                | HTML tag(s)        | Inline CSS? |
+|----------------------------------------|--------------------|-------------|
+| Headings                               | `<h1>`–`<h4>`      | yes (font sizes, margins) |
+| Bold / italic / strikethrough          | `<strong>` / `<em>` / `<del>` | no (Gmail-default OK) |
+| Inline code / fenced code blocks       | `<code>` / `<pre>` | yes (monospace + bg) |
+| Links                                  | `<a href>`         | no (Gmail-default OK) |
+| Horizontal rule                        | `<hr>`             | yes (subtle border) |
+| Unordered / ordered / nested lists     | `<ul>` / `<ol>` / `<li>` | yes (margins, indent) |
+| Blockquotes                            | `<blockquote>`     | yes (left border, bg) |
+| Tables                                 | `<table>` / `<th>` / `<td>` | yes (borders, padding) |
+| Images                                 | `<img src>`        | yes (max-width:100%) |
+| Definition lists                       | `<dl>` / `<dt>` / `<dd>` | yes (bold term, indent body) |
+| Footnotes                              | `<sup>` + footer `<ol>` | inherits `<ol>` |
+| Task lists `- [x]` / `- [ ]`           | Unicode `☑` / `☐` | yes (renders in every email client) |
+| Fenced code blocks (syntax-highlighted) | `<pre>` + colored `<span>` | yes (GitHub-flavored colors per token) |
+| Raw HTML inside markdown               | tag passes through | yes (any styled tag is recognized by name) |
+
+The pipeline goes the extra distance for three Gmail-rendering pitfalls:
+
+- **Syntax color in code blocks.** Pandoc's skylighting emits
+  `<span class="kw">` (keyword), `<span class="st">` (string), `co`
+  (comment), `fu` (function), `bu` (builtin), and ~25 more two-letter
+  classes. Gmail strips the matching `<style>` block, so those classes
+  render colorless. The script maps each class to a GitHub-flavored
+  inline `style="color:#…"` so code blocks land in the inbox with full
+  syntax color across every email client.
+
+- **Task list checkboxes.** The raw `<input type="checkbox">` element
+  Gmail renders inconsistently (or strips entirely) is rewritten to
+  Unicode `☑` / `☐` glyphs in a monospace span — universal rendering,
+  no JS, no client-specific quirks.
+
+- **Raw HTML embedded in markdown.** When the author drops a `<table>`
+  or `<blockquote>` directly into the markdown source, the same
+  inline-CSS pass picks it up by tag name and styles it identically to
+  pandoc-rendered output. No special handling required.
+
+What **does not** survive cleanly:
+
+- **`<figcaption>` wrappers** around images — stripped server-side
+  before send; only the `<img>` is retained (Gmail otherwise renders
+  the caption as orphan text underneath every image).
+- **Non-standard HTML elements** the styling rules don't recognize —
+  pandoc passes them through but they receive no inline CSS, so any
+  `<style>` they rely on will be dropped by Gmail.
+
 ## Preflight (run first, every session)
 
 Before issuing any `gws` command, run these three checks once per session.
@@ -167,11 +313,14 @@ mention any drift to the user.
 ## Decision tree
 
 ```
-First-time setup?  → bash scripts/onboard.sh    §First-time setup
-Health check?      → bash scripts/doctor.sh     §Daily health check
-Common task?       → use a +helper (prefer)     §Helpers
-Raw API call?      → gws <svc> <res> <method>   §Raw API
-Cross-service?     → gws workflow +<name>       §Workflow
+First-time setup?  → bash scripts/onboard.sh         §First-time setup
+Health check?      → bash scripts/doctor.sh          §Daily health check
+Audit aliases?     → bash scripts/signature-audit.sh §Gmail audit
+Set a signature?   → bash scripts/signature-set.sh   §Gmail audit
+Markdown → email?  → bash scripts/email-md-send.sh   §Markdown email
+Common task?       → use a +helper (prefer)          §Helpers
+Raw API call?      → gws <svc> <res> <method>        §Raw API
+Cross-service?     → gws workflow +<name>            §Workflow
 Unknown schema?    → gws schema <svc.res.method> references/raw-api.md
 ```
 
