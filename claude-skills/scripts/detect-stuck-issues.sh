@@ -19,7 +19,7 @@
 #     The agent hasn't been able to make progress despite the nudge —
 #     spec is likely ambiguous or the tech choice isn't tranched.
 #     Assign the issue to `default_human_reviewer` from
-#     .bsg-autopilot.yml, post a comment with `@<human>` mention, and
+#     $BSG_AUTOPILOT_FILE, post a comment with `@<human>` mention, and
 #     apply `needs:spec-clarification` + `needs-human-review`.
 #
 # Idempotent: each tier applies its label and won't re-fire on the
@@ -57,7 +57,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Read default_human_reviewer from .bsg-autopilot.yml. If absent, tier 2
+# Read default_human_reviewer from $BSG_AUTOPILOT_FILE. If absent, tier 2
 # escalation falls back to the issue creator (next best human).
 HUMAN_REVIEWER=""
 if [[ -f "$BSG_AUTOPILOT_FILE" ]]; then

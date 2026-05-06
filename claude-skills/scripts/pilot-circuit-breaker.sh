@@ -3,7 +3,7 @@
 #
 # Counts PRs opened today by the pilot agents (title matches
 # `fix(pilot):`) and compares against the max_prs_per_day budget
-# from .bsg-autopilot.yml (default: 3). Exits 0 if under budget,
+# from $BSG_AUTOPILOT_FILE (default: 3). Exits 0 if under budget,
 # exits 1 if at or over budget.
 #
 # max_prs_per_day can be a scalar (global cap) or a map with per-bus

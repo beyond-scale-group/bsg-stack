@@ -5,7 +5,7 @@
 # Default behavior (safe): apply `needs-human-review` and stop. A human
 # decides when to merge via `mark-reviewed.sh`.
 #
-# Auto-merge behavior: if `.bsg-autopilot.yml` exists with
+# Auto-merge behavior: if `$BSG_AUTOPILOT_FILE` exists with
 # `enabled: true`, lists the calling agent under `agents:`, AND has
 # `auto_merge: true`, this script squash-merges the PR, deletes the
 # branch, and stamps `human-reviewed` instead. Use this only on

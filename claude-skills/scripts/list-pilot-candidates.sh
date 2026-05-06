@@ -16,7 +16,7 @@
 # routing primitive from docs/label-taxonomy.md.
 #
 # Auto-implementation is opt-in at the **repo level** via
-# .bsg-autopilot.yml. Without the file, with `enabled: false`, or when
+# $BSG_AUTOPILOT_FILE. Without the file, with `enabled: false`, or when
 # the calling agent is not listed under `agents:`, no candidates are
 # emitted (the agent's tick becomes audit-only). The previous per-issue
 # gates `safe-to-automate` and `needs-human-review` were dropped in
@@ -56,7 +56,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Auto-implementation requires a repo-level opt-in via .bsg-autopilot.yml.
+# Auto-implementation requires a repo-level opt-in via $BSG_AUTOPILOT_FILE.
 # Without the file, with `enabled: false`, or when this agent is not
 # listed under `agents:`, we emit no candidates — the agent's tick
 # becomes audit-only. See #286.

@@ -6,7 +6,7 @@
 #   - Were NOT opened by the reviewing agent itself
 #   - Carry `needs-human-review` label
 #   - Do NOT already carry `peer-reviewed:<reviewer>` label
-#   - Match the review matrix in .bsg-autopilot.yml
+#   - Match the review matrix in $BSG_AUTOPILOT_FILE
 #
 # Usage:
 #   bash claude-skills/scripts/peer-review-candidates.sh --reviewer tech [--repo OWNER/NAME]
@@ -38,7 +38,7 @@ if [[ -z "$REVIEWER" ]]; then
   exit 2
 fi
 
-# Read the review matrix from .bsg-autopilot.yml.
+# Read the review matrix from $BSG_AUTOPILOT_FILE.
 # The reviewer must be listed, and we extract which agents it reviews.
 if [[ ! -f "$BSG_AUTOPILOT_FILE" ]]; then
   exit 0

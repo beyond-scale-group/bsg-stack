@@ -4,12 +4,12 @@
 # Every BSG agent that files a GitHub issue should use this helper instead
 # of calling `gh issue create` directly. The wrapper:
 #
-#   1. In **non-autopilot** mode (no `.bsg-autopilot.yml` or
+#   1. In **non-autopilot** mode (no `$BSG_AUTOPILOT_FILE` or
 #      `enabled: false`): ensures the `needs-human-review` label exists
 #      on the target repo and adds it to the `--label` list automatically.
 #      Humans own the transition out of "needs review" by merging,
 #      closing, or relabeling the issue.
-#   2. In **autopilot** mode (`.bsg-autopilot.yml` with `enabled: true`):
+#   2. In **autopilot** mode (`$BSG_AUTOPILOT_FILE` with `enabled: true`):
 #      `needs-human-review` is no longer auto-applied — the repo-level
 #      opt-in is the gate, and `filed-by:<agent>` (via --filed-by) is the
 #      traceability marker. See E10 (#286).
@@ -50,7 +50,7 @@
 #   - Applies `needs:<reason>` so the reason for human attention is
 #     visible in label filters
 #   - Applies `needs-human-review` even in autopilot mode
-#   - Reads `default_human_reviewer` from `.bsg-autopilot.yml` and
+#   - Reads `default_human_reviewer` from `$BSG_AUTOPILOT_FILE` and
 #     assigns the issue to that user (or to the value of `--assign-to`
 #     if explicitly passed)
 #   - Prepends `@<human>` to the body so the assignee gets an
@@ -161,7 +161,7 @@ if [[ -n "$HUMAN_REASON" ]]; then
 fi
 
 # Resolve the human assignee for --reason flows. Explicit --assign-to
-# wins; otherwise read default_human_reviewer from .bsg-autopilot.yml.
+# wins; otherwise read default_human_reviewer from $BSG_AUTOPILOT_FILE.
 if [[ -n "$HUMAN_REASON" && -z "$ASSIGN_TO" && -f "$BSG_AUTOPILOT_FILE" ]]; then
   ASSIGN_TO=$(grep -E '^\s*default_human_reviewer\s*:' "$BSG_AUTOPILOT_FILE" 2>/dev/null \
     | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]"' | tr -d "'")
