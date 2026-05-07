@@ -349,6 +349,53 @@ Confirm with the user **before**:
 Reads are always safe: `clasp pull`, `clasp logs`, `clasp open`,
 `clasp deployments`, `clasp status`.
 
+## Runtime and quotas
+
+**V8 runtime only** — Rhino was removed in January 2026. All scripts run
+on V8 and support modern JavaScript (arrow functions, `const`/`let`,
+destructuring, template literals, `async`/`await` for `UrlFetchApp`).
+
+Key execution limits:
+
+| Limit | Value |
+|---|---|
+| Regular function execution | 6 minutes |
+| Custom function in cell (`=MYFUNC()`) | 30 seconds |
+| Trigger execution | 6 minutes (simple), 10 minutes (installable) |
+| `UrlFetchApp.fetch()` per execution | 50 calls |
+| `UrlFetchApp` response size | 50 MB |
+| Email quota (consumer `@gmail.com`) | 100/day |
+| Email quota (Workspace) | 1,500/day |
+| Properties Service value size | 9 KB per value |
+| Properties Service total | 500 KB per store |
+| Script project size | 50 MB |
+| Simultaneous executions | 30 per user |
+
+When a function hits the 6-minute limit, it throws a
+`ScriptError: Exceeded maximum execution time`. For long-running work,
+split into batches and chain via time-driven triggers.
+
+**Batch operations are mandatory for performance.** Cell-by-cell
+`getValue()`/`setValue()` is ~70x slower than bulk
+`getValues()`/`setValues()`. Always read a range into a 2D array,
+process in-memory, and write back in one call. Call
+`SpreadsheetApp.flush()` before returning from functions that modify
+cells.
+
+## Companion skill: writing patterns
+
+For **writing** Apps Script code (custom menus, triggers, dialogs, PDF
+export, data validation, UrlFetchApp patterns), install the community
+skill:
+
+```bash
+npx skills add jezweb/claude-skills@google-apps-script -g -y
+```
+
+That skill covers the code-writing side (recipes, quotas, trigger types,
+batch patterns). This BSG skill covers the **CLI management** side
+(clasp push/pull/run/deploy). They're complementary.
+
 ## Common pitfalls
 
 - **`clasp run` "Script function not found"** — the function must be
