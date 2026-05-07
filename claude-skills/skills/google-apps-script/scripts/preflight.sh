@@ -10,6 +10,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ONBOARD="$SCRIPT_DIR/onboard.sh"
 
+# Resolve credentials file: CLASP_AUTH > local .clasprc.json > global
+if [ -n "${CLASP_AUTH:-}" ]; then
+  CREDS_FILE="$CLASP_AUTH"
+elif [ -f .clasprc.json ]; then
+  CREDS_FILE=".clasprc.json"
+else
+  CREDS_FILE="$HOME/.clasprc.json"
+fi
+
 # --- 1. Binary ---
 if ! command -v clasp >/dev/null 2>&1; then
   echo "⚠ clasp not found — running onboard to install..."
@@ -23,16 +32,16 @@ fi
 echo "✓ clasp $(clasp --version 2>/dev/null || echo '(version unknown)')"
 
 # --- 2. Auth ---
-if [ ! -f ~/.clasprc.json ]; then
-  echo "⚠ Not authenticated — running onboard login..."
+if [ ! -f "$CREDS_FILE" ]; then
+  echo "⚠ Not authenticated (checked $CREDS_FILE) — running onboard login..."
   bash "$ONBOARD" --step login || true
-  if [ ! -f ~/.clasprc.json ]; then
-    echo "✗ Authentication failed — ~/.clasprc.json not created"
+  if [ ! -f "$CREDS_FILE" ]; then
+    echo "✗ Authentication failed — $CREDS_FILE not created"
     exit 2
   fi
 fi
 
-echo "✓ Authenticated (~/.clasprc.json present)"
+echo "✓ Authenticated ($CREDS_FILE)"
 
 # --- 3. Project context (informational — not fatal) ---
 if [ -f .clasp.json ]; then

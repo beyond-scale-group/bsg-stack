@@ -37,11 +37,19 @@ else
   check "clasp binary" err "not found — npm install -g @google/clasp"
 fi
 
-# 2. Auth
-if [ -f ~/.clasprc.json ]; then
-  check "credentials" ok "~/.clasprc.json exists"
+# 2. Auth — resolve credentials file: CLASP_AUTH > local > global
+if [ -n "${CLASP_AUTH:-}" ]; then
+  creds_file="$CLASP_AUTH"
+elif [ -f .clasprc.json ]; then
+  creds_file=".clasprc.json"
 else
-  check "credentials" err "missing — run: clasp login"
+  creds_file="$HOME/.clasprc.json"
+fi
+
+if [ -f "$creds_file" ]; then
+  check "credentials" ok "$creds_file exists"
+else
+  check "credentials" err "missing ($creds_file) — run: clasp login"
 fi
 
 # 3. Project binding (optional — only relevant inside a project dir)

@@ -63,6 +63,66 @@ command -v clasp >/dev/null       # binary present?
 [ -f .clasp.json ]                # inside a project?
 ```
 
+## Multiple accounts
+
+By default clasp stores credentials globally in `~/.clasprc.json` — one
+account at a time. To work with a different Google account (e.g.
+`gdumas@expert-flow.ai` instead of your default):
+
+### Option 1: `CLASP_AUTH` env var (recommended for multi-account)
+
+Point `CLASP_AUTH` to a separate credentials file per account:
+
+```bash
+# Login with the other account and store creds separately
+CLASP_AUTH=~/.clasprc-expert-flow.json clasp login
+
+# All subsequent commands use that account
+export CLASP_AUTH=~/.clasprc-expert-flow.json
+clasp clone <scriptId>
+clasp push
+clasp run myFunction
+```
+
+Add to `~/.zshrc.user` to persist:
+
+```bash
+export CLASP_AUTH_EXPERT_FLOW="$HOME/.clasprc-expert-flow.json"
+# Then use: CLASP_AUTH=$CLASP_AUTH_EXPERT_FLOW clasp <command>
+```
+
+### Option 2: switch the global account
+
+```bash
+clasp logout
+clasp login    # authenticate with the other account
+```
+
+This overwrites `~/.clasprc.json` — you lose the previous session.
+
+### Option 3: per-project local auth
+
+```bash
+cd my-project/
+clasp login --no-localhost   # stores .clasprc.json in the project dir
+```
+
+Clasp checks the project directory first, then `$CLASP_AUTH`, then
+`~/.clasprc.json`.
+
+### Which account am I using?
+
+```bash
+# Check the current credentials file
+cat "${CLASP_AUTH:-$HOME/.clasprc.json}" | jq '.token.access_token' -r \
+  | xargs -I{} curl -s "https://www.googleapis.com/oauth2/v1/tokeninfo?access_token={}" \
+  | jq '.email'
+```
+
+The preflight script (`scripts/preflight.sh`) respects `CLASP_AUTH` — set
+it before running and the auto-onboard will store credentials in the
+right file.
+
 ## Decision tree
 
 ```

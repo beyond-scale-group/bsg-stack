@@ -236,6 +236,35 @@ mkdir -p "$BARE_HOME"
 assert_exit "preflight exits 2 when creds missing and login fails" 2 \
   env PATH="$MERGE_PATH" HOME="$BARE_HOME" bash "$PREFLIGHT"
 
+# ---------- T21: CLASP_AUTH env var respected by preflight ----------
+echo "--- CLASP_AUTH multi-account ---"
+ALT_CREDS="$TMPDIR_TEST/alt-account/.clasprc-alt.json"
+mkdir -p "$(dirname "$ALT_CREDS")"
+echo '{"token":"alt-fake"}' > "$ALT_CREDS"
+
+PF_ALT_OUT=$(CLASP_AUTH="$ALT_CREDS" PATH="$MERGE_PATH" HOME="$TMPDIR_TEST/no-global-creds" bash "$PREFLIGHT" 2>&1) || true
+PF_ALT_EXIT=0
+CLASP_AUTH="$ALT_CREDS" PATH="$MERGE_PATH" HOME="$TMPDIR_TEST/no-global-creds" bash "$PREFLIGHT" &>/dev/null || PF_ALT_EXIT=$?
+
+if [[ "$PF_ALT_EXIT" -eq 0 ]]; then
+  echo "PASS: preflight exits 0 with CLASP_AUTH pointing to alt creds"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL: preflight exits 0 with CLASP_AUTH — got exit $PF_ALT_EXIT"
+  FAIL=$((FAIL + 1))
+fi
+assert_contains "preflight reports alt creds file" "clasprc-alt.json" "$PF_ALT_OUT"
+
+# ---------- T22: CLASP_AUTH respected by doctor ----------
+echo "--- CLASP_AUTH in doctor ---"
+DOC_ALT_OUT=$(CLASP_AUTH="$ALT_CREDS" PATH="$MERGE_PATH" HOME="$TMPDIR_TEST/no-global-creds" bash "$DOCTOR" 2>&1) || true
+assert_contains "doctor reports alt creds file" "clasprc-alt.json" "$DOC_ALT_OUT"
+
+# ---------- T23: CLASP_AUTH missing file triggers remediation ----------
+MISSING_ALT="$TMPDIR_TEST/does-not-exist.json"
+assert_exit "preflight exits 2 when CLASP_AUTH points to missing file" 2 \
+  env CLASP_AUTH="$MISSING_ALT" PATH="$MERGE_PATH" HOME="$TMPDIR_TEST/no-global-creds" bash "$PREFLIGHT"
+
 # ---------- summary ----------
 echo ""
 echo "=== $((PASS + FAIL)) tests: $PASS passed, $FAIL failed ==="
