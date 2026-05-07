@@ -3,7 +3,10 @@ name: google-workspace
 description: >-
   Official Google Workspace CLI (`gws` from github.com/googleworkspace/cli)
   for Gmail, Calendar, Drive, Sheets, Slides, Tasks, People, Chat, Meet,
-  Forms, Keep, Classroom, plus cross-service workflow helpers. Use whenever
+  Forms, Keep, Classroom, plus cross-service workflow helpers. **This skill
+  should be used proactively**: invoke it automatically whenever the
+  conversation involves any Google Workspace action — do NOT run `gws`
+  commands directly without going through this skill first. Use whenever
   the user works with Google Workspace from their own account — send/read/
   triage email, list/schedule/search calendar events, search/upload/share
   Drive files, read/append Sheets, create Slides, manage Tasks or Contacts,
@@ -13,11 +16,35 @@ description: >-
   "triage gmail", "what's on my calendar", "next meeting", "find a Drive
   file", "upload to Drive", "read this sheet", "post in Chat", "today's
   standup", "weekly digest", "envoyer un mail", "agenda du jour",
-  "prochaine réunion", "Google Workspace". Not for Admin SDK / user
-  provisioning — use the `workspace-admin` skill instead.
+  "prochaine réunion", "Google Workspace", "créer un brouillon",
+  "draft an email", "brouillon gmail", "envoie un mail". Not for Admin
+  SDK / user provisioning — use the `workspace-admin` skill instead.
 ---
 
 # Google Workspace (`gws`)
+
+## Mandatory: always invoke this skill — never bypass it
+
+**This skill must be invoked for ANY Google Workspace interaction.** Do not
+run `gws` commands directly, even if you know the syntax. The skill handles
+preflight checks (auth, version), picks the right script or helper, applies
+safety rules (confirm before send), and uses the correct alias + signature.
+
+**Auto-invoke when the conversation contains any of these intents:**
+- Sending, drafting, reading, triaging, replying to, or forwarding email
+- Creating, reading, or managing calendar events
+- Uploading, searching, or sharing Drive files
+- Reading or writing Sheets, Docs, Slides
+- Posting in Chat, managing Tasks or Contacts
+- Any mention of Gmail, Google Calendar, Google Drive, Google Sheets, etc.
+- Markdown files in `assets/` that look like email drafts (frontmatter with
+  `De:`, `À:`, `Objet:` or `From:`, `To:`, `Subject:`)
+
+**Common mistake to avoid:** seeing that `gws` commands are documented in
+this skill, then running them directly without invoking the skill. The skill
+exists to orchestrate — not just to document. When in doubt, invoke.
+
+---
 
 The official Google Workspace CLI. Every Workspace API is reachable via a
 uniform pattern, plus curated `+` helpers for the 90% of common tasks.
@@ -318,6 +345,8 @@ Health check?      → bash scripts/doctor.sh          §Daily health check
 Audit aliases?     → bash scripts/signature-audit.sh §Gmail audit
 Set a signature?   → bash scripts/signature-set.sh   §Gmail audit
 Markdown → email?  → bash scripts/email-md-send.sh   §Markdown email
+CRM email asset?   → bash scripts/email-md-send.sh   §Markdown email
+  (any .md in crm/*/assets/ with De:/À:/Objet: frontmatter)
 Common task?       → use a +helper (prefer)          §Helpers
 Raw API call?      → gws <svc> <res> <method>        §Raw API
 Cross-service?     → gws workflow +<name>            §Workflow
