@@ -44,21 +44,23 @@ Exits `0` (healthy), `1` (warnings — e.g. outdated version), or `2`
 
 ## Preflight (run first, every session)
 
-Before issuing any `clasp` command, run these checks once per session:
+Before issuing any `clasp` command, run the preflight script once per
+session. It checks binary, auth, and project context — and **auto-runs
+`onboard.sh`** when clasp is missing or not authenticated:
 
 ```bash
-# 1. Binary present
-command -v clasp >/dev/null || { echo "clasp not installed — run: npm install -g @google/clasp"; exit 1; }
+bash scripts/preflight.sh
+```
 
-# 2. Auth valid
-if [ ! -f ~/.clasprc.json ]; then
-  echo "⚠ Not logged in — run: clasp login"
-fi
+If `preflight.sh` exits non-zero, do not proceed — surface the error to
+the user. The script already explains what's wrong and what to do.
 
-# 3. Project context (only needed for project-scoped commands)
-if [ ! -f .clasp.json ]; then
-  echo "ℹ No .clasp.json in current directory — clone a project first or cd to one"
-fi
+If you need to check individual pieces without auto-remediation:
+
+```bash
+command -v clasp >/dev/null       # binary present?
+[ -f ~/.clasprc.json ]            # authenticated?
+[ -f .clasp.json ]                # inside a project?
 ```
 
 ## Decision tree

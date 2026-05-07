@@ -24,6 +24,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SKILL_DIR="$REPO_ROOT/claude-skills/skills/google-apps-script"
 DOCTOR="$SKILL_DIR/scripts/doctor.sh"
 ONBOARD="$SKILL_DIR/scripts/onboard.sh"
+PREFLIGHT="$SKILL_DIR/scripts/preflight.sh"
 SKILL_MD="$SKILL_DIR/SKILL.md"
 
 TMPDIR_TEST="$(mktemp -d)"
@@ -114,14 +115,16 @@ assert_exit "onboard: unknown step → exit 1" 1 \
 # ---------- T8-T10: doctor with missing clasp binary ----------
 echo "--- doctor: missing binary detection ---"
 
-# Build a PATH that has system tools but no clasp
-FAKE_BIN="$TMPDIR_TEST/empty-bin"
-mkdir -p "$FAKE_BIN"
-# Strip any directory containing clasp from PATH, keep the rest
-NO_CLASP_PATH="$FAKE_BIN:/usr/bin:/bin:/usr/sbin:/sbin"
-if command -v node >/dev/null 2>&1; then
-  NO_CLASP_PATH="$NO_CLASP_PATH:$(dirname "$(command -v node)")"
-fi
+# Build a PATH that has system tools + node/npm but NOT clasp.
+# Since node and clasp may live in the same directory (/opt/homebrew/bin),
+# we symlink only the binaries we need into a staging dir.
+STAGING_BIN="$TMPDIR_TEST/staging-bin"
+mkdir -p "$STAGING_BIN"
+for bin in node npm; do
+  real="$(command -v "$bin" 2>/dev/null || true)"
+  [ -n "$real" ] && ln -sf "$real" "$STAGING_BIN/$bin"
+done
+NO_CLASP_PATH="$STAGING_BIN:/usr/bin:/bin:/usr/sbin:/sbin"
 
 # doctor.sh should exit 2 when clasp is not in PATH
 OUT=$(PATH="$NO_CLASP_PATH" HOME="$TMPDIR_TEST" bash "$DOCTOR" 2>&1) || true
@@ -159,8 +162,10 @@ MOCK_HOME="$TMPDIR_TEST/mock-home"
 mkdir -p "$MOCK_HOME"
 echo '{"token":"fake"}' > "$MOCK_HOME/.clasprc.json"
 
-# Also need node and npm in PATH — merge mock + real
-MERGE_PATH="$MOCK_BIN:$(dirname "$(command -v node 2>/dev/null || echo /dev/null)"):$(dirname "$(command -v npm 2>/dev/null || echo /dev/null)")"
+# Merge mock clasp + system tools + node/npm into a single PATH
+MERGE_PATH="$MOCK_BIN:/usr/bin:/bin:/usr/sbin:/sbin"
+command -v node >/dev/null 2>&1 && MERGE_PATH="$MERGE_PATH:$(dirname "$(command -v node)")"
+command -v npm  >/dev/null 2>&1 && MERGE_PATH="$MERGE_PATH:$(dirname "$(command -v npm)")"
 
 MOCK_OUT=$(PATH="$MERGE_PATH" HOME="$MOCK_HOME" bash "$DOCTOR" 2>&1) || true
 MOCK_EXIT=0
@@ -191,6 +196,45 @@ assert_contains "onboard install detects existing clasp" "already installed" "$I
 echo "--- onboard: login with existing creds ---"
 LOGIN_OUT=$(PATH="$MERGE_PATH" HOME="$MOCK_HOME" bash "$ONBOARD" --step login 2>&1) || true
 assert_contains "onboard login detects existing creds" "credentials found" "$LOGIN_OUT"
+
+# ---------- T17: preflight script exists ----------
+echo "--- preflight ---"
+assert_exists "preflight.sh exists" "$PREFLIGHT"
+
+# ---------- T18: preflight passes with mock clasp + creds ----------
+echo "--- preflight: healthy mock environment ---"
+PF_OUT=$(PATH="$MERGE_PATH" HOME="$MOCK_HOME" bash "$PREFLIGHT" 2>&1) || true
+PF_EXIT=0
+PATH="$MERGE_PATH" HOME="$MOCK_HOME" bash "$PREFLIGHT" &>/dev/null || PF_EXIT=$?
+if [[ "$PF_EXIT" -eq 0 ]]; then
+  echo "PASS: preflight exits 0 with clasp + creds"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL: preflight exits 0 with clasp + creds — got exit $PF_EXIT"
+  FAIL=$((FAIL + 1))
+fi
+assert_contains "preflight reports ready" "ready" "$PF_OUT"
+assert_contains "preflight reports authenticated" "Authenticated" "$PF_OUT"
+
+# ---------- T19: preflight auto-remediates missing clasp ----------
+# When clasp is missing, preflight calls onboard --step install.
+# Use a PATH with no npm so install can't succeed.
+echo "--- preflight: auto-remediation on missing clasp ---"
+NO_NPM_PATH="$TMPDIR_TEST/no-npm-bin:/usr/bin:/bin:/usr/sbin:/sbin"
+mkdir -p "$TMPDIR_TEST/no-npm-bin"
+assert_exit "preflight exits 2 when clasp missing and install fails" 2 \
+  env PATH="$NO_NPM_PATH" HOME="$TMPDIR_TEST" bash "$PREFLIGHT"
+
+# ---------- T20: preflight auto-remediates missing creds ----------
+# clasp present but no ~/.clasprc.json — preflight calls onboard --step login.
+# Without a real OAuth flow login will fail, so preflight should exit 2.
+echo "--- preflight: auto-remediation on missing creds ---"
+BARE_HOME="$TMPDIR_TEST/bare-home"
+mkdir -p "$BARE_HOME"
+# preflight calls onboard login, which calls `clasp login` — our mock
+# clasp doesn't create .clasprc.json, so preflight should exit 2.
+assert_exit "preflight exits 2 when creds missing and login fails" 2 \
+  env PATH="$MERGE_PATH" HOME="$BARE_HOME" bash "$PREFLIGHT"
 
 # ---------- summary ----------
 echo ""
