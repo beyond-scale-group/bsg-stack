@@ -3,14 +3,14 @@
 # the autopilot budget so the PO can decompose them into sub-issues.
 #
 # Closes #363 fix #4. The output:commit pilot enforces a per-issue LOC
-# cap (`max_loc_per_issue` from .bsg-autopilot.yml). Issues above the
+# cap (`max_loc_per_issue` from $BSG_AUTOPILOT_FILE). Issues above the
 # cap never get picked up — they sit in the backlog forever. This
 # script identifies them so the PO can split each one into sub-tickets
 # that fit the budget.
 #
 # What it does:
 #
-#   1. Read `max_loc_per_issue` from .bsg-autopilot.yml (default 200)
+#   1. Read `max_loc_per_issue` from $BSG_AUTOPILOT_FILE (default 200)
 #   2. Enumerate open issues that have a bus label (tech/qa/seo) AND
 #      are bound to a milestone — i.e. they would normally be phase-B
 #      candidates if they fit the budget.
@@ -51,7 +51,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Read max_loc_per_issue from .bsg-autopilot.yml — fall back to 200.
+# Read max_loc_per_issue from $BSG_AUTOPILOT_FILE — fall back to 200.
 MAX_LOC=200
 if [[ -f "$BSG_AUTOPILOT_FILE" ]]; then
   configured=$(grep -E '^\s*max_loc_per_issue\s*:' "$BSG_AUTOPILOT_FILE" 2>/dev/null \

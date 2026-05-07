@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# validate-plan.sh — validate po/PLAN.md and exit non-zero with a diagnostic
+# validate-plan.sh — validate PLAN.md and exit non-zero with a diagnostic
 # when the plan is missing or contains no binding tags (E6-plan-schema-hygiene).
 #
 # Usage:
@@ -11,11 +11,15 @@
 #   2   — PLAN.md exists but contains no binding tags (format drift)
 #   3   — parse-plan.sh not found (installer misconfiguration)
 #
-# By default reads $PWD/po/PLAN.md. Override with --plan <path>.
+# By default resolves PLAN.md via _bsg-paths.sh (`.bsg/PLAN.md` preferred,
+# legacy `po/PLAN.md` as fallback per ADR-001). Override with --plan <path>.
 #
 # Uses parse-plan.sh --typed internally so the same grammar is enforced
 # in both the agent tick and this standalone validator.
 set -euo pipefail
+
+# shellcheck source=_bsg-paths.sh disable=SC1091
+source "$(dirname "$0")/_bsg-paths.sh"
 
 PLAN_PATH=""
 while [[ $# -gt 0 ]]; do
@@ -26,7 +30,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$PLAN_PATH" ]]; then
-  PLAN_PATH="$PWD/po/PLAN.md"
+  PLAN_PATH="$PWD/$(bsg_doc_path plan)"
 fi
 
 # Locate parse-plan.sh: prefer the canonical repo path, fall back to cached copy.

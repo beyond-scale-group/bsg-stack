@@ -117,8 +117,56 @@ for the full list of managed keys and how to add or remove one.
 ### Data lives in the target repo, not centrally
 
 Agents that produce reports or plans write them into the repo they were invoked
-in, at a root-level folder (e.g. `po/`), and commit them. No central portfolio
-folder, no cross-repo database. "One repo, one agent, one plan."
+in, at a root-level folder, and commit them. No central portfolio folder, no
+cross-repo database. "One repo, one agent, one plan." The canonical root
+folder is `.bsg/` — see the next section.
+
+### The `.bsg/` directory convention — ADR-001
+
+All BSG agent custom docs and reports live under a single `.bsg/` folder
+at the repo root, following the dot-prefix-as-infra convention used by
+`.github/` and `.vscode/`:
+
+```
+.bsg/
+├── PLAN.md             # po-manager
+├── NARRATIVE.md        # storytelling
+├── DESIGN.md           # md-to-office (Google Stitch spec, ADR-003)
+├── KEYWORDS.md         # seo
+├── CALENDAR.md         # marketing
+├── ANNOUNCED.md        # pr-comms
+├── SECURITYIGNORE      # security exclusions
+├── AUTOPILOT.yml       # autopilot config (replaces .bsg-autopilot.yml)
+├── adr/                # tech-lead — multi-file by design
+├── brand/              # md-to-office templates + derived tokens.json
+└── reports/            # ALL agent dated reports, one subfolder per agent
+    ├── po/
+    ├── qa/
+    ├── tech/
+    ├── seo/
+    ├── marketing/
+    ├── security/
+    ├── storytelling/
+    └── comms/
+```
+
+Three rules govern adding to the tree:
+
+1. **Flat files** when a single doc per agent suffices. UPPER_CASE.md
+   matches the `CLAUDE.md` / `DESIGN.md` / `README.md` convention.
+2. **Subfolders** only when multi-file is intrinsic (`adr/`, `brand/`,
+   `reports/`). Don't create per-agent subfolders for what's already a
+   single document.
+3. **Path resolution goes through `_bsg-paths.sh`.** Any script that
+   reads a custom doc must source `claude-skills/scripts/_bsg-paths.sh`
+   and call `bsg_doc_path <kind>` (or use `$BSG_AUTOPILOT_FILE` for the
+   common autopilot case). The resolver prefers `.bsg/<NAME>` and falls
+   back to the legacy folder during the migration window — never
+   hardcode either path. Adding a new doc kind is a one-line addition
+   to the `case` block in `_bsg-paths.sh`.
+
+Migration from legacy paths is documented at
+[`claude-skills/MIGRATION-bsg-paths.md`](claude-skills/MIGRATION-bsg-paths.md).
 
 ### Reporting agents output via auto-merge PRs
 
@@ -293,13 +341,15 @@ The `--repo OWNER/NAME` flag on `list-pilot-candidates.sh` allows
 running against a different repository than the current working
 directory — useful for cross-repo sweeps from a central session.
 
-### Autopilot mode (`.bsg-autopilot.yml`) — #221, #286
+### Autopilot mode (`.bsg/AUTOPILOT.yml`) — #221, #286, #237
 
-`.bsg-autopilot.yml` is the single repo-level opt-in for
-auto-implementation. The file is the gate: without it, no
-auto-implementation happens regardless of issue labels.
+`.bsg/AUTOPILOT.yml` is the single repo-level opt-in for
+auto-implementation (legacy name `.bsg-autopilot.yml` still resolves
+during the migration window via `_bsg-paths.sh`). The file is the
+gate: without it, no auto-implementation happens regardless of issue
+labels.
 
-Drop a `.bsg-autopilot.yml` at the repo root:
+Drop a `.bsg/AUTOPILOT.yml` at the repo root:
 
 ```yaml
 enabled: true

@@ -41,7 +41,7 @@
 #          "open graph", "structured data"
 #   tech:  default — anything that isn't qa or seo
 #
-# Cap at `max_issues_per_tick` from .bsg-autopilot.yml (default 10) per
+# Cap at `max_issues_per_tick` from $BSG_AUTOPILOT_FILE (default 10) per
 # run so a single tick can't flood the repo if a backlog of unrouted
 # issues just landed.
 #
@@ -72,7 +72,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Cap per tick — read from .bsg-autopilot.yml.
+# Cap per tick — read from $BSG_AUTOPILOT_FILE.
 MAX_ISSUES=10
 if [[ -f "$BSG_AUTOPILOT_FILE" ]]; then
   configured=$(grep -E '^\s*max_issues_per_tick\s*:' "$BSG_AUTOPILOT_FILE" 2>/dev/null \
