@@ -2,9 +2,10 @@
 # bootstrap-plan.sh — propose a starter PLAN.md from a snapshot.
 #
 # Emits a draft markdown plan on stdout, seeded from the repo's open
-# milestones and top labels. The caller writes it to
-# `po/drafts/PLAN-suggested-<date>.md` for a human to review and
-# rename to `po/PLAN.md`. This script never touches the filesystem.
+# milestones and top labels. This script never touches the filesystem;
+# `init.sh` (sibling) wraps it with the file-write + safety-check
+# plumbing for `@po-manager init`. Direct callers can pipe this to a
+# review file under `.bsg/drafts/`.
 #
 # Usage:
 #   bash bootstrap-plan.sh                      # auto-collect snapshot
@@ -37,7 +38,7 @@ today=$(date -u +%F)
 cat <<HEAD
 # Big plan — ${repo}
 
-_Draft bootstrapped ${today}. Review, edit, and \`git mv\` this file to \`po/PLAN.md\` to activate adherence reporting._
+_Draft bootstrapped ${today}. Review and edit; once committed to \`.bsg/PLAN.md\` (legacy fallback: \`po/PLAN.md\`), adherence reporting activates on the next po-manager tick._
 
 ## Objectives
 

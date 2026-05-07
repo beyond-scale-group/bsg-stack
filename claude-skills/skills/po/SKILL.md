@@ -61,9 +61,10 @@ script auto-collect a fresh one.
 | Script                    | Purpose                                                                |
 | ------------------------- | ---------------------------------------------------------------------- |
 | `collect.sh`              | One paginated GraphQL fetch → full snapshot JSON (issues, PRs, milestones, releases, repo meta). Every other script consumes this. |
-| `parse-plan.sh`           | Parse `po/PLAN.md` into an array of plan items with typed bindings (`milestones`, `epics`, `labels`). Empty array if the file is missing. |
+| `parse-plan.sh`           | Parse `.bsg/PLAN.md` (legacy: `po/PLAN.md`) into an array of plan items with typed bindings (`milestones`, `epics`, `labels`). Empty array if the file is missing. |
 | `adherence.sh`            | Join plan items with the snapshot → per-item status, evidence, and the three drift classes (`scopeCreep`, `abandonedItems`, `offCourse`). |
-| `bootstrap-plan.sh`       | Emit a draft starter `PLAN.md` from current milestones + top labels. Never writes to disk — caller saves under `po/drafts/`. |
+| `bootstrap-plan.sh`       | Emit a draft starter `PLAN.md` from current milestones + top labels. Never writes to disk; piped through `init.sh` for `@po-manager init`. |
+| `init.sh`                 | `@po-manager init` — wraps `bootstrap-plan.sh` with file-write + safety checks. Resolves the destination via `_bsg-paths.sh` (`.bsg/PLAN.md` preferred, legacy `po/PLAN.md`), refuses to clobber an existing plan unless `--force`. |
 | `status.sh`               | Repo-wide counts + PR flow summary (review pending, failing checks, oldest open PR, avg time-to-first-review). |
 | `pr-flow.sh`              | Deeper PR metrics: review latency p50/p90, open-PR age buckets, reviewer load, merge-queue depth, throughput. |
 | `milestone-progress.sh`   | Per-milestone progress with risk flags (`overdue`, `at_risk`, `understaffed`, `stalled`) computed in jq. |
