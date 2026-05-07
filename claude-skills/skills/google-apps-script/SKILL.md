@@ -126,17 +126,18 @@ right file.
 ## Decision tree
 
 ```
-First-time setup?      → bash scripts/onboard.sh          §First-time setup
-Health check?          → bash scripts/doctor.sh            §Health check
-Clone a project?       → clasp clone <scriptId>            §Clone
-Pull remote changes?   → clasp pull                        §Pull
-Push local changes?    → clasp push                        §Push
-Run a function?        → clasp run <functionName>          §Run
-View logs?             → clasp logs                        §Logs
-Create a deployment?   → clasp deploy                      §Deploy
-List deployments?      → clasp deployments                 §Deploy
-Create new project?    → clasp create                      §Create
-Open in browser?       → clasp open                        §Open
+First-time setup?      → bash scripts/onboard.sh                §First-time setup
+Health check?          → bash scripts/doctor.sh                  §Health check
+Clone a project?       → clasp clone <scriptId>                  §Clone
+Pull remote changes?   → clasp pull                              §Pull
+Push local changes?    → clasp push                              §Push
+Run a function?        → clasp run <functionName>                §Run
+View logs?             → clasp logs                              §Logs
+Create a deployment?   → clasp deploy                            §Deploy
+List deployments?      → clasp deployments                       §Deploy
+Create new project?    → clasp create                            §Create
+Open in browser?       → clasp open                              §Open
+Write .gs code?        → load references/writing-patterns.md     §Writing
 ```
 
 ## Core commands
@@ -382,19 +383,24 @@ process in-memory, and write back in one call. Call
 `SpreadsheetApp.flush()` before returning from functions that modify
 cells.
 
-## Companion skill: writing patterns
+## Writing Apps Script code
 
-For **writing** Apps Script code (custom menus, triggers, dialogs, PDF
-export, data validation, UrlFetchApp patterns), install the community
-skill:
+For **writing** `.gs`/`.js` code (custom menus, triggers, dialogs, PDF
+export, sidebars, data validation, UrlFetchApp, batch patterns), load
+the reference file:
 
-```bash
-npx skills add jezweb/claude-skills@google-apps-script -g -y
-```
+- [references/writing-patterns.md](references/writing-patterns.md) —
+  script structure template, critical rules (public vs private functions,
+  batch ops, flush, V8 quirks), common patterns (toast, alert, progress
+  dialog, sidebar, triggers, email, PDF export, API calls, validation,
+  Properties Service), recipes (archive rows, batch email with quota
+  check), error prevention table, deployment checklist.
 
-That skill covers the code-writing side (recipes, quotas, trigger types,
-batch patterns). This BSG skill covers the **CLI management** side
-(clasp push/pull/run/deploy). They're complementary.
+Load it when the user is authoring code — not needed for pure CLI
+operations (push, pull, deploy).
+
+Adapted from [jezweb/claude-skills](https://github.com/jezweb/claude-skills)
+(google-apps-script, MIT license).
 
 ## Common pitfalls
 
