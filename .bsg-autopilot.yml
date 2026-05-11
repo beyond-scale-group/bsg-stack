@@ -18,7 +18,7 @@ enabled: true
 # --reason spec-clarification or --reason tech-decision (file-issue.sh)
 # or when detect-stuck-issues.sh fires a tier-2 escalation. The named
 # user gets the issue assigned + an @-mention in the body. See #416.
-default_human_reviewer: guillaumebadin
+default_human_reviewer: g-dumas
 
 agents:
   - tech

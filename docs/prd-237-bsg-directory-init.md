@@ -3,7 +3,7 @@
 **Issue:** #237  
 **Status:** In Progress (~25% complete)  
 **Date:** 2026-05-05  
-**Owner:** @guillaumebadin
+**Owner:** @g-dumas
 
 ## Problem Statement
 
