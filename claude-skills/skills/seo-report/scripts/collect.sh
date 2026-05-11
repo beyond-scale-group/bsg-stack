@@ -2,12 +2,17 @@
 # collect.sh — SEO snapshot.
 #
 # Enumerates pages, extracts meta tags and internal links, parses
-# sitemap/robots, loads KEYWORDS.md. Outputs a single JSON document.
+# sitemap/robots, loads KEYWORDS.md (resolved via _bsg-paths.sh —
+# `.bsg/KEYWORDS.md` preferred, legacy `seo/KEYWORDS.md` fallback per
+# ADR-001). Outputs a single JSON document.
 
 set -euo pipefail
 
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 cd "$REPO_ROOT"
+
+# shellcheck source=../../../scripts/_bsg-paths.sh disable=SC1091
+source "$(dirname "$0")/../../../scripts/_bsg-paths.sh"
 
 # -------------------------------------------- page file enumeration
 
@@ -129,9 +134,10 @@ fi
 
 # ---------------------------------------------------- keywords
 
+KEYWORDS_PATH="$(bsg_doc_path keywords)"
 KEYWORDS_JSON='null'
-if [[ -f seo/KEYWORDS.md ]]; then
-  KEYWORDS_JSON=$({ grep -oE '^-[[:space:]]+.+' seo/KEYWORDS.md || true; } \
+if [[ -f "$KEYWORDS_PATH" ]]; then
+  KEYWORDS_JSON=$({ grep -oE '^-[[:space:]]+.+' "$KEYWORDS_PATH" || true; } \
     | sed -E 's/^-[[:space:]]+//' \
     | jq -Rn '[inputs]' 2>/dev/null || echo '[]')
 fi

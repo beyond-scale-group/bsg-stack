@@ -88,12 +88,17 @@ def _rel(path: Path) -> str:
 # ---------------------------------------------------------------------------
 
 def _scan_name() -> str:
-    narrative = ROOT / "brand" / "NARRATIVE.md"
+    # NARRATIVE.md path follows ADR-001: prefer `.bsg/NARRATIVE.md`,
+    # fall back to legacy `brand/NARRATIVE.md`.
+    narrative = ROOT / ".bsg" / "NARRATIVE.md"
+    legacy_narrative = ROOT / "brand" / "NARRATIVE.md"
+    if not narrative.exists() and legacy_narrative.exists():
+        narrative = legacy_narrative
     if narrative.exists():
         m = re.search(r"^#\s+(.+)$", narrative.read_text(errors="replace"), re.MULTILINE)
         if m:
             val = m.group(1).strip()
-            _audit("name", "brand/NARRATIVE.md H1", val)
+            _audit("name", f"{narrative.relative_to(ROOT)} H1", val)
             return val
 
     pkg = ROOT / "package.json"
@@ -361,7 +366,10 @@ def _scan_logos() -> list[str]:
 # ---------------------------------------------------------------------------
 
 def _scan_identity_docs() -> list[str]:
+    # `.bsg/` paths preferred over legacy per ADR-001.
     candidates = [
+        ".bsg/NARRATIVE.md",
+        ".bsg/DESIGN.md",
         "brand/NARRATIVE.md",
         "brand/identity.md",
         "DESIGN.md",
