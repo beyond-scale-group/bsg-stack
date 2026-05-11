@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
 # collect.sh — brand narrative snapshot.
 #
-# Parses brand/NARRATIVE.md, enumerates public-facing assets, computes
-# voice signals (words / sentences / passive / jargon / Flesch).
+# Parses NARRATIVE.md (resolved via _bsg-paths.sh — `.bsg/NARRATIVE.md`
+# preferred, legacy `brand/NARRATIVE.md` fallback per ADR-001),
+# enumerates public-facing assets, computes voice signals
+# (words / sentences / passive / jargon / Flesch).
 
 set -euo pipefail
 
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 cd "$REPO_ROOT"
 
-NARRATIVE_PATH="brand/NARRATIVE.md"
+# shellcheck source=../../../scripts/_bsg-paths.sh disable=SC1091
+source "$(dirname "$0")/../../../scripts/_bsg-paths.sh"
+
+NARRATIVE_PATH="$(bsg_doc_path narrative)"
 NARRATIVE_FOUND="false"
 
 # --------------------------------------------- narrative parsing

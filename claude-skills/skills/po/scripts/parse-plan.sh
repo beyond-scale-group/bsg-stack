@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# parse-plan.sh — parse po/PLAN.md into JSON plan items with bindings.
+# parse-plan.sh — parse PLAN.md into JSON plan items with bindings.
 #
-# Reads PLAN.md (default: $PWD/po/PLAN.md, override with `--plan <path>`)
-# and emits a JSON array. Each object describes one bullet that carries
-# at least one binding tag. See `references/plan-schema.md` for the
-# grammar.
+# Reads PLAN.md (default: resolved via `_bsg-paths.sh` → `.bsg/PLAN.md`
+# with `po/PLAN.md` legacy fallback per ADR-001; override with
+# `--plan <path>`) and emits a JSON array. Each object describes one
+# bullet that carries at least one binding tag. See
+# `references/plan-schema.md` for the grammar.
 #
 # Default output (backward-compatible):
 #
@@ -36,7 +37,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$PLAN_PATH" ]]; then
-  PLAN_PATH="$PWD/po/PLAN.md"
+  # Source the shared resolver so the default tracks ADR-001 (`.bsg/`
+  # preferred, legacy fallback) without every caller having to know.
+  # shellcheck source=../../../scripts/_bsg-paths.sh disable=SC1091
+  source "$(dirname "$0")/../../../scripts/_bsg-paths.sh"
+  PLAN_PATH="$PWD/$(bsg_doc_path plan)"
 fi
 
 if [[ ! -f "$PLAN_PATH" ]]; then

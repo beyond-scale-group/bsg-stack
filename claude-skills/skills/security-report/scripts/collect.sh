@@ -15,6 +15,9 @@ set -euo pipefail
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 cd "$REPO_ROOT"
 
+# shellcheck source=../../../scripts/_bsg-paths.sh disable=SC1091
+source "$(dirname "$0")/../../../scripts/_bsg-paths.sh"
+
 # ---------------------------------------------------------------- helpers
 
 emit_jsonl_file() {
@@ -72,10 +75,13 @@ TRACKED_ENV_FILES_JSON=$(git ls-files 2>/dev/null \
   | awk -F/ '{base=$NF} base ~ /^\.env(\..+)?$/ {print}' \
   | jq -Rn '[inputs]' || echo '[]')
 
-# .securityignore content (raw) for downstream reporters.
+# SECURITYIGNORE content (raw) for downstream reporters. Resolves via
+# _bsg-paths.sh — `.bsg/SECURITYIGNORE` preferred, legacy
+# `.securityignore` fallback per ADR-001.
+SECURITYIGNORE_PATH="$(bsg_doc_path securityignore)"
 SECURITYIGNORE_JSON='""'
-if [[ -f .securityignore ]]; then
-  SECURITYIGNORE_JSON=$(jq -Rs . < .securityignore)
+if [[ -f "$SECURITYIGNORE_PATH" ]]; then
+  SECURITYIGNORE_JSON=$(jq -Rs . < "$SECURITYIGNORE_PATH")
 fi
 
 # ---------------------------------------------------------- server kind

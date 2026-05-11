@@ -1,21 +1,26 @@
 #!/usr/bin/env bash
 # collect.sh — marketing snapshot.
 #
-# Parses marketing/CALENDAR.md, lists recent releases and milestones
-# via gh, globs marketing / README / docs files and extracts their
-# H1/H2 headings as "claims" for alignment analysis.
+# Parses CALENDAR.md (resolved via _bsg-paths.sh — `.bsg/CALENDAR.md`
+# preferred, legacy `marketing/CALENDAR.md` fallback per ADR-001),
+# lists recent releases and milestones via gh, globs marketing /
+# README / docs files and extracts their H1/H2 headings as "claims"
+# for alignment analysis.
 
 set -euo pipefail
 
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 cd "$REPO_ROOT"
 
+# shellcheck source=../../../scripts/_bsg-paths.sh disable=SC1091
+source "$(dirname "$0")/../../../scripts/_bsg-paths.sh"
+
 TODAY=$(date +%F)
 TODAY_EPOCH=$(date -j -f "%Y-%m-%d" "$TODAY" +%s 2>/dev/null || date -d "$TODAY" +%s 2>/dev/null || echo 0)
 
 # -------------------------------------------- calendar
 
-CALENDAR_PATH="marketing/CALENDAR.md"
+CALENDAR_PATH="$(bsg_doc_path calendar)"
 CALENDAR_FOUND="false"
 CALENDAR_ITEMS_JSON='[]'
 if [[ -f "$CALENDAR_PATH" ]]; then

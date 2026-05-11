@@ -10,6 +10,9 @@ set -euo pipefail
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 cd "$REPO_ROOT"
 
+# shellcheck source=../../../scripts/_bsg-paths.sh disable=SC1091
+source "$(dirname "$0")/../../../scripts/_bsg-paths.sh"
+
 TODAY=$(date +%F)
 TODAY_EPOCH=$(date -j -f "%Y-%m-%d" "$TODAY" +%s 2>/dev/null || date -d "$TODAY" +%s 2>/dev/null || echo 0)
 
@@ -65,9 +68,10 @@ fi
 
 # --------------------------------------------- ANNOUNCED.md
 
+ANNOUNCED_PATH="$(bsg_doc_path announced)"
 ANNOUNCED_JSON='[]'
-if [[ -f comms/ANNOUNCED.md ]]; then
-  ANNOUNCED_JSON=$({ grep -oE '(v?[0-9]+\.[0-9]+\.[0-9]+|milestone #[0-9]+)' comms/ANNOUNCED.md || true; } \
+if [[ -f "$ANNOUNCED_PATH" ]]; then
+  ANNOUNCED_JSON=$({ grep -oE '(v?[0-9]+\.[0-9]+\.[0-9]+|milestone #[0-9]+)' "$ANNOUNCED_PATH" || true; } \
     | sort -u | jq -Rn '[inputs]' 2>/dev/null || echo '[]')
 fi
 
