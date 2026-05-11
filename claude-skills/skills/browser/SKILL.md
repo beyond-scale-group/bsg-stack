@@ -32,7 +32,8 @@ at the onboarding orchestrator:
 bash scripts/onboard.sh
 ```
 
-It walks through **4 services** in headed mode, one at a time:
+It walks through **5 steps** — 4 service logins in headed mode plus a Chrome
+integration check:
 
 | Step | Profile | Service |
 |------|---------|---------|
@@ -40,16 +41,19 @@ It walks through **4 services** in headed mode, one at a time:
 | 2 | `github` | GitHub |
 | 3 | `hubspot` | HubSpot (CRM, Marketing, Sales) |
 | 4 | `yousign` | Yousign (e-signatures) |
+| 5 | — | Chrome integration (extension + native messaging check) |
 
 For each service a browser window opens, the user logs in (including 2FA /
 passkey), and the session is saved as a named profile. After onboarding,
 every `agent-browser --profile <name>` call reuses the saved session
-headlessly -- no more manual logins.
+headlessly — no more manual logins. The Chrome step verifies that the
+Claude in Chrome extension and native messaging host are properly configured.
 
 Re-run a single step:
 ```bash
 bash scripts/onboard.sh --step google
 bash scripts/onboard.sh --step yousign
+bash scripts/onboard.sh --step chrome
 ```
 
 Check all profiles:
@@ -62,17 +66,47 @@ List available services:
 bash scripts/onboard.sh --list
 ```
 
-## Chrome MCP fallback
+## Chrome integration (Claude in Chrome) — fallback for anti-bot sites
 
 **Default tool is always `agent-browser`.** Try it first for every task.
 
 Some sites actively block headless browsers and Playwright-based automation
 (anti-bot walls, aggressive CAPTCHAs, device fingerprinting). When
 `agent-browser` gets stuck — page won't load, CAPTCHA loop, login rejected —
-**fall back to Chrome MCP** (`claude-in-chrome`), which connects to the user's
-real Chrome instance with all existing sessions, cookies, and extensions.
+**fall back to Claude's built-in Chrome integration**, which connects to the
+user's real Chrome browser with all existing sessions, cookies, and extensions.
 
-Known sites that frequently require Chrome MCP fallback:
+Chrome integration is a **native Claude Code feature** (not an MCP server).
+It works through the
+[Claude in Chrome](https://chromewebstore.google.com/detail/claude/fcoeoabgfenejglbffodgkkbkcdhcgfn)
+browser extension + native messaging. No npm package involved.
+
+### Prerequisites
+
+- Google Chrome or Microsoft Edge
+- [Claude in Chrome extension](https://chromewebstore.google.com/detail/claude/fcoeoabgfenejglbffodgkkbkcdhcgfn) v1.0.36+
+- Claude Code v2.0.73+
+
+### Enabling Chrome integration
+
+```bash
+# Launch Claude Code with Chrome connected:
+claude --chrome
+
+# Or enable from within a running session:
+/chrome
+```
+
+To enable by default (avoids `--chrome` every session), run `/chrome` and
+select "Enabled by default".
+
+The onboarding script can verify the setup:
+```bash
+bash scripts/onboard.sh --step chrome
+bash scripts/onboard.sh --check         # includes Chrome status
+```
+
+### Known sites that frequently require Chrome fallback
 
 | Site | Typical blocker |
 |---|---|
@@ -82,18 +116,19 @@ Known sites that frequently require Chrome MCP fallback:
 | HubSpot | SSO redirect loops |
 | Yousign | Session validation |
 
-Decision flow:
+### Decision flow
 
 ```
 1. Try agent-browser (with --profile if authenticated)
 2. Blocked? (CAPTCHA, anti-bot, login rejected, blank page)
-   → Switch to Chrome MCP — the user's real Chrome is already logged in
-3. Chrome MCP unavailable? (no Chrome open, extension not running)
-   → Ask the user to open Chrome and enable the MCP extension
+   → Switch to Chrome integration — claude --chrome or /chrome
+   → The user's real Chrome is already logged in
+3. Chrome not connected?
+   → Ask the user to open Chrome, install the extension, and run /chrome
 ```
 
-Chrome MCP is **not** a replacement for `agent-browser` — it cannot run
-headlessly, cannot save/replay profiles, and depends on the user's live
+Chrome integration is **not** a replacement for `agent-browser` — it cannot
+run headlessly, cannot save/replay profiles, and depends on the user's live
 Chrome session. Use it only when `agent-browser` hits a wall.
 
 ## Hard rules
@@ -189,12 +224,14 @@ bash scripts/with-profile.sh github open https://github.com/settings
 
 ```
 First time using agent-browser?  -> npm install -g agent-browser && agent-browser install
-First time at BSG / new machine? -> bash scripts/onboard.sh         (all services)
+First time at BSG / new machine? -> bash scripts/onboard.sh         (all services + Chrome check)
 Need to log in to Google?        -> bash scripts/onboard.sh --step google
 Need to log in to another site?  -> bash scripts/with-profile.sh <name> open <url> --headed
+Set up Chrome integration?       -> bash scripts/onboard.sh --step chrome
 Check all logins still valid?    -> bash scripts/onboard.sh --check
 Replay an authenticated session? -> bash scripts/with-profile.sh <name> open <url>
 One-off page interaction?        -> agent-browser open <url> [--headed]
+Anti-bot / CAPTCHA blocked?      -> claude --chrome  (or /chrome in-session)
 Screenshot a page?               -> agent-browser screenshot [path] [--full]
 Extract page text?               -> agent-browser snapshot | jq
 ```
@@ -291,7 +328,8 @@ if the app keeps open connections.
 | "Log in to GitHub" | `bash scripts/onboard.sh --step github` |
 | "Log in to HubSpot" | `bash scripts/onboard.sh --step hubspot` |
 | "Log in to Yousign" | `bash scripts/onboard.sh --step yousign` |
-| "Blocked by CAPTCHA / anti-bot on LinkedIn, Pappers…" | Fall back to **Chrome MCP** (user's real Chrome) |
+| "Set up Chrome", "check Chrome extension" | `bash scripts/onboard.sh --step chrome` |
+| "Blocked by CAPTCHA / anti-bot on LinkedIn, Pappers…" | Fall back to **Chrome integration** (`claude --chrome` or `/chrome`) |
 | "Check my logins", "are sessions still valid?" | `bash scripts/onboard.sh --check` |
 | "Log in to X" (non-BSG site) | `bash scripts/with-profile.sh <name> open <url> --headed` |
 | "Open this URL", "go to site" | `agent-browser open <url> [--headed]` |

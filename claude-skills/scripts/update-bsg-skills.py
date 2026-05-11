@@ -62,7 +62,11 @@ SCRIPT_NAME = "update-bsg-skills.py"
 BSG_MANAGED_SETTINGS_KEYS = ["autoMemoryEnabled"]
 # Sub-keys under `mcpServers` that the updater owns. Other MCP servers the
 # user has configured are preserved.
-BSG_MANAGED_MCP_SERVERS = ["context7", "claude-in-chrome"]
+BSG_MANAGED_MCP_SERVERS = ["context7"]
+# MCP servers previously managed by BSG that should be removed from user
+# settings on the next update run (e.g. stale entries for packages that no
+# longer exist).
+BSG_RETIRED_MCP_SERVERS = ["claude-in-chrome"]
 
 CLAUDE_DIR = Path(os.environ.get("CLAUDE_CONFIG_DIR", str(Path.home() / ".claude")))
 COMMANDS_DIR = CLAUDE_DIR / "commands"
@@ -466,6 +470,11 @@ def merge_bsg_settings() -> None:
                 if name in t_servers and servers.get(name) != t_servers[name]:
                     servers[name] = t_servers[name]
                     changed = True
+            for name in BSG_RETIRED_MCP_SERVERS:
+                if name in servers:
+                    del servers[name]
+                    changed = True
+                    log(f"  removed retired MCP server '{name}'")
 
     if not changed:
         return

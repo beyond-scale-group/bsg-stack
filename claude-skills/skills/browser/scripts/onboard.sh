@@ -8,11 +8,11 @@ set -euo pipefail
 # the session headlessly.
 #
 # Usage:
-#   bash onboard.sh                  # full onboarding (all services)
+#   bash onboard.sh                  # full onboarding (all services + Chrome check)
 #   bash onboard.sh --step google    # single service
-#   bash onboard.sh --step github    # single service
+#   bash onboard.sh --step chrome    # verify Chrome extension + native messaging
 #   bash onboard.sh --list           # show services and profile status
-#   bash onboard.sh --check          # verify all profiles are logged in
+#   bash onboard.sh --check          # verify all profiles are logged in + Chrome
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -27,6 +27,9 @@ SERVICES=(
 
 TIMEOUT=120000  # 2 minutes per login
 
+# Chrome extension ID (Claude in Chrome)
+CHROME_EXTENSION_ID="fcoeoabgfenejglbffodgkkbkcdhcgfn"
+
 # ── Helpers ──────────────────────────────────────────────────────────────
 
 parse_field() { echo "$1" | cut -d'|' -f"$2"; }
@@ -37,6 +40,120 @@ check_agent_browser() {
     echo "  npm install -g agent-browser && agent-browser install" >&2
     exit 1
   }
+}
+
+check_chrome_integration() {
+  local all_ok=true
+
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "  Step: Chrome integration (Claude in Chrome)"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+
+  # 1. Check Claude Code version
+  printf "  Claude Code version: "
+  if command -v claude >/dev/null 2>&1; then
+    local cc_version
+    cc_version=$(claude --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+    echo "$cc_version"
+  else
+    echo "NOT FOUND"
+    echo "    Install: https://claude.com/claude-code"
+    all_ok=false
+  fi
+
+  # 2. Check Chrome extension
+  printf "  Chrome extension:    "
+  local ext_found=false
+  local ext_dir=""
+
+  if [[ "$(uname)" == "Darwin" ]]; then
+    # macOS: check both Chrome and Edge
+    for browser_dir in \
+      "$HOME/Library/Application Support/Google/Chrome" \
+      "$HOME/Library/Application Support/Microsoft Edge"; do
+      if [ -d "$browser_dir" ]; then
+        # Search across all profiles (Default, Profile 1, etc.)
+        local match
+        match=$(find "$browser_dir" -path "*/Extensions/$CHROME_EXTENSION_ID" -maxdepth 4 2>/dev/null | head -1)
+        if [ -n "$match" ]; then
+          ext_found=true
+          local ext_version
+          ext_version=$(ls -1 "$(dirname "$match")/$CHROME_EXTENSION_ID/" 2>/dev/null | sort -V | tail -1 | sed 's/_0$//')
+          echo "OK (v${ext_version:-unknown})"
+          break
+        fi
+      fi
+    done
+  elif [[ "$(uname)" == "Linux" ]]; then
+    for browser_dir in \
+      "$HOME/.config/google-chrome" \
+      "$HOME/.config/microsoft-edge"; do
+      if [ -d "$browser_dir" ]; then
+        local match
+        match=$(find "$browser_dir" -path "*/Extensions/$CHROME_EXTENSION_ID" -maxdepth 4 2>/dev/null | head -1)
+        if [ -n "$match" ]; then
+          ext_found=true
+          local ext_version
+          ext_version=$(ls -1 "$(dirname "$match")/$CHROME_EXTENSION_ID/" 2>/dev/null | sort -V | tail -1 | sed 's/_0$//')
+          echo "OK (v${ext_version:-unknown})"
+          break
+        fi
+      fi
+    done
+  fi
+
+  if [ "$ext_found" = false ]; then
+    echo "NOT FOUND"
+    echo "    Install from Chrome Web Store:"
+    echo "    https://chromewebstore.google.com/detail/claude/$CHROME_EXTENSION_ID"
+    all_ok=false
+  fi
+
+  # 3. Check native messaging host
+  printf "  Native messaging:    "
+  local nmh_found=false
+
+  if [[ "$(uname)" == "Darwin" ]]; then
+    for nmh_path in \
+      "$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.anthropic.claude_code_browser_extension.json" \
+      "$HOME/Library/Application Support/Microsoft Edge/NativeMessagingHosts/com.anthropic.claude_code_browser_extension.json"; do
+      if [ -f "$nmh_path" ]; then
+        nmh_found=true
+        echo "OK"
+        break
+      fi
+    done
+  elif [[ "$(uname)" == "Linux" ]]; then
+    for nmh_path in \
+      "$HOME/.config/google-chrome/NativeMessagingHosts/com.anthropic.claude_code_browser_extension.json" \
+      "$HOME/.config/microsoft-edge/NativeMessagingHosts/com.anthropic.claude_code_browser_extension.json"; do
+      if [ -f "$nmh_path" ]; then
+        nmh_found=true
+        echo "OK"
+        break
+      fi
+    done
+  fi
+
+  if [ "$nmh_found" = false ]; then
+    echo "NOT FOUND"
+    echo "    Run 'claude --chrome' once to generate the native messaging host config,"
+    echo "    then restart Chrome."
+    all_ok=false
+  fi
+
+  echo ""
+  if [ "$all_ok" = true ]; then
+    echo "  Chrome integration is ready. Use 'claude --chrome' or '/chrome' in-session."
+  else
+    echo "  Chrome integration needs setup. Follow the steps above, then re-run:"
+    echo "    bash onboard.sh --step chrome"
+  fi
+  echo ""
+
+  [ "$all_ok" = true ]
 }
 
 list_services() {
@@ -51,6 +168,7 @@ list_services() {
     desc=$(parse_field "$entry" 5)
     printf "  %-12s %-12s %s\n" "$name" "$profile" "$desc"
   done
+  printf "  %-12s %-12s %s\n" "chrome" "—" "Chrome integration (extension + native messaging)"
 }
 
 check_profiles() {
@@ -85,11 +203,18 @@ check_profiles() {
     fi
   done
 
+  # Also check Chrome integration
   echo ""
+  echo "Checking Chrome integration..."
+  echo ""
+  if ! check_chrome_integration 2>/dev/null; then
+    all_ok=false
+  fi
+
   if [ "$all_ok" = true ]; then
-    echo "All profiles are logged in."
+    echo "All profiles are logged in and Chrome integration is ready."
   else
-    echo "Some profiles need login. Run: bash onboard.sh"
+    echo "Some items need attention. Run: bash onboard.sh"
   fi
 }
 
@@ -158,6 +283,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ -n "$SINGLE_STEP" ]; then
+  if [ "$SINGLE_STEP" = "chrome" ]; then
+    check_chrome_integration
+    exit $?
+  fi
   # Run a single service
   found=false
   for entry in "${SERVICES[@]}"; do
@@ -179,6 +308,7 @@ if [ -n "$SINGLE_STEP" ]; then
     for entry in "${SERVICES[@]}"; do
       echo "  $(parse_field "$entry" 1)" >&2
     done
+    echo "  chrome" >&2
     exit 1
   fi
 else
@@ -193,10 +323,12 @@ else
   echo "║  automatic headless reuse.                                 ║"
   echo "╚══════════════════════════════════════════════════════════════╝"
   echo ""
-  echo "Services to onboard: ${#SERVICES[@]}"
+  total=$(( ${#SERVICES[@]} + 1 ))  # services + Chrome check
+  echo "Steps to complete: $total"
   for entry in "${SERVICES[@]}"; do
     echo "  - $(parse_field "$entry" 5)"
   done
+  echo "  - Chrome integration (extension + native messaging)"
   echo ""
 
   completed=0
@@ -208,11 +340,14 @@ else
       "$(parse_field "$entry" 4)" \
       "$(parse_field "$entry" 5)"
     completed=$((completed + 1))
-    remaining=$(( ${#SERVICES[@]} - completed ))
+    remaining=$(( total - completed ))
     if [ "$remaining" -gt 0 ]; then
-      echo "  ($remaining service(s) remaining)"
+      echo "  ($remaining step(s) remaining)"
     fi
   done
+
+  # Final step: Chrome integration check
+  check_chrome_integration || true
 
   echo ""
   echo "╔══════════════════════════════════════════════════════════════╗"
@@ -220,6 +355,8 @@ else
   echo "╠══════════════════════════════════════════════════════════════╣"
   echo "║  All profiles saved. Future agent-browser calls using      ║"
   echo "║  --profile <name> will reuse these sessions headlessly.    ║"
+  echo "║  Chrome integration checked — use claude --chrome or       ║"
+  echo "║  /chrome in-session for anti-bot fallback.                 ║"
   echo "╚══════════════════════════════════════════════════════════════╝"
   echo ""
   echo "Profiles created:"
@@ -229,4 +366,5 @@ else
   echo ""
   echo "Verify with:  bash onboard.sh --check"
   echo "Re-run one:   bash onboard.sh --step <service>"
+  echo "              bash onboard.sh --step chrome"
 fi
