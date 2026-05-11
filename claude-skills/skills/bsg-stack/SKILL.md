@@ -53,10 +53,17 @@ intent and open PRs.
 bash claude-skills/skills/bsg-stack/scripts/doctor.sh
 
 # One-line status
-bash claude-skills/skills/bsg-stack/scripts/doctor.sh --status
+bash claude-skills/skills/bsg-stack/scripts/status.sh
 
-# Bootstrap a fresh repo (interactive, opens PRs)
-@bsg-stack init
+# Preview what /bsg-stack init would create (no writes)
+bash claude-skills/skills/bsg-stack/scripts/init.sh --dry-run
+
+# Bootstrap a fresh repo (writes to disk, prints summary)
+bash claude-skills/skills/bsg-stack/scripts/init.sh
+
+# Refresh stale custom docs (>90 days old by default)
+bash claude-skills/skills/bsg-stack/scripts/update.sh --dry-run
+bash claude-skills/skills/bsg-stack/scripts/update.sh
 ```
 
 ## What `doctor` checks
@@ -85,18 +92,34 @@ one row is `✗`. Soft `⚠` warnings do not raise the exit code, so
 `doctor` is safe to wire as a CI gate without forcing zero-warning
 hygiene.
 
-## What `init` and `update` do (when implemented)
+## What `init` and `update` do
 
-`init` orchestrates per-agent `--init` actions. The agents' frontmatter
-declares what each one's `--init` generates (see the `init:` field in
-each agent file). Today only `md-to-office` ships a working `--init`;
-the others have the contract documented but not the implementation.
-`init` lists what would be generated in dry-run mode until per-agent
-scripts catch up — see `references/init.md` for status.
+`init` orchestrates the per-agent `--init` scripts shipped under
+`claude-skills/skills/<skill>/scripts/init-*.sh`. For each registered
+agent that has a matching init script and whose `.bsg/<DOC>` path is
+not yet present, the orchestrator:
 
-`update` is a future verb that re-runs `--init` for agents whose
-custom doc is stale (older than 90 days, or when README has materially
-changed since the doc was last regenerated). Not yet implemented.
+1. Runs the agent's init script and captures stdout
+2. Writes the captured content to `.bsg/<DOC>`
+3. Skips agents whose doc already exists (idempotent — safe to re-run)
+
+Additionally, `init` creates the `.bsg/` skeleton (reports subdirs,
+adr/, brand/), bootstraps missing GitHub labels (`needs-human-review`,
+`human-reviewed`, every bus label from `agents/registry.json`), and
+drops a disabled `.bsg/AUTOPILOT.yml` scaffold if neither file exists.
+The orchestrator leaves the tree dirty — humans review the generated
+files and commit them. Run `init --dry-run` first to preview.
+
+`update` re-runs `--init` for agents whose custom doc is older than
+the staleness threshold (default: 90 days, override with
+`--threshold N`). Refreshed drafts land in `.bsg/.update-pending/`
+for explicit human diff + merge — `update` never overwrites a
+committed custom doc directly.
+
+Agents whose `--init` script hasn't shipped yet (po-manager, tech-lead,
+qa, md-to-office) are silently skipped during `init`/`update` and
+re-listed as missing in `doctor`'s scorecard. As each script lands,
+the orchestrator picks it up automatically — no SKILL.md edit needed.
 
 ## What `bsg-stack` does NOT do
 
