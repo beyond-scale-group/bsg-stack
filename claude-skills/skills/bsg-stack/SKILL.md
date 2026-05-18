@@ -116,10 +116,12 @@ the staleness threshold (default: 90 days, override with
 for explicit human diff + merge — `update` never overwrites a
 committed custom doc directly.
 
-Agents whose `--init` script hasn't shipped yet (po-manager, tech-lead,
-qa, md-to-office) are silently skipped during `init`/`update` and
-re-listed as missing in `doctor`'s scorecard. As each script lands,
-the orchestrator picks it up automatically — no SKILL.md edit needed.
+`md-to-office` self-hosts its `--init` (the `md-to-office.sh --init`
+flag, not a generic `init-*.sh`) so it is not driven by this
+orchestrator. Any other agent whose `--init` script hasn't shipped
+yet is silently skipped during `init`/`update` and re-listed as
+missing in `doctor`'s scorecard. As each script lands, the
+orchestrator picks it up automatically — no SKILL.md edit needed.
 
 ## What `bsg-stack` does NOT do
 
