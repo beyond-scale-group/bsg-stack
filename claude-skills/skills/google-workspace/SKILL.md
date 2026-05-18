@@ -428,6 +428,30 @@ discover via `gws <svc> --help` and `gws schema <svc.res.method>`.
   (both send and `--draft`). Compose the `--body` as HTML (`<p>`, `<a>`,
   `<img>`, `<strong>`). HTML renders clickable links, inline images, and
   proper formatting. Plain text looks broken in modern email clients.
+- **Auto-append the signature on direct `+send` / `+send --draft`** —
+  Gmail's web composer auto-adds the account signature; a direct
+  `gws gmail +send` does **not**. When you compose an HTML body yourself
+  (i.e. *not* going through `email-md-send.sh`, which already appends it),
+  fetch the default sendAs signature and append it after the body so
+  drafts and sent mail match what the user sees in Gmail web:
+
+  ```bash
+  SIG=$(gws gmail users settings sendAs list --params '{"userId":"me"}' \
+    | jq -r '.sendAs[] | select(.isDefault==true) | .signature // empty')
+  BODY='<p>Hi Alice!</p>'
+  [ -n "$SIG" ] && BODY="${BODY}<br><br>${SIG}"
+  gws gmail +send --to alice@x.com --subject 'Ping' --body "$BODY" --html --draft
+  ```
+
+  Rules:
+  - Only when `--html` is used; skip silently when the signature is
+    empty/`null` (no separator added).
+  - Fetch once per session and reuse — it doesn't change mid-task.
+  - Honour an explicit **`--no-signature`** intent from the user (e.g.
+    "send without signature"): skip the fetch/append entirely. Same
+    opt-out keyword as `email-md-send.sh --no-signature`.
+  - The markdown pipeline (`email-md-send.sh` / `email-from-md.sh`)
+    already does this — do **not** double-append when routing through it.
 - **`--dry-run`** validates the request locally without calling Google. Use
   it to verify shape before any mutating call.
 - **`--format json`** (default) for parsing; `--format table` for humans;

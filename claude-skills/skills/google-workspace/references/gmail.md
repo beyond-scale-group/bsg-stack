@@ -310,6 +310,20 @@ gws gmail +send --to "$TO" --from "$FROM" --subject "$SUBJECT" \
   --body "$(cat /tmp/body.html)" --html --draft
 ```
 
+**Direct compose (no markdown source).** When you build the HTML body
+yourself instead of from a `.md` file, `gws gmail +send` still won't add
+the signature. Fetch the default sendAs signature and append it so
+drafts/sent mail match Gmail web (skip if empty, or on a `--no-signature`
+intent — see SKILL.md "Agent-friendly conventions"):
+
+```bash
+SIG=$(gws gmail users settings sendAs list --params '{"userId":"me"}' \
+  | jq -r '.sendAs[] | select(.isDefault==true) | .signature // empty')
+BODY='<p>Hi Alice!</p>'
+[ -n "$SIG" ] && BODY="${BODY}<br><br>${SIG}"
+gws gmail +send --to alice@x.com --subject 'Ping' --body "$BODY" --html --draft
+```
+
 ## Cheap patterns
 
 ```bash
