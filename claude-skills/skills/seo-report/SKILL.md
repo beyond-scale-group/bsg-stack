@@ -34,8 +34,11 @@ For a **full audit**, run `generate-report.sh`.
    script's output.
 2. **Always write the final report to `seo/reports/YYYY-MM-DD-*.md`**
    — dated and version-controllable.
-3. **Source-at-rest only.** No `curl`, no `wget` against production.
-   The skill analyzes templates and static files in this repo.
+3. **Source-at-rest by default.** No `curl`/`wget` against production
+   unless the operator explicitly opts in with `generate-report.sh
+   --prod`. The default audit analyzes templates and static files in
+   this repo only; `--prod` adds a clearly-labelled, read-only
+   `## Production checks` section (see "Production checks" below).
 4. **Respect `.seoignore`** (gitignore-style) for marketing-only
    landing pages that legitimately lack some tags.
 5. **Confirm before posting** to GitHub (issue comments, labels).
@@ -53,13 +56,18 @@ template fetch; reporters transform it.
 | `links.sh`            | Orphan detector + broken-link checker based on the adjacency list from `collect.sh`. |
 | `content.sh`          | Keyword coverage: for each entry in `seo/KEYWORDS.md`, find pages mentioning it in title or H1; emit `uncoveredKeywords[]` for the gaps. |
 | `technical.sh`        | Sitemap presence + page-coverage diff, robots.txt presence, canonical URL consistency. |
-| `generate-report.sh`  | Collects once, runs every reporter, composes the full markdown audit. |
+| `generate-report.sh`  | Collects once, runs every reporter, composes the full markdown audit. Accepts `--prod [url]` to append production checks. |
+| `prod-checks.sh`      | Opt-in. Read-only HTTP probes against the live site (sitemap/robots status, canonical absoluteness, JSON-LD types, OG image reachability, GA4/Pixel presence, pillar-page status, www-vs-apex redirect code). Emits a `## Production checks` markdown section. Always exits 0. |
 
 **Invocation patterns:**
 
 ```bash
-# Full audit
+# Full audit (source-at-rest only)
 bash scripts/generate-report.sh > seo/reports/$(date +%F)-audit.md
+
+# Full audit + production verification
+bash scripts/generate-report.sh --prod https://www.the-shift.ai \
+  > seo/reports/$(date +%F)-audit.md
 
 # Reuse one snapshot
 bash scripts/collect.sh > /tmp/seo-snap.json
@@ -78,6 +86,43 @@ seo/reports/2026-04-20-audit.md   # full audit
 seo/reports/2026-04-20-meta.md    # meta-only
 seo/reports/2026-04-20-links.md   # link-graph
 ```
+
+## Runtime layout
+
+Every collector sources the shared BSG path resolver to locate
+`KEYWORDS.md` (`.bsg/KEYWORDS.md` preferred, legacy `seo/KEYWORDS.md`
+fallback, per ADR-001). The resolver is **not** part of this skill
+directory — it lives three levels up:
+
+```
+<skills-root>/
+├── scripts/_bsg-paths.sh          ← resolver (REQUIRED)
+└── skills/seo-report/scripts/collect.sh   ← sources ../../../scripts/_bsg-paths.sh
+```
+
+When the skill is installed standalone (e.g. the Donna bucket on Clever
+Cloud) the resolver must be vendored alongside it at that relative
+path. If it is missing, `collect.sh` now fails fast with an explicit
+`ERROR: _bsg-paths.sh not found at <path>` instead of crashing
+silently.
+
+## Production checks
+
+Source-at-rest analysis cannot validate a live deployment (missing env
+vars, 404 OG image, 307-vs-301 host redirects, JSON-LD stripped at
+build, analytics that never shipped). `generate-report.sh --prod`
+appends a read-only `## Production checks` section.
+
+URL resolution order: `--prod <url>` arg → `SEO_SITE_URL` →
+`SITE_URL` → `site_url:` in `AUTOPILOT.yml`. If none resolve, the
+section reports "skipped" rather than failing the audit.
+
+Checks: sitemap/robots HTTP status (+ URL count, `Sitemap:` presence),
+canonical absoluteness on homepage + 2 sampled internal pages, JSON-LD
+`@type`s in rendered HTML, OG image reachability, GA4/Meta-Pixel
+presence, pillar-page status codes, and www-vs-apex redirect (expects
+301). `prod-checks.sh` always exits 0 so a flaky network never aborts
+`tick`.
 
 ## Tick action
 
