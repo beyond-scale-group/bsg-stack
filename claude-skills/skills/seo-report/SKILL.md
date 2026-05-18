@@ -34,8 +34,13 @@ For a **full audit**, run `generate-report.sh`.
    script's output.
 2. **Always write the final report to `seo/reports/YYYY-MM-DD-*.md`**
    — dated and version-controllable.
-3. **Source-at-rest only.** No `curl`, no `wget` against production.
-   The skill analyzes templates and static files in this repo.
+3. **Source-at-rest by default.** The skill analyzes templates and
+   static files in this repo and makes **no** network calls — unless
+   the user explicitly opts in to production verification with
+   `generate-report.sh --prod [url]`, which runs a bounded set of
+   read-only `curl` probes (status codes, headers, rendered HTML) and
+   appends a `## Production checks` section. Never probe production
+   without the explicit `--prod` flag.
 4. **Respect `.seoignore`** (gitignore-style) for marketing-only
    landing pages that legitimately lack some tags.
 5. **Confirm before posting** to GitHub (issue comments, labels).
@@ -53,13 +58,27 @@ template fetch; reporters transform it.
 | `links.sh`            | Orphan detector + broken-link checker based on the adjacency list from `collect.sh`. |
 | `content.sh`          | Keyword coverage: for each entry in `seo/KEYWORDS.md`, find pages mentioning it in title or H1; emit `uncoveredKeywords[]` for the gaps. |
 | `technical.sh`        | Sitemap presence + page-coverage diff, robots.txt presence, canonical URL consistency. |
-| `generate-report.sh`  | Collects once, runs every reporter, composes the full markdown audit. |
+| `prod-check.sh`       | **Opt-in** (`--prod [url]`) live verification: sitemap/robots HTTP status, absolute canonicals, JSON-LD in rendered HTML, OG image reachability, GA4/Pixel presence, pillar-page status, www↔apex redirect code. Emits a markdown section. |
+| `generate-report.sh`  | Collects once, runs every reporter, composes the full markdown audit. Pass `--prod [url]` to append `prod-check.sh` output. |
+
+## Dependencies
+
+`collect.sh` and `prod-check.sh` source the shared path resolver
+`_bsg-paths.sh`, expected at **`<repo>/claude-skills/scripts/_bsg-paths.sh`**
+— three levels up from this skill's `scripts/` dir. The skill must be
+installed with that sibling `scripts/` tree intact; if the file is
+missing, `collect.sh` exits 1 with an explicit error rather than
+crashing mid-pipeline.
 
 **Invocation patterns:**
 
 ```bash
 # Full audit
 bash scripts/generate-report.sh > seo/reports/$(date +%F)-audit.md
+
+# Full audit + live production verification (opt-in)
+bash scripts/generate-report.sh --prod https://www.the-shift.ai \
+  > seo/reports/$(date +%F)-audit.md
 
 # Reuse one snapshot
 bash scripts/collect.sh > /tmp/seo-snap.json

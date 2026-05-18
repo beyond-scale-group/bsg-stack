@@ -5,6 +5,19 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
+# Optional opt-in production verification: `--prod [url]`. When set, a
+# `## Production checks` section (live curl probes) is appended after the
+# source-at-rest audit. URL falls back to $SITE_URL / autopilot config.
+PROD=0
+PROD_URL=""
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --prod) PROD=1; shift
+            if [[ $# -gt 0 && "$1" != --* ]]; then PROD_URL="$1"; shift; fi ;;
+    *) shift ;;
+  esac
+done
+
 SNAPSHOT=$(mktemp -t seo-snap.XXXXXX.json)
 trap 'rm -f "$SNAPSHOT"' EXIT
 
@@ -109,3 +122,14 @@ $(jq -r '
 ' <<<"$TECH")
 
 EOF
+
+if [[ "$PROD" -eq 1 ]]; then
+  echo
+  echo "---"
+  echo
+  if [[ -n "$PROD_URL" ]]; then
+    bash "$SCRIPT_DIR/prod-check.sh" --prod "$PROD_URL"
+  else
+    bash "$SCRIPT_DIR/prod-check.sh" --prod
+  fi
+fi

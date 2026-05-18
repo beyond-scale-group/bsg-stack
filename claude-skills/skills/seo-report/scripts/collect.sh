@@ -11,8 +11,30 @@ set -euo pipefail
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 cd "$REPO_ROOT"
 
+# Shared path resolver. Lives at <repo>/claude-skills/scripts/_bsg-paths.sh,
+# i.e. three levels up from this skill's scripts/ dir. It can be absent in a
+# stripped Donna install (the skill is synced without the sibling scripts/
+# tree) — fail loud rather than crash mid-pipeline with an opaque error.
+BSG_PATHS="$(dirname "$0")/../../../scripts/_bsg-paths.sh"
+if [[ ! -f "$BSG_PATHS" ]]; then
+  echo "ERROR: _bsg-paths.sh not found at $BSG_PATHS" >&2
+  echo "       expected <repo>/claude-skills/scripts/_bsg-paths.sh relative to the skill dir;" >&2
+  echo "       the seo-report skill must be installed with its sibling scripts/ tree." >&2
+  exit 1
+fi
 # shellcheck source=../../../scripts/_bsg-paths.sh disable=SC1091
-source "$(dirname "$0")/../../../scripts/_bsg-paths.sh"
+source "$BSG_PATHS"
+
+# Read stdin lines into a JSON string array, always emitting valid JSON even
+# on empty input. Plain `grep ... | jq -Rn '[inputs]'` crashes `jq --argjson`
+# under `set -euo pipefail` when grep finds nothing (e.g. JSX/TSX files with
+# no raw href attributes): the failed grep trips pipefail and the empty/garbled
+# value reaches --argjson. Routing through this helper guarantees a valid array.
+to_json_array() {
+  local out
+  out=$(jq -Rn '[inputs]' 2>/dev/null) || out='[]'
+  printf '%s' "${out:-[]}"
+}
 
 # -------------------------------------------- page file enumeration
 
@@ -62,13 +84,19 @@ while IFS= read -r f; do
   og_desc=$(grep -oEi '<meta[^>]*property="og:description"[^>]*>' "$f" 2>/dev/null | head -1 || true)
   og_image=$(grep -oEi '<meta[^>]*property="og:image"[^>]*>' "$f" 2>/dev/null | head -1 || true)
 
-  # Pull out internal link targets: href="/something" (not starting with http: or mailto: or tel:).
-  targets=$(grep -oE 'href="[^"]+"' "$f" 2>/dev/null \
-    | sed 's/href="//; s/"$//' \
-    | grep -E '^/' \
-    | grep -v '^#' \
-    | sort -u \
-    | jq -Rn '[inputs]' 2>/dev/null || echo '[]')
+  # Pull out internal link targets. Matches plain `<a href="/x">` as well as
+  # Next.js / JSX forms: `<Link href="/x">`, `href={'/x'}`, `href={"/x"}`,
+  # and `to="/x"` (react-router). Each grep is `|| true`-guarded so a no-match
+  # never trips pipefail; to_json_array always yields a valid array.
+  q="[\"']"
+  targets=$(
+    { grep -oE "(href|to)=\{?${q}[^\"'>} ]+" "$f" 2>/dev/null || true; } \
+      | sed -E "s/^(href|to)=\{?${q}//" \
+      | { grep -E '^/' || true; } \
+      | { grep -v '^#' || true; } \
+      | sort -u \
+      | to_json_array
+  )
 
   has_jsonld="false"
   if grep -qE 'type="application/ld\+json"' "$f" 2>/dev/null; then
@@ -120,9 +148,11 @@ ROBOTS_PATH=$(find_first robots.txt public/robots.txt static/robots.txt dist/rob
 
 SITEMAP_URLS_JSON='[]'
 if [[ -n "$SITEMAP_PATH" ]]; then
-  SITEMAP_URLS_JSON=$(grep -oE '<loc>[^<]+</loc>' "$SITEMAP_PATH" 2>/dev/null \
-    | sed -E 's|<loc>||; s|</loc>||' \
-    | jq -Rn '[inputs]' 2>/dev/null || echo '[]')
+  SITEMAP_URLS_JSON=$(
+    { grep -oE '<loc>[^<]+</loc>' "$SITEMAP_PATH" 2>/dev/null || true; } \
+      | sed -E 's|<loc>||; s|</loc>||' \
+      | to_json_array
+  )
 fi
 
 ROBOTS_BLANKET="false"
@@ -137,9 +167,11 @@ fi
 KEYWORDS_PATH="$(bsg_doc_path keywords)"
 KEYWORDS_JSON='null'
 if [[ -f "$KEYWORDS_PATH" ]]; then
-  KEYWORDS_JSON=$({ grep -oE '^-[[:space:]]+.+' "$KEYWORDS_PATH" || true; } \
-    | sed -E 's/^-[[:space:]]+//' \
-    | jq -Rn '[inputs]' 2>/dev/null || echo '[]')
+  KEYWORDS_JSON=$(
+    { grep -oE '^-[[:space:]]+.+' "$KEYWORDS_PATH" || true; } \
+      | sed -E 's/^-[[:space:]]+//' \
+      | to_json_array
+  )
 fi
 
 # ---------------------------------------------------------- emit
