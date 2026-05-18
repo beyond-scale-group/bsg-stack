@@ -116,8 +116,8 @@ the staleness threshold (default: 90 days, override with
 for explicit human diff + merge — `update` never overwrites a
 committed custom doc directly.
 
-Agents whose `--init` script hasn't shipped yet (po-manager, tech-lead,
-qa, md-to-office) are silently skipped during `init`/`update` and
+Agents whose `--init` script hasn't shipped yet (md-to-office's
+`.bsg/DESIGN.md`) are silently skipped during `init`/`update` and
 re-listed as missing in `doctor`'s scorecard. As each script lands,
 the orchestrator picks it up automatically — no SKILL.md edit needed.
 
