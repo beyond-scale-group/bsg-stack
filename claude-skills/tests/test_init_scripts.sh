@@ -63,6 +63,8 @@ check_script "claude-skills/skills/marketing-report/scripts/init-calendar.sh"
 check_script "claude-skills/skills/pr-comms-report/scripts/init-announced.sh"
 check_script "claude-skills/skills/security-report/scripts/init-securityignore.sh"
 check_script "claude-skills/skills/storytelling-report/scripts/init-narrative.sh"
+check_script "claude-skills/skills/tech-report/scripts/init-adr.sh"
+check_script "claude-skills/skills/qa-report/scripts/init-qa.sh"
 
 echo ""
 echo "PASS: $PASS, FAIL: $FAIL"
