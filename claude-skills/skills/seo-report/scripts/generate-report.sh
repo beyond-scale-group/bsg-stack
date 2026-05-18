@@ -1,9 +1,56 @@
 #!/usr/bin/env bash
 # generate-report.sh — compose the full SEO audit report.
+#
+# Usage:
+#   generate-report.sh                 source-at-rest audit only
+#   generate-report.sh --prod          + production checks, URL resolved
+#                                       from SEO_SITE_URL / SITE_URL /
+#                                       AUTOPILOT.yml `site_url:`
+#   generate-report.sh --prod <url>    + production checks against <url>
 
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+
+# ---------------------------------------------------------- arg parsing
+
+PROD=0
+PROD_URL=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --prod)
+      PROD=1
+      # Optional inline URL: `--prod https://...`
+      if [[ ${2:-} =~ ^https?:// ]]; then
+        PROD_URL="$2"
+        shift
+      fi
+      ;;
+    *)
+      echo "generate-report.sh: unknown argument '$1'" >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+# Resolve the production URL: explicit arg > env > AUTOPILOT.yml.
+if [[ "$PROD" -eq 1 && -z "$PROD_URL" ]]; then
+  PROD_URL="${SEO_SITE_URL:-${SITE_URL:-}}"
+fi
+if [[ "$PROD" -eq 1 && -z "$PROD_URL" ]]; then
+  REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+  BSG_PATHS="$SCRIPT_DIR/../../../scripts/_bsg-paths.sh"
+  if [[ -f "$BSG_PATHS" ]]; then
+    # shellcheck source=../../../scripts/_bsg-paths.sh disable=SC1091
+    source "$BSG_PATHS"
+    AUTOPILOT="$REPO_ROOT/$BSG_AUTOPILOT_FILE"
+    if [[ -f "$AUTOPILOT" ]]; then
+      PROD_URL=$( { grep -oE '^[[:space:]]*site_url:[[:space:]]*\S+' "$AUTOPILOT" 2>/dev/null || true; } \
+        | head -1 | sed -E 's/^[[:space:]]*site_url:[[:space:]]*//; s/^["'\'']//; s/["'\'']$//' )
+    fi
+  fi
+fi
 
 SNAPSHOT=$(mktemp -t seo-snap.XXXXXX.json)
 trap 'rm -f "$SNAPSHOT"' EXIT
@@ -109,3 +156,12 @@ $(jq -r '
 ' <<<"$TECH")
 
 EOF
+
+if [[ "$PROD" -eq 1 ]]; then
+  echo
+  echo "---"
+  echo
+  # Non-fatal: a failing prod-checks.sh must not abort the audit.
+  bash "$SCRIPT_DIR/prod-checks.sh" "$PROD_URL" || \
+    echo "_Production checks failed to run (see logs); source-at-rest audit above is unaffected._"
+fi
