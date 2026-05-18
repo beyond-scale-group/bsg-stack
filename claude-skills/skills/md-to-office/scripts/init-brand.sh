@@ -15,8 +15,12 @@
 #
 # Flow:
 #   1. Scan the repo for brand signals  → brand/tokens.json
-#   2. Generate brand audit             → brand/templates/brand-audit.md
-#   3. Generate Office templates        → brand/templates/{reference.docx,template.pptx,template.xlsx}
+#   2. Generate design-system spec      → .bsg/DESIGN.md (Google Stitch format)
+#   3. Generate brand audit             → brand/templates/brand-audit.md
+#   4. Generate Office templates        → brand/templates/{reference.docx,template.pptx,template.xlsx}
+#
+# .bsg/DESIGN.md is the canonical design-system source (#237); brand/tokens.json
+# is derived from the same scan. With --no-scan both are preserved as-is.
 #
 # Templates are discovered from:
 #   CSS custom properties, tailwind.config.*, design-token JSON files,
@@ -47,6 +51,7 @@ brand_dir="./brand"
 tokens_path="${brand_dir}/tokens.json"
 templates_dir="${brand_dir}/templates"
 audit_path="${templates_dir}/brand-audit.md"
+design_path="./.bsg/DESIGN.md"
 
 # Guard: require --force if already initialized (skip for --dry-run).
 if [[ $dry_run -eq 0 ]] && [[ -d "$templates_dir" ]] && [[ -n "$(ls -A "$templates_dir" 2>/dev/null)" ]] && [[ $force -eq 0 ]]; then
@@ -70,10 +75,12 @@ if [[ $no_scan -eq 1 ]]; then
   echo "Skipping scan — using existing ${tokens_path}"
 else
   echo "Scanning repo for brand signals…"
-  scan_args=(--audit "$audit_path")
+  mkdir -p "$(dirname "$design_path")"
+  scan_args=(--audit "$audit_path" --design "$design_path")
   python3 "$here/scan-brand.py" "${scan_args[@]}" > "$tokens_path"
   echo ""
   echo "Tokens written to ${tokens_path}"
+  echo "Design system written to ${design_path}"
 fi
 
 if [[ $dry_run -eq 1 ]]; then
@@ -81,6 +88,7 @@ if [[ $dry_run -eq 1 ]]; then
   echo "Dry run — no templates generated."
   echo "Review:"
   echo "  ${tokens_path}  (extracted tokens)"
+  echo "  ${design_path}  (design-system spec)"
   echo "  ${audit_path}   (full audit of what was found)"
   exit 0
 fi
@@ -99,9 +107,11 @@ echo ""
 echo "Brand standard initialized."
 echo ""
 echo "Next steps:"
-echo "  1. Review brand/tokens.json (edit primary colour, font, etc.)"
-echo "  2. Review brand/templates/brand-audit.md for discovery details"
-echo "  3. Open brand/templates/ files and apply your team's final brand"
+echo "  1. Review .bsg/DESIGN.md — the canonical design-system spec"
+echo "     (palette, typography, spacing, components, accessibility)"
+echo "  2. Review brand/tokens.json (derived; edit primary colour, font, etc.)"
+echo "  3. Review brand/templates/brand-audit.md for discovery details"
+echo "  4. Open brand/templates/ files and apply your team's final brand"
 echo "     (logo, exact palette, slide backgrounds, footer text)"
-echo "  4. Re-run with --force after editing tokens.json to regenerate"
-echo "  5. git add brand/ && git commit -m 'brand: initialize office templates'"
+echo "  5. Re-run with --force after editing to regenerate"
+echo "  6. git add .bsg/DESIGN.md brand/ && git commit -m 'brand: initialize design system'"

@@ -22,6 +22,7 @@ from pathlib import Path
 from _md_to_office_helpers import (
     GEN_TEMPLATES,
     INIT_BRAND,
+    SCAN_BRAND,
     ZIP_MAGIC,
     run,
 )
@@ -189,6 +190,71 @@ class TestInitBrandSmoke(unittest.TestCase):
         content = audit.read_text()
         self.assertIn("Brand Audit", content)
         self.assertIn("Init Test Repo", content)
+
+
+class TestDesignMdGeneration(unittest.TestCase):
+    """#237: .bsg/DESIGN.md generation following the Google Stitch spec.
+
+    DESIGN.md is produced during the deterministic scan phase (scan-brand.py
+    / init-brand.sh --dry-run), so these tests are stdlib-only and do NOT
+    require pandoc / python-docx / python-pptx — unlike TestInitBrandSmoke.
+    """
+
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="bsg-design-"))
+        (self.tmp / "README.md").write_text("# Design Test Repo\n\nDoes things.\n")
+        (self.tmp / "styles.css").write_text(
+            ":root { --primary-color: #3a86ff; --font-family-primary: 'Roboto'; }\n"
+        )
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _assert_stitch_spec(self, content: str) -> None:
+        for section in (
+            "## Colors",
+            "## Typography",
+            "## Spacing & layout",
+            "## Components",
+            "## Accessibility",
+        ):
+            self.assertIn(section, content, f"DESIGN.md missing {section!r}")
+        # Scanned signals from the fixture (styles.css / README.md).
+        self.assertIn("#3a86ff", content)
+        self.assertIn("Roboto", content)
+        self.assertIn("Design Test Repo — Design System", content)
+        self.assertIn("Google Stitch", content)
+
+    def test_scan_brand_design_flag_writes_stitch_spec(self) -> None:
+        """scan-brand.py --design writes a Google Stitch DESIGN.md."""
+        run(
+            [
+                "python3",
+                str(SCAN_BRAND),
+                "--design",
+                ".bsg/DESIGN.md",
+            ],
+            cwd=self.tmp,
+        )
+        design = self.tmp / ".bsg" / "DESIGN.md"
+        self.assertTrue(design.exists(), "Missing .bsg/DESIGN.md")
+        self._assert_stitch_spec(design.read_text())
+
+    def test_init_dry_run_writes_design_md(self) -> None:
+        """init-brand.sh --dry-run emits DESIGN.md (scan phase, no Office deps)."""
+        run(["bash", str(INIT_BRAND), "--dry-run"], cwd=self.tmp)
+        design = self.tmp / ".bsg" / "DESIGN.md"
+        self.assertTrue(design.exists(), "Missing .bsg/DESIGN.md")
+        self._assert_stitch_spec(design.read_text())
+
+    def test_design_md_reports_wcag_contrast(self) -> None:
+        """Accessibility section must surface a computed contrast ratio."""
+        run(
+            ["python3", str(SCAN_BRAND), "--design", ".bsg/DESIGN.md"],
+            cwd=self.tmp,
+        )
+        content = (self.tmp / ".bsg" / "DESIGN.md").read_text()
+        self.assertRegex(content, r"contrast \*\*\d+\.\d+:1\*\* \(WCAG ")
 
 
 if __name__ == "__main__":
