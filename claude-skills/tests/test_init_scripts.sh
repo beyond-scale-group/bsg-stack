@@ -50,7 +50,9 @@ check_script() {
     bash "$path" > /tmp/init-script-output.$$ 2>/dev/null || true
   )
   local pre_files=$(find "$tmp" -mindepth 1 -not -path '*/.git*' 2>/dev/null | wc -l | tr -d ' ')
-  local out_size=$(stat -f %z /tmp/init-script-output.$$ 2>/dev/null || stat -c %s /tmp/init-script-output.$$ 2>/dev/null || echo 0)
+  # wc -c is portable; GNU `stat -f %z` exits 0 but dumps filesystem
+  # info (not the size), so a stat-based check is not portable here.
+  local out_size=$(wc -c < /tmp/init-script-output.$$ 2>/dev/null | tr -d ' ' || echo 0)
   rm -rf "$tmp" /tmp/init-script-output.$$
 
   assert "$name emits non-empty stdout in empty repo" "[[ '$out_size' -gt 50 ]]"
@@ -63,6 +65,8 @@ check_script "claude-skills/skills/marketing-report/scripts/init-calendar.sh"
 check_script "claude-skills/skills/pr-comms-report/scripts/init-announced.sh"
 check_script "claude-skills/skills/security-report/scripts/init-securityignore.sh"
 check_script "claude-skills/skills/storytelling-report/scripts/init-narrative.sh"
+check_script "claude-skills/skills/tech-report/scripts/init-adr.sh"
+check_script "claude-skills/skills/qa-report/scripts/init-qa.sh"
 
 echo ""
 echo "PASS: $PASS, FAIL: $FAIL"
