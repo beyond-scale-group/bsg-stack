@@ -50,7 +50,13 @@ check_script() {
     bash "$path" > /tmp/init-script-output.$$ 2>/dev/null || true
   )
   local pre_files=$(find "$tmp" -mindepth 1 -not -path '*/.git*' 2>/dev/null | wc -l | tr -d ' ')
-  local out_size=$(stat -f %z /tmp/init-script-output.$$ 2>/dev/null || stat -c %s /tmp/init-script-output.$$ 2>/dev/null || echo 0)
+  # Byte count via `wc -c` is portable across GNU and BSD. Don't use
+  # `stat -f %z` (BSD) with a `stat -c %s` (GNU) fallback: on GNU
+  # coreutils `stat -f` means "filesystem status" and *succeeds*,
+  # printing filesystem info instead of a size, so the `||` fallback
+  # never fires and the result is unusable in `[[ -gt ]]`.
+  local out_size=$(wc -c < /tmp/init-script-output.$$ 2>/dev/null | tr -d ' ' || echo 0)
+  [[ -n "$out_size" ]] || out_size=0
   rm -rf "$tmp" /tmp/init-script-output.$$
 
   assert "$name emits non-empty stdout in empty repo" "[[ '$out_size' -gt 50 ]]"
