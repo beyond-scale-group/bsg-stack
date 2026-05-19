@@ -83,6 +83,16 @@ out="$(cd "$tmp" && bash -c "source $SUT; bsg_doc_path plan")"
 assert_eq "both present: .bsg/ wins" ".bsg/PLAN.md" "$out"
 rm -rf "$tmp"
 
+# 4b. DESIGN.md is net-new (ADR-003): it has NO legacy path, so even
+#     when a stray brand/DESIGN.md exists the resolver must still
+#     return .bsg/DESIGN.md rather than falling back to it.
+tmp="$(mktemp -d)"
+mkdir -p "$tmp/brand"
+touch "$tmp/brand/DESIGN.md"
+out="$(cd "$tmp" && bash -c "source $SUT; bsg_doc_path design")"
+assert_eq "design: no legacy fallback (ADR-003 net-new)" ".bsg/DESIGN.md" "$out"
+rm -rf "$tmp"
+
 # 5. Unknown doc kind → rc=2.
 set +e
 out="$(bash -c "source $SUT; bsg_doc_path bogus" 2>&1)"

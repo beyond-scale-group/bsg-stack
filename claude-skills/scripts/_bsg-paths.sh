@@ -39,7 +39,7 @@ bsg_doc_path() {
     calendar)      new=".bsg/CALENDAR.md";      legacy="marketing/CALENDAR.md" ;;
     announced)     new=".bsg/ANNOUNCED.md";     legacy="comms/ANNOUNCED.md" ;;
     securityignore) new=".bsg/SECURITYIGNORE";  legacy=".securityignore" ;;
-    design)        new=".bsg/DESIGN.md";        legacy="brand/DESIGN.md" ;;
+    design)        new=".bsg/DESIGN.md";        legacy="" ;;  # net-new, ADR-003 (no legacy path)
     adr)           new=".bsg/adr";              legacy="adr" ;;
     brand)         new=".bsg/brand";            legacy="brand" ;;
     reports)       new=".bsg/reports";          legacy="" ;;
