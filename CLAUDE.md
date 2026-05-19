@@ -217,16 +217,17 @@ never-auto-implements:
   - "dependency version bumps (belongs to Renovate)"
 ```
 
-Three agents are now `output: commit` with live auto-implementation
-pilots: **tech-lead** (#181), **seo** (#216), and **qa** (#219). Each
-one picks up at most one issue per tick when the repo opts into
-autopilot via `.bsg-autopilot.yml`, applies a scoped fix
-(≤ 200 LOC / ≤ 8 files), and opens a PR — auto-merging when the
-repo sets `auto_merge: true`, otherwise stamping
-`needs-human-review` for human disposition. The remaining five agents
-(`po-manager`, `security`, `marketing`, `storytelling`, `pr-comms`)
-stay `output: pr` with explicit `never-auto-implements` clauses
-documenting *why* auto-implementation is out of scope for their domain.
+Four agents are now `output: commit` with live auto-implementation
+pilots: **tech-lead** (#181), **seo** (#216), **qa** (#219), and
+**docs-keeper**. Each one picks up at most one issue per tick when
+the repo opts into autopilot via `.bsg-autopilot.yml`, applies a
+scoped fix (≤ 200 LOC / ≤ 8 files), and opens a PR — auto-merging when
+the repo sets `auto_merge: true`, otherwise stamping
+`needs-human-review` for human disposition. The remaining agents
+(`po-manager`, `security`, `marketing`, `storytelling`, `pr-comms`,
+`cleaner`) stay `output: pr` with explicit `never-auto-implements`
+clauses documenting *why* auto-implementation is out of scope for
+their domain.
 **po-manager** additionally carries a `delegates-to: [tech, qa, seo]`
 field — it files issues routed to `output: commit` agents during its
 tick (phase A.5), acting as the project's task router.
@@ -282,7 +283,7 @@ the repo-level marker is the single source of truth. Without the
 file, `output: commit` agents tick in audit-only mode and never
 auto-implement, regardless of issue labels.
 
-To let `output: commit` agents (tech-lead, seo, qa) auto-implement
+To let `output: commit` agents (tech-lead, seo, qa, docs-keeper) auto-implement
 fixes in a repository, a human must:
 
 1. **Bootstrap the required labels** (one-time, idempotent):
@@ -313,7 +314,7 @@ fixes in a repository, a human must:
 
 3. **Feed the backlog.** File or label issues with:
    - `label:bug` or `label:enhancement`
-   - The agent's bus label (`tech`, `seo`, or `qa`)
+   - The agent's bus label (`tech`, `seo`, `qa`, or `docs-keeper`)
    - At least one `epic:*` label binding the issue to a plan item
 
 4. **Run the tick** (or let `/loop` / `/schedule` drive it):
@@ -391,8 +392,8 @@ preventing a runaway `/loop` from flooding the repo.
 ### Fully autonomous mode (`auto_merge: true`)
 
 Adding `auto_merge: true` to `.bsg-autopilot.yml` flips the
-finalization behavior of the 3 `output: commit` agents (tech-lead,
-qa, seo). Instead of stopping at `needs-human-review` after `gh pr
+finalization behavior of the 4 `output: commit` agents (tech-lead,
+qa, seo, docs-keeper). Instead of stopping at `needs-human-review` after `gh pr
 create`, they call `auto-merge-or-flag.sh <pr> <agent>` which
 squash-merges the PR, deletes the branch, and stamps
 `human-reviewed`.
@@ -424,7 +425,7 @@ human issue-creation.
 
 Two patterns exist:
 
-1. **Self-filing** (`output: commit` agents): tech-lead, seo, qa scan
+1. **Self-filing** (`output: commit` agents): tech-lead, seo, qa, docs-keeper scan
    their own audit for mechanically-fixable findings that match
    `auto-implements`. Filed issues become phase (B) candidates on the
    *next* tick.
