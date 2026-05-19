@@ -140,6 +140,38 @@ class TestScanBrand(unittest.TestCase):
         )
         self.assertEqual(self._scan()["colors"]["primary"], "#ff6b35")
 
+    def test_primary_from_style_dictionary_tokens(self) -> None:
+        """#623: Style Dictionary nests leaves under {"value": "#hex"}."""
+        tokens_dir = self.tmp / "tokens"
+        tokens_dir.mkdir()
+        (tokens_dir / "color.json").write_text(json.dumps({
+            "color": {
+                "brand": {
+                    "primary": {"value": "#0066ff", "type": "color"},
+                    "secondary": {"value": "#999999", "type": "color"},
+                }
+            }
+        }))
+        self.assertEqual(self._scan()["colors"]["primary"], "#0066ff")
+
+    def test_primary_from_figma_tokens_export(self) -> None:
+        """#623: Figma Tokens (Studio plugin) groups under 'global'."""
+        (self.tmp / "tokens.figma.json").write_text(json.dumps({
+            "global": {
+                "colors": {
+                    "primary": {"value": "#abcdef", "type": "color"},
+                }
+            }
+        }))
+        self.assertEqual(self._scan()["colors"]["primary"], "#abcdef")
+
+    def test_primary_from_dotted_tokens_file(self) -> None:
+        """#623: any *.tokens.json file is treated as a design-token tree."""
+        (self.tmp / "brand.tokens.json").write_text(json.dumps({
+            "brand": {"primary": {"value": "112233"}}
+        }))
+        self.assertEqual(self._scan()["colors"]["primary"], "#112233")
+
     def test_primary_shorthand_hex_expanded(self) -> None:
         css = self.tmp / "main.css"
         css.write_text(":root { --primary: #f0f; }\n")
@@ -225,6 +257,65 @@ class TestScanBrand(unittest.TestCase):
     def test_logos_empty_when_none_found(self) -> None:
         tokens = self._scan()
         self.assertEqual(tokens["logos"], [])
+
+    # ---- favicon detection --------------------------------------------------
+
+    def test_favicon_found_at_root(self) -> None:
+        """#623: root-level favicon.ico / favicon.svg (Next.js / Astro convention)."""
+        (self.tmp / "favicon.ico").write_bytes(b"\x00\x00\x01\x00")
+        (self.tmp / "favicon.svg").write_text("<svg/>")
+        tokens = self._scan()
+        self.assertIn("favicons", tokens)
+        self.assertTrue(any("favicon.ico" in f for f in tokens["favicons"]))
+        self.assertTrue(any("favicon.svg" in f for f in tokens["favicons"]))
+
+    def test_favicon_found_in_public_dir(self) -> None:
+        """#623: favicon set under public/ (CRA / Vite convention)."""
+        pub = self.tmp / "public"
+        pub.mkdir()
+        (pub / "favicon.ico").write_bytes(b"\x00\x00\x01\x00")
+        (pub / "apple-touch-icon.png").write_bytes(b"\x89PNG")
+        (pub / "icon-192.png").write_bytes(b"\x89PNG")
+        favicons = self._scan()["favicons"]
+        self.assertTrue(any("favicon.ico" in f for f in favicons))
+        self.assertTrue(any("apple-touch-icon.png" in f for f in favicons))
+        self.assertTrue(any("icon-192.png" in f for f in favicons))
+
+    def test_favicon_does_not_match_logo_icon(self) -> None:
+        """`logo-icon.png` is a logo, not a favicon — must not be classified."""
+        pub = self.tmp / "public"
+        pub.mkdir()
+        (pub / "logo-icon.png").write_bytes(b"\x89PNG")
+        favicons = self._scan()["favicons"]
+        self.assertFalse(
+            any("logo-icon" in f for f in favicons),
+            f"logo-icon.png leaked into favicons: {favicons}",
+        )
+
+    def test_favicons_empty_when_none_found(self) -> None:
+        self.assertEqual(self._scan()["favicons"], [])
+
+    # ---- OG image detection -------------------------------------------------
+
+    def test_og_image_found_at_root(self) -> None:
+        """#623: Next.js 13+ App Router puts opengraph-image.* at root or in app/."""
+        (self.tmp / "og-image.png").write_bytes(b"\x89PNG")
+        (self.tmp / "opengraph-image.jpg").write_bytes(b"\xff\xd8\xff")
+        og = self._scan()["og_images"]
+        self.assertTrue(any("og-image.png" in p for p in og))
+        self.assertTrue(any("opengraph-image.jpg" in p for p in og))
+
+    def test_og_image_found_under_public(self) -> None:
+        pub = self.tmp / "public"
+        pub.mkdir()
+        (pub / "twitter-image.png").write_bytes(b"\x89PNG")
+        (pub / "social-card.png").write_bytes(b"\x89PNG")
+        og = self._scan()["og_images"]
+        self.assertTrue(any("twitter-image.png" in p for p in og))
+        self.assertTrue(any("social-card.png" in p for p in og))
+
+    def test_og_images_empty_when_none_found(self) -> None:
+        self.assertEqual(self._scan()["og_images"], [])
 
     # ---- identity doc detection ----------------------------------------------
 

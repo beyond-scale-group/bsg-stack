@@ -280,8 +280,68 @@ def _scan_primary() -> str:
             except Exception:
                 continue
 
+    # --- Step 3: Style Dictionary / Figma Tokens nested format ---------------
+    # Style Dictionary wraps every leaf in { "value": "<hex>" } and nests under
+    # categories like color/colors/brand. Figma Tokens (Studio plugin) adds a
+    # "type": "color" sibling and groups under "global" / theme names.
+    # Both can ship as tokens/**/*.json, *.tokens.json, $themes.json, etc.
+    sd_globs = (
+        "tokens/**/*.json",
+        "design-tokens/**/*.json",
+        "tokens.figma.json",
+        "figma-tokens.json",
+        "*.tokens.json",
+        "$themes.json",
+    )
+    sd_candidates: list[Path] = []
+    for pattern in sd_globs:
+        for f in ROOT.glob(pattern):
+            if any(d in f.parts for d in _SKIP_DIRS):
+                continue
+            if f.is_file() and f not in sd_candidates:
+                sd_candidates.append(f)
+
+    primary_keys = ("primary", "brand", "accent", "main")
+    for f in sd_candidates:
+        try:
+            data = json.loads(f.read_text())
+        except Exception:
+            continue
+        found = _find_token_value(data, primary_keys)
+        if found:
+            result = _normalize_hex(found)
+            _audit("primary", f"Style Dictionary / Figma token in {_rel(f)}", result)
+            return result
+
     _default_applied("primary")
     return "#1a1a2e"
+
+
+def _find_token_value(node: object, name_hints: tuple[str, ...]) -> str | None:
+    """Walk a Style Dictionary / Figma Tokens tree, returning the first hex
+    value whose ancestor key matches one of `name_hints`. Leaves are detected
+    as dicts that carry a "value" entry (Style Dictionary / Figma convention).
+    """
+    def _walk(n: object, hint_matched: bool) -> str | None:
+        if isinstance(n, dict):
+            # Leaf: { "value": "...", "type": "color" } or just { "value": "..." }.
+            if "value" in n and isinstance(n["value"], str):
+                if hint_matched:
+                    raw = n["value"].strip()
+                    if re.match(r"#?[0-9a-fA-F]{3,6}$", raw):
+                        return raw
+                    return None
+                # Unmatched leaf — skip.
+                return None
+            for key, child in n.items():
+                key_lc = str(key).lower()
+                hit = hint_matched or any(h in key_lc for h in name_hints)
+                result = _walk(child, hit)
+                if result:
+                    return result
+        return None
+
+    return _walk(node, hint_matched=False)
 
 
 # ---------------------------------------------------------------------------
@@ -358,6 +418,115 @@ def _scan_logos() -> list[str]:
     results.sort()
     for r in results:
         _audit("logo", r, "found")
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Favicon detection
+# ---------------------------------------------------------------------------
+
+_FAVICON_DIRS = ("public", "static", "app", "src/app", "brand", "assets", "img")
+_FAVICON_EXTS = (".ico", ".svg", ".png", ".webp")
+_FAVICON_STEMS = ("favicon", "apple-touch-icon", "apple-icon", "icon")
+
+
+def _scan_favicons() -> list[str]:
+    results: list[str] = []
+
+    def _maybe_add(f: Path) -> None:
+        if not f.is_file() or any(skip in f.parts for skip in _SKIP_DIRS):
+            return
+        if f.suffix.lower() not in _FAVICON_EXTS:
+            return
+        stem = f.stem.lower()
+        # Match canonical names exactly or as a prefix (e.g. icon-192.png),
+        # but never "logo-icon" or random "icon"-containing words.
+        if stem in _FAVICON_STEMS:
+            rel = _rel(f)
+            if rel not in results:
+                results.append(rel)
+            return
+        for canonical in _FAVICON_STEMS:
+            if stem == canonical or stem.startswith(canonical + "-"):
+                rel = _rel(f)
+                if rel not in results:
+                    results.append(rel)
+                return
+
+    for d in _FAVICON_DIRS:
+        dir_path = ROOT / d
+        if not dir_path.is_dir():
+            continue
+        for f in dir_path.rglob("*"):
+            _maybe_add(f)
+
+    # Top-level favicon.ico / favicon.svg (common in Next.js / Astro repos).
+    for ext in _FAVICON_EXTS:
+        for stem in _FAVICON_STEMS:
+            f = ROOT / f"{stem}{ext}"
+            if f.exists():
+                _maybe_add(f)
+
+    results.sort()
+    for r in results:
+        _audit("favicon", r, "found")
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Open Graph / social share images
+# ---------------------------------------------------------------------------
+
+_OG_DIRS = ("public", "static", "app", "src/app", "brand", "assets", "img", "images")
+_OG_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".svg")
+_OG_STEM_HINTS = (
+    "og-image",
+    "ogimage",
+    "opengraph-image",
+    "opengraph",
+    "og",
+    "twitter-image",
+    "twitter-card",
+    "social-card",
+    "social-share",
+)
+
+
+def _scan_og_images() -> list[str]:
+    results: list[str] = []
+
+    def _stem_matches(stem: str) -> bool:
+        s = stem.lower()
+        for hint in _OG_STEM_HINTS:
+            if s == hint or s.startswith(hint + "-") or s.startswith(hint + "."):
+                return True
+        return False
+
+    for d in _OG_DIRS:
+        dir_path = ROOT / d
+        if not dir_path.is_dir():
+            continue
+        for f in dir_path.rglob("*"):
+            if any(skip in f.parts for skip in _SKIP_DIRS):
+                continue
+            if not f.is_file() or f.suffix.lower() not in _OG_EXTS:
+                continue
+            if _stem_matches(f.stem):
+                rel = _rel(f)
+                if rel not in results:
+                    results.append(rel)
+
+    # Top-level og-image.* / opengraph-image.* (Next.js 13+ App Router convention).
+    for ext in _OG_EXTS:
+        for f in ROOT.glob(f"*{ext}"):
+            if _stem_matches(f.stem):
+                rel = _rel(f)
+                if rel not in results:
+                    results.append(rel)
+
+    results.sort()
+    for r in results:
+        _audit("og_image", r, "found")
     return results
 
 
@@ -448,11 +617,13 @@ def _generate_audit(tokens: dict, audit_path: Path) -> None:
         "primary": "Primary color",
         "font": "Typography",
         "logo": "Logo files",
+        "favicon": "Favicons",
+        "og_image": "Open Graph images",
         "identity": "Identity documents",
         "existing_template": "Existing Office templates",
     }
 
-    for key in ("name", "primary", "font", "logo", "identity", "existing_template"):
+    for key in ("name", "primary", "font", "logo", "favicon", "og_image", "identity", "existing_template"):
         label = section_labels.get(key, key)
         lines.append(f"### {label}")
         lines.append("")
@@ -530,10 +701,23 @@ def _contrast_ratio(fg: str, bg: str) -> float:
     return (lighter + 0.05) / (darker + 0.05)
 
 
+def _format_asset_rows(label: str, items: list[str]) -> list[str]:
+    if not items:
+        return [f"- **{label}** — _none detected. Add to the repo and re-run "
+                "`md-to-office.sh --init` to refresh._"]
+    rows = [f"- **{label}**"]
+    for item in items:
+        rows.append(f"  - `{item}`")
+    return rows
+
+
 def _generate_design_md(tokens: dict, design_path: Path) -> None:
     name = tokens["name"]
     primary = tokens["colors"]["primary"]
     font = tokens["fonts"]["primary"]
+    logos = tokens.get("logos", [])
+    favicons = tokens.get("favicons", [])
+    og_images = tokens.get("og_images", [])
 
     accent = _mix(primary, 255, 0.25)
     bg = "#ffffff"
@@ -614,6 +798,15 @@ def _generate_design_md(tokens: dict, design_path: Path) -> None:
         "",
         "<!-- Defaults — replace with the project's real component patterns. -->",
         "",
+        "## Brand assets",
+        "",
+        *_format_asset_rows("Logos", logos),
+        *_format_asset_rows("Favicons", favicons),
+        *_format_asset_rows("Open Graph / social images", og_images),
+        "",
+        "<!-- Detected by scan-brand.py. Replace placeholders with the team's "
+        "canonical assets and re-run `md-to-office.sh --init --force`. -->",
+        "",
         "## Accessibility",
         "",
         f"- Body text on background: contrast **{text_on_bg:.1f}:1** "
@@ -661,6 +854,8 @@ def main() -> None:
     font    = existing.get("fonts",  {}).get("primary") or _scan_font()
 
     logos = _scan_logos()
+    favicons = _scan_favicons()
+    og_images = _scan_og_images()
     identity_docs = _scan_identity_docs()
     existing_templates = _scan_existing_templates()
 
@@ -669,6 +864,8 @@ def main() -> None:
         "colors": {"primary": primary},
         "fonts":  {"primary": font},
         "logos":  logos,
+        "favicons": favicons,
+        "og_images": og_images,
         "identity_docs": identity_docs,
         "existing_templates": existing_templates,
     }
