@@ -31,6 +31,7 @@ No git clone, no script to run, no cron to set up.
 | `/babysit` | Monitor a long-running or flaky process (shell command or CI run), diagnose failures, fix root causes, retry until green. Includes PR mergeability rules. |
 | `/ocr` | Extract text from images and PDFs without uploading them into Claude's multimodal context. Cascades through Apple Vision (macOS) → Tesseract/OCRmyPDF → Mistral OCR API, writing `<source>.ocr.md` next to the source. Designed to save Anthropic tokens on document-heavy workflows. |
 | `/tick-all` | Fire every registered BSG agent's `tick` in parallel and print a one-line sweep summary per agent. Uses `claude-skills/agents/registry.json` as the agent roster. Each agent handles its own GitHub-bus inbox (claim → work → handoff) via `claude-skills/scripts/github-bus.sh`. Run with `/loop 30m /tick-all` for a recurring sweep — no CI cron required. |
+| `/sync-worktree` | Reconcile local git worktrees with their PR state: commit + push branches that are ahead of `origin`, remove worktrees whose PR is merged or closed, leave dirty / diverged ones flagged for the human. Defaults to all worktrees in the current repo; `--current`, `--dry-run`, and `--yes` flags scope the sweep. Never force-pushes, never deletes the current worktree, never auto-creates PRs. |
 
 ## Available skills
 
