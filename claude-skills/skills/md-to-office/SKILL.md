@@ -94,11 +94,17 @@ branded Office templates. Signals detected:
 
 | Signal | Where it looks |
 |---|---|
-| **Colors** | CSS custom properties, `tailwind.config.*`, design-token JSON |
+| **Colors** | CSS custom properties, `tailwind.config.*`, Tailwind v4 `@theme` blocks, design-token JSON, Style Dictionary trees (`tokens/**/*.json`, `*.tokens.json`), Figma Tokens exports (`tokens.figma.json`, `$themes.json`) |
 | **Typography** | CSS `--font-*` variables, `@font-face`, Google Fonts imports |
 | **Logo** | `public/`, `brand/`, `images/`, `assets/` — files with "logo" in name |
-| **Voice & identity** | `brand/NARRATIVE.md`, `DESIGN.md`, `*identity*.md` |
+| **Favicon** | `favicon.{ico,svg,png}`, `apple-touch-icon.*`, `icon-*.*` (root, `public/`, `app/`, `static/`) |
+| **OG / social** | `og-image.*`, `opengraph-image.*`, `twitter-image.*`, `social-card.*` |
+| **Voice & identity** | `.bsg/NARRATIVE.md`, `.bsg/DESIGN.md`, `brand/NARRATIVE.md`, `*identity*.md` |
 | **Existing templates** | `.docx`, `.pptx`, `.xlsx` already in the repo |
+
+The scan emits `.bsg/DESIGN.md` (Google Stitch design-system spec — the
+[canonical brand source](https://blog.google/innovation-and-ai/models-and-research/google-labs/stitch-design-md/))
+alongside `brand/tokens.json` (derived shape used by the template renderers).
 
 ```bash
 md-to-office.sh --init                    # scan repo, generate templates
@@ -110,7 +116,8 @@ md-to-office.sh --init --tokens-only      # scan only, skip template gen
 Output:
 
 ```
-brand/tokens.json                   ← extracted tokens (name, colors, fonts, logos, …)
+.bsg/DESIGN.md                      ← Google Stitch design-system spec (canonical)
+brand/tokens.json                   ← derived tokens (name, colors, fonts, logos, favicons, og_images, …)
 brand/templates/brand-audit.md      ← what was found and what was chosen
 brand/templates/reference.docx      ← pandoc reference-doc with brand styles
 brand/templates/template.pptx       ← PowerPoint with brand theme

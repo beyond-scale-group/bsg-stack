@@ -216,6 +216,7 @@ class TestDesignMdGeneration(unittest.TestCase):
             "## Typography",
             "## Spacing & layout",
             "## Components",
+            "## Brand assets",
             "## Accessibility",
         ):
             self.assertIn(section, content, f"DESIGN.md missing {section!r}")
@@ -255,6 +256,37 @@ class TestDesignMdGeneration(unittest.TestCase):
         )
         content = (self.tmp / ".bsg" / "DESIGN.md").read_text()
         self.assertRegex(content, r"contrast \*\*\d+\.\d+:1\*\* \(WCAG ")
+
+    def test_design_md_lists_scanned_brand_assets(self) -> None:
+        """#623: detected favicons / OG images / logos surface in DESIGN.md."""
+        (self.tmp / "favicon.ico").write_bytes(b"\x00\x00\x01\x00")
+        (self.tmp / "og-image.png").write_bytes(b"\x89PNG")
+        pub = self.tmp / "public"
+        pub.mkdir()
+        (pub / "logo.svg").write_text("<svg/>")
+        run(
+            ["python3", str(SCAN_BRAND), "--design", ".bsg/DESIGN.md"],
+            cwd=self.tmp,
+        )
+        content = (self.tmp / ".bsg" / "DESIGN.md").read_text()
+        self.assertIn("## Brand assets", content)
+        self.assertIn("favicon.ico", content)
+        self.assertIn("og-image.png", content)
+        self.assertIn("logo.svg", content)
+
+    def test_design_md_brand_assets_section_handles_empty_repo(self) -> None:
+        """Empty repo must still emit the Brand assets section with placeholders."""
+        empty = Path(tempfile.mkdtemp(prefix="bsg-design-empty-"))
+        try:
+            run(
+                ["python3", str(SCAN_BRAND), "--design", ".bsg/DESIGN.md"],
+                cwd=empty,
+            )
+            content = (empty / ".bsg" / "DESIGN.md").read_text()
+            self.assertIn("## Brand assets", content)
+            self.assertIn("none detected", content.lower())
+        finally:
+            shutil.rmtree(empty, ignore_errors=True)
 
 
 if __name__ == "__main__":
