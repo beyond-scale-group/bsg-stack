@@ -91,6 +91,8 @@ init_script_for() {
     pr-comms)      echo "skills/pr-comms-report/scripts/init-announced.sh" ;;
     security)      echo "skills/security-report/scripts/init-securityignore.sh" ;;
     storytelling)  echo "skills/storytelling-report/scripts/init-narrative.sh" ;;
+    tech-lead)     echo "skills/tech-report/scripts/init-adr.sh" ;;
+    qa)            echo "skills/qa-report/scripts/init-qa-baseline.sh" ;;
     *)             echo "" ;;
   esac
 }
@@ -104,6 +106,8 @@ output_path_for() {
     pr-comms)      echo ".bsg/ANNOUNCED.md" ;;
     security)      echo ".bsg/SECURITYIGNORE" ;;
     storytelling)  echo ".bsg/NARRATIVE.md" ;;
+    tech-lead)     echo ".bsg/adr/0000-architecture-baseline.md" ;;
+    qa)            echo ".bsg/reports/qa/0000-baseline.md" ;;
     *)             echo "" ;;
   esac
 }
