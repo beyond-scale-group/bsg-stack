@@ -64,6 +64,7 @@ check_script() {
 }
 
 # Add new init scripts here as they ship.
+check_script "claude-skills/skills/po/scripts/init-plan.sh"
 check_script "claude-skills/skills/seo-report/scripts/init-keywords.sh"
 check_script "claude-skills/skills/marketing-report/scripts/init-calendar.sh"
 check_script "claude-skills/skills/pr-comms-report/scripts/init-announced.sh"

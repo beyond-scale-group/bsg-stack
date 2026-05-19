@@ -85,7 +85,7 @@ is_skipped() {
 # Map agent name → its init script path relative to the catalog.
 init_script_for() {
   case "$1" in
-    po-manager)    echo "skills/po/scripts/bootstrap-plan.sh" ;;
+    po-manager)    echo "skills/po/scripts/init-plan.sh" ;;
     seo)           echo "skills/seo-report/scripts/init-keywords.sh" ;;
     marketing)     echo "skills/marketing-report/scripts/init-calendar.sh" ;;
     pr-comms)      echo "skills/pr-comms-report/scripts/init-announced.sh" ;;
