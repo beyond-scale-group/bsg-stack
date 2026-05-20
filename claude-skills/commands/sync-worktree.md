@@ -79,7 +79,8 @@ Then assign one of these states:
 
 | State            | Trigger                                                                                  |
 |------------------|------------------------------------------------------------------------------------------|
-| `clean`          | No uncommitted changes, no unpushed commits, PR (if any) is OPEN.                        |
+| `clean`          | No uncommitted changes, no unpushed commits, PR is OPEN.                                 |
+| `needs-pr`       | Pushed to remote, no uncommitted changes, no open PR exists, branch has commits beyond target. |
 | `needs-commit`   | Working tree has staged/unstaged/untracked changes.                                      |
 | `needs-push`     | Local branch is ahead of upstream (or has no upstream yet).                              |
 | `obsolete-merged`| PR is MERGED, **or** branch has no commits beyond the target/base and no open PR exists. |
@@ -98,9 +99,10 @@ Before any mutation, print a table:
 
 ```
 worktree                                          branch                          state            action
-~/.superconductor/worktrees/repo/sc-foo-1a2b      feat/foo-thing                  needs-commit     commit + push
+~/.superconductor/worktrees/repo/sc-foo-1a2b      feat/foo-thing                  needs-commit     commit + push + create PR
 ~/.superconductor/worktrees/repo/sc-bar-3c4d      fix/bar-thing                   obsolete-merged  remove worktree + delete local branch
 ~/.superconductor/worktrees/repo/sc-baz-5e6f      chore/baz                       clean            skip
+~/.superconductor/worktrees/repo/sc-qux-7g8h      refactor/qux-cleanup            needs-pr         create PR
 ```
 
 If `--dry-run`, stop here.
@@ -128,9 +130,29 @@ For each worktree, in this order:
 **`needs-push`:**
 1. If upstream exists: `git -C "$WT" push`
 2. If no upstream: `git -C "$WT" push -u origin "$BRANCH"`
-3. Surface the resulting PR URL with `gh pr view --json url -q .url` if
-   one already exists; otherwise mention that no PR is open yet (do
-   **not** create one — that's `/ship`'s job).
+3. Check for an existing PR: `gh pr list --head "$BRANCH" --state open --json url --limit 1`
+4. If a PR exists, surface its URL.
+5. If no PR exists and the branch is not the target/base branch, create
+   one using `gh pr create` with:
+   - A title derived from the branch name (strip the prefix, un-kebab
+     the slug, sentence-case it)
+   - A body summarizing the commits on the branch vs. the target/base
+     (`git log --oneline "$TARGET..$BRANCH"`)
+   - `--base "$TARGET"` so the PR targets the correct branch
+   - The standard `Generated with Claude Code` footer
+   - Print the new PR URL in the plan output
+
+**`needs-pr`:**
+1. The branch is already pushed and up-to-date with its remote, but no
+   open PR exists and the branch has commits beyond the target/base.
+2. Create a PR using `gh pr create` with:
+   - A title derived from the branch name (strip the prefix, un-kebab
+     the slug, sentence-case it)
+   - A body summarizing the commits on the branch vs. the target/base
+     (`git log --oneline "$TARGET..$BRANCH"`)
+   - `--base "$TARGET"` so the PR targets the correct branch
+   - The standard `Generated with Claude Code` footer
+3. Print the new PR URL.
 
 **`obsolete-merged` and `obsolete-closed`:**
 1. `git worktree remove "$WT"` (NOT `--force` — refuse if the tree is
@@ -151,6 +173,7 @@ End with a four-line summary:
 
 ```
 Synced:   2 worktree(s) committed and pushed
+PRs:      1 PR(s) created for branches without one
 Pruned:   1 worktree(s) removed (obsolete)
 Flagged:  1 worktree(s) need human attention (conflict, diverged, …)
 Skipped:  3 worktree(s) clean
@@ -172,6 +195,8 @@ Followed by a bulleted list of any flagged items with the reason.
   Abort the commit on that worktree and flag it.
 - **Never** push to `main` / the target branch directly. If the worktree
   is somehow on the base branch, downgrade to report-only.
+- PR creation uses a simple title derived from the branch name and a
+  commit-log body. For richer descriptions or draft PRs, use `/ship`.
 - Auto-merge / auto-close decisions on the PR are out of scope — this
   command reconciles **worktrees**, not PR lifecycle. Use `/babysit` or
   `/ship` for that.
