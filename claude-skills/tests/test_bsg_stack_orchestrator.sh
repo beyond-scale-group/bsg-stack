@@ -67,6 +67,17 @@ assert "init creates .bsg/adr/"                 "[[ -d '$tmp/.bsg/adr' ]]"
 assert "init creates .bsg/reports/po/"          "[[ -d '$tmp/.bsg/reports/po' ]]"
 assert "init creates .bsg/AUTOPILOT.yml"        "[[ -f '$tmp/.bsg/AUTOPILOT.yml' ]]"
 
+# Per-agent custom docs that #622 (and the wider #237 batch) explicitly
+# required init.sh to bootstrap. Each row below pairs one of those four
+# agents with the .bsg/ path its init script must populate. Pin them here
+# so a future change that drops a wire from init.sh — or breaks one of
+# the per-agent init-*.sh scripts — fails the orchestrator suite
+# instead of silently producing an incomplete .bsg/ tree.
+assert "init creates .bsg/CALENDAR.md (marketing)"                "[[ -f '$tmp/.bsg/CALENDAR.md' ]]"
+assert "init creates .bsg/ANNOUNCED.md (pr-comms)"                "[[ -f '$tmp/.bsg/ANNOUNCED.md' ]]"
+assert "init creates .bsg/adr/0000-architecture-baseline.md"      "[[ -f '$tmp/.bsg/adr/0000-architecture-baseline.md' ]]"
+assert "init creates .bsg/reports/qa/0000-baseline.md"            "[[ -f '$tmp/.bsg/reports/qa/0000-baseline.md' ]]"
+
 # Capture pre-state, re-run, compare.
 pre="$(find "$tmp/.bsg" -type f | sort | xargs -I{} stat -f '%N %m' {} 2>/dev/null \
        || find "$tmp/.bsg" -type f | sort | xargs -I{} stat -c '%n %Y' {})"
