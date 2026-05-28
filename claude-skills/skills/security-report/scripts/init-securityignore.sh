@@ -32,7 +32,7 @@ today=$(date -u +%F)
 
 # Track suggestions so we only emit each once, and report whether
 # anything was found.
-declare -a SUGGESTIONS
+SUGGESTIONS=()
 seen=""
 add_suggestion() {
   local path="$1"
