@@ -16,10 +16,9 @@ report what would happen without touching anything.
 ## Argument parsing
 
 Typical forms:
-- `/sync-worktree` — full sweep, all worktrees, with confirmation before deletes
+- `/sync-worktree` — full sweep, all worktrees, fully automatic (no prompts)
 - `/sync-worktree --current` — only the worktree the user is in
 - `/sync-worktree --dry-run` — report-only, never commit, push, or delete
-- `/sync-worktree --yes` — skip confirmation prompts (still respects `--dry-run`)
 
 Anything else after the flags is a free-form filter: a branch name prefix,
 a path substring, or a single worktree path. If the filter matches zero
@@ -107,10 +106,10 @@ worktree                                          branch                        
 
 If `--dry-run`, stop here.
 
-Otherwise, if any row is `obsolete-*` or `conflict` and `--yes` was not
-passed, ask the user to confirm with AskUserQuestion before doing the
-destructive parts. Commits + pushes proceed without confirmation
-(they are reversible — the diff has already been shown in the plan).
+Otherwise, proceed immediately to execution. This skill is fully automatic
+— it never asks for confirmation. The plan table above is the audit trail;
+the hard rules below are the safety net (never force-delete, never touch
+dirty worktrees, never delete the current worktree).
 
 ### 5. Execute
 
@@ -200,8 +199,11 @@ Followed by a bulleted list of any flagged items with the reason.
 - Auto-merge / auto-close decisions on the PR are out of scope — this
   command reconciles **worktrees**, not PR lifecycle. Use `/babysit` or
   `/ship` for that.
-- Confirmation prompts use AskUserQuestion, not raw stdin. One question
-  covers the whole destructive batch — do not ask per-worktree.
+- **Never prompt for confirmation.** This skill is designed for `/loop` and
+  automated use — it must run fully unattended. The plan table is printed
+  before mutations so the user can review output, but execution never
+  pauses. Safety comes from the hard rules (no force-delete, no dirty
+  worktree deletion, no current-worktree deletion), not from prompts.
 
 ## Why this exists
 
