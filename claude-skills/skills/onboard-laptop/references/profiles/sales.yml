@@ -1,0 +1,44 @@
+# Sales / GTM onboarding — outreach, CRM, calls, docs.
+name: sales
+description: Sales onboarding — browser, CRM, calls, docs, scheduling.
+
+# --- macOS ---
+brew_cask:
+  - google-chrome
+  - firefox
+  - slack
+  - zoom
+  - loom
+  - notion
+  - 1password
+  - rectangle             # window management for live demos
+
+# --- Windows ---
+winget_apps:
+  - Google.Chrome
+  - Mozilla.Firefox
+  - SlackTechnologies.Slack
+  - Zoom.Zoom
+  - Loom.Loom
+  - Notion.Notion
+  - AgileBits.1Password
+
+# --- Accounts ---
+accounts:
+  - { name: "Work email", url: "https://accounts.google.com", notes: "Enable MFA first — gates everything else." }
+  - { name: "CRM (HubSpot / Salesforce / Pipedrive)", url: "https://app.hubspot.com/login", notes: "Sales ops provisions the seat." }
+  - { name: "LinkedIn Sales Navigator", url: "https://www.linkedin.com/sales", notes: "IT will hand you the seat." }
+  - { name: "Calendar booking (Calendly / Cal.com)", url: "https://calendly.com", notes: "Connect to your work calendar." }
+  - { name: "Slack workspace", url: "https://YOUR-WORKSPACE.slack.com", notes: "" }
+  - { name: "Notion workspace", url: "https://notion.so/login", notes: "" }
+  - { name: "Password manager vault", url: "https://1password.com/signin", notes: "" }
+
+# --- Security baseline ---
+security:
+  - disk_encryption
+  - password_manager
+  - mfa_on_email
+  - mfa_on_crm
+  - mfa_on_linkedin
+  - screen_lock_5min
+  - automatic_updates

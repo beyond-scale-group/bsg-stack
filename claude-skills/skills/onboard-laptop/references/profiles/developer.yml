@@ -1,0 +1,86 @@
+# Developer onboarding — backend-leaning, language-agnostic baseline.
+# Edit liberally — this is a starting point, not a corporate standard.
+name: developer
+description: Standard developer onboarding — git, runtimes, IDE, terminal, Docker.
+
+# --- macOS ---
+brew:
+  - git
+  - gh
+  - jq
+  - ripgrep
+  - fzf
+  - node
+  - python@3.12
+  - pyenv
+  - openjdk@21
+  - docker
+  - docker-compose
+brew_cask:
+  - visual-studio-code
+  - cursor
+  - iterm2
+  - google-chrome
+  - slack
+  - zoom
+  - 1password
+  - docker
+  - rectangle
+
+# --- Windows ---
+winget:
+  - Git.Git
+  - GitHub.cli
+  - jqlang.jq
+  - BurntSushi.ripgrep.MSVC
+  - junegunn.fzf
+  - OpenJS.NodeJS.LTS
+  - Python.Python.3.12
+  - EclipseAdoptium.Temurin.21.JDK
+winget_apps:
+  - Microsoft.VisualStudioCode
+  - Anysphere.Cursor
+  - Microsoft.WindowsTerminal
+  - Google.Chrome
+  - SlackTechnologies.Slack
+  - Zoom.Zoom
+  - AgileBits.1Password
+  - Docker.DockerDesktop
+
+# --- Cross-platform language packages ---
+npm_global:
+  - "@anthropic-ai/claude-code"
+  - typescript
+  - prettier
+
+pip_global:
+  - black
+  - ruff
+  - virtualenv
+
+# --- post_install: idempotent git defaults ---
+post_install:
+  - 'git config --global init.defaultBranch main'
+  - 'git config --global pull.rebase true'
+  - 'git config --global core.editor "code --wait"'
+
+# --- Accounts ---
+accounts:
+  - { name: "GitHub", url: "https://github.com/join", notes: "Ask your manager for the org invitation. Enable MFA + add SSH key." }
+  - { name: "Work email (Google Workspace)", url: "https://accounts.google.com", notes: "Enable MFA — required before any other access." }
+  - { name: "Slack workspace", url: "https://YOUR-WORKSPACE.slack.com", notes: "Use your work email." }
+  - { name: "Password manager vault", url: "https://1password.com/signin", notes: "Ask IT for the team invite link." }
+  - { name: "VPN (if any)", url: "https://your-vpn-portal.example", notes: "IT will hand you the config file." }
+  - { name: "Cloud console (AWS / GCP / Azure)", url: "https://console.cloud.example", notes: "SSO via your work email, no separate password." }
+
+# --- Security baseline ---
+security:
+  - disk_encryption
+  - password_manager
+  - mfa_on_email
+  - mfa_on_github
+  - mfa_on_cloud_console
+  - ssh_key_with_passphrase
+  - signed_commits          # gpg or ssh signing
+  - screen_lock_5min
+  - automatic_updates
