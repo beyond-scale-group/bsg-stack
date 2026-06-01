@@ -13,6 +13,9 @@ optional — emit only what the role actually needs.
 | `brew_cask` | list of strings | macOS | Homebrew cask names (`visual-studio-code`, `iterm2`). |
 | `winget` | list of strings | Windows | Winget package IDs (`Git.Git`, `OpenJS.NodeJS.LTS`). |
 | `winget_apps` | list of strings | Windows | Same as `winget`, separated for clarity in profiles. |
+| `apt` | list of strings | Linux | APT package names (`build-essential`, `git`, `curl`). |
+| `snap` | list of strings | Linux | Snap package names (`code`, `slack`, `1password`). |
+| `flatpak` | list of strings | Linux | Flatpak app IDs (`com.google.Chrome`, `us.zoom.Zoom`). |
 | `npm_global` | list of strings | both | `npm install -g <pkg>` — used as-is. |
 | `pip_global` | list of strings | both | `pip install --user <pkg>`, fallback to `pip install`. |
 | `mas` | list of `{id, name}` | macOS | Mac App Store apps — requires `mas` CLI + signed-in session. |
