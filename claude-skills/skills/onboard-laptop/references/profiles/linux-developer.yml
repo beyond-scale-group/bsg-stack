@@ -13,6 +13,7 @@ apt:
   - jq
   - ripgrep
   - fzf
+  - tmux                   # worktree-per-pane workflow (Superconductor alternative)
   - python3
   - python3-pip
   - python3-venv
@@ -24,6 +25,7 @@ apt:
   - apt-transport-https
   - unzip
   - zip
+  - xdotool                # X11 keystroke injection for nerd-dictation
 
 # --- Linux (snap — GUI apps + sandboxed CLIs) ---
 snap:
@@ -49,6 +51,7 @@ pip_global:
   - black
   - ruff
   - virtualenv
+  - vosk                   # offline speech engine for nerd-dictation (Wispr Flow alternative)
 
 # --- post_install: idempotent setup commands ---
 post_install:
@@ -56,6 +59,22 @@ post_install:
   - 'git config --global pull.rebase true'
   - 'git config --global core.editor "code --wait"'
   - 'sudo usermod -aG docker $USER'
+
+# --- Wispr Flow alternative: nerd-dictation (system-wide voice-to-text) ---
+# Wispr Flow is macOS/Windows only. nerd-dictation is offline, open source,
+# and uses the VOSK engine installed via pip above.
+# Clone and symlink — no package manager needed:
+#   git clone https://github.com/ideasman42/nerd-dictation.git ~/nerd-dictation
+#   ln -s ~/nerd-dictation/nerd-dictation ~/.local/bin/nerd-dictation
+#   nerd-dictation begin  # start dictating (uses xdotool to type)
+# On Wayland, replace xdotool with wtype: sudo apt install wtype
+
+# --- Superconductor alternative: git worktree + tmux ---
+# Superconductor (git worktree + Claude Code session manager) is macOS only.
+# On Linux, use git worktrees + tmux panes for the same parallel workflow:
+#   git worktree add ../feature-branch feature-branch
+#   tmux new-session -s feature-branch -c ../feature-branch
+# The BSG sync-worktree skill automates worktree lifecycle management.
 
 # --- Node.js via nvm (apt ships an old version) ---
 # Uncomment and run manually — nvm is installed via a curl script:

@@ -26,6 +26,8 @@ brew_cask:
   - 1password
   - docker
   - rectangle
+  - wispr-flow            # system-wide voice dictation
+  - superconductor        # git worktree + Claude Code session manager
 
 # --- Windows ---
 winget:
