@@ -1,0 +1,32 @@
+# Minimal universal onboarding — anyone, any role.
+# Browser + communication + password manager + OS security baseline.
+name: minimal
+description: Baseline laptop setup — browser, communication, password manager, security.
+
+# --- macOS ---
+brew_cask:
+  - google-chrome
+  - slack
+  - zoom
+  - 1password
+
+# --- Windows ---
+winget_apps:
+  - Google.Chrome
+  - SlackTechnologies.Slack
+  - Zoom.Zoom
+  - AgileBits.1Password
+
+# --- Accounts (printed checklist) ---
+accounts:
+  - { name: "Work email (Google Workspace / Microsoft 365)", url: "https://accounts.google.com", notes: "Sign in with the address provisioned by IT and enable MFA." }
+  - { name: "Slack workspace", url: "https://YOUR-WORKSPACE.slack.com", notes: "Use your work email." }
+  - { name: "Password manager vault", url: "https://1password.com/signin", notes: "Ask IT for the team invite link." }
+
+# --- Security baseline ---
+security:
+  - disk_encryption        # FileVault (mac) / BitLocker (win)
+  - password_manager
+  - mfa_on_email
+  - screen_lock_5min
+  - automatic_updates

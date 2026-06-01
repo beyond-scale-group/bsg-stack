@@ -1,0 +1,45 @@
+# Designer onboarding — visual / brand / product design.
+name: designer
+description: Designer onboarding — Figma, Sketch, fonts, color tools.
+
+# --- macOS ---
+brew_cask:
+  - figma
+  - sketch
+  - zeplin
+  - adobe-creative-cloud
+  - google-chrome
+  - slack
+  - zoom
+  - 1password
+  - notion
+  - font-inter
+  - font-jetbrains-mono
+
+# --- Windows ---
+winget_apps:
+  - Figma.Figma
+  - Bohemian.Sketch       # placeholder — Sketch is mac-only; left for parity
+  - Adobe.CreativeCloud
+  - Google.Chrome
+  - SlackTechnologies.Slack
+  - Zoom.Zoom
+  - AgileBits.1Password
+  - Notion.Notion
+
+# --- Accounts ---
+accounts:
+  - { name: "Figma team", url: "https://figma.com/login", notes: "Ask design lead for team invite." }
+  - { name: "Adobe Creative Cloud", url: "https://account.adobe.com", notes: "IT provisions the license." }
+  - { name: "Work email", url: "https://accounts.google.com", notes: "Enable MFA first." }
+  - { name: "Slack workspace", url: "https://YOUR-WORKSPACE.slack.com", notes: "" }
+  - { name: "Password manager", url: "https://1password.com/signin", notes: "Ask IT for the invite." }
+
+# --- Security baseline ---
+security:
+  - disk_encryption
+  - password_manager
+  - mfa_on_email
+  - mfa_on_figma
+  - screen_lock_5min
+  - automatic_updates
