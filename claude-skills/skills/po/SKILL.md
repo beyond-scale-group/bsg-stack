@@ -58,7 +58,10 @@ which itself orchestrates the others.
 ## Conventions
 
 These conventions complement the hard rules above. Hard rules say *what
-to do*; conventions say *how it must look*.
+to do*; conventions say *how it must look*. There are two distinct
+output channels — **Calendar Events** (time-blocked slots for reviews
+and meetings) and **Google Tasks** (5-min markers per actionable
+ticket) — never mix them.
 
 ### Calendar events posted by the PO
 
@@ -134,6 +137,30 @@ When the PO surfaces open issues that lack a milestone, it must also
 labels, and the active `PLAN.md` objectives. Never just list *"3
 issues without milestone"* — always pair each orphan with a proposed
 rattachement so the user can ack with a single yes.
+
+### Per-ticket Google Tasks (5 min, repo-specific task list)
+
+Every open GitHub issue surfaced in a PO report has a corresponding
+**Google Task** (not Calendar Event) in the **repo-specific task
+list**. Three rules:
+
+1. **Task list = repo name** — one task list per repo
+   (`the-shift.ai`, `bsg-holding.fr`, `expert-flow.ai`, …). Create on
+   first use if absent. Never dump cross-repo tickets in a generic
+   "My Tasks" list.
+
+2. **Title format `[<repo>] #<N> · <truncated-title>`** — recognizable
+   from the merged Google Calendar / Tasks view, ticket number always
+   present so the user can `gh issue view <N>` in one keystroke. Put
+   the full GitHub URL in the task body.
+
+3. **5-min default effort + Tasks ≠ slots** — note `est: 5 min` in the
+   task body as the default. Google Tasks integrate into the Calendar
+   UI but **do not block time slots** — that's the point. Use Calendar
+   Events for time-blocked reviews / meetings (15 min slots, the
+   "Calendar events" convention above). Use Tasks for the actionable
+   work-to-do list (5 min markers). Never use a Calendar Event where a
+   Task fits.
 
 ## Available scripts
 
