@@ -126,6 +126,15 @@ cmd_init() {
     warn "profile '$name' already exists at $dir — re-running auth-login will replace its credentials."
   fi
   mkdir -p "$dir"
+  # Reuse the OAuth client from the default profile (same GCP app, multiple
+  # users). Without this, the new dir has no client_secret.json and `gws auth
+  # login` errors out with "No OAuth client configured". Skip silently if
+  # the default profile isn't bootstrapped — auth-login.sh will surface the
+  # missing client to the user with the documented remediation paths.
+  if [ -f "$DEFAULT_DIR/client_secret.json" ] && [ ! -f "$dir/client_secret.json" ]; then
+    cp "$DEFAULT_DIR/client_secret.json" "$dir/client_secret.json"
+    note "copied OAuth client from default profile → $dir/client_secret.json"
+  fi
   note "running auth-login against profile '$name' (dir=$dir)…"
   GOOGLE_WORKSPACE_CLI_CONFIG_DIR="$dir" bash "$SCRIPT_DIR/auth-login.sh" "$@" \
     || die "auth-login failed for profile '$name'" 2
