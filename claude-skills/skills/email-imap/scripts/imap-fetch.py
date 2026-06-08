@@ -33,6 +33,7 @@ Pure stdlib — no pip install needed.
 """
 
 import argparse
+import base64
 import email
 import imaplib
 import json
@@ -105,21 +106,76 @@ HOST_BY_DOMAIN = {
 }
 
 # Shorthand → list of candidate IMAP folder names (provider-localized).
-# Tried in order; the first that selects OK wins.
+# Tried in order; the first that selects OK wins. Non-ASCII candidates
+# (French Gmail names) are auto-encoded to IMAP modified UTF-7 at lookup
+# time, so localized accounts work out of the box.
 FOLDER_CANDIDATES = {
     "inbox": ["INBOX"],
     "sent": [
         "[Gmail]/Sent Mail",
         "[Gmail]/Messages envoyés",
         "[Gmail]/Envoyés",
+        "[Gmail]/Inviati",
+        "[Gmail]/Enviados",
+        "[Gmail]/Gesendet",
         "Sent Items",
         "Sent",
     ],
-    "drafts": ["[Gmail]/Drafts", "Drafts", "Brouillons"],
-    "trash": ["[Gmail]/Trash", "Deleted Items", "Trash", "Corbeille"],
+    "drafts": [
+        "[Gmail]/Drafts",
+        "[Gmail]/Brouillons",
+        "Drafts",
+        "Brouillons",
+    ],
+    "trash": [
+        "[Gmail]/Trash",
+        "[Gmail]/Corbeille",
+        "Deleted Items",
+        "Trash",
+        "Corbeille",
+    ],
     "spam": ["[Gmail]/Spam", "Junk Email", "Spam"],
-    "all": ["[Gmail]/All Mail", "[Gmail]/Tous les messages", "Archive"],
+    "all": [
+        "[Gmail]/All Mail",
+        "[Gmail]/Tous les messages",
+        "[Gmail]/Tutti i messaggi",
+        "Archive",
+    ],
 }
+
+
+def imap_utf7_encode(s):
+    """Encode a string per RFC 3501 §5.1.3 (IMAP modified UTF-7).
+
+    Gmail (and other IMAP servers) returns localized folder names in this
+    encoding — e.g. '[Gmail]/Messages envoyés' becomes
+    '[Gmail]/Messages envoy&AOk-s'. Selecting the UTF-8 form will fail;
+    we must select the encoded form.
+    """
+    if all(0x20 <= ord(c) <= 0x7E for c in s):
+        return s.replace("&", "&-")
+    out, buf = [], []
+
+    def flush():
+        if not buf:
+            return
+        # UTF-16-BE → base64 → strip '=' padding → '/' becomes ','
+        encoded = base64.b64encode("".join(buf).encode("utf-16-be")).decode("ascii")
+        encoded = encoded.rstrip("=").replace("/", ",")
+        out.append("&" + encoded + "-")
+        buf.clear()
+
+    for c in s:
+        if 0x20 <= ord(c) <= 0x7E:
+            flush()
+            if c == "&":
+                out.append("&-")
+            else:
+                out.append(c)
+        else:
+            buf.append(c)
+    flush()
+    return "".join(out)
 
 
 def decode_mime(value):
@@ -167,13 +223,20 @@ def resolve_folder_names(spec):
 
 def fetch_folder(M, candidates, since_date, out_dir, label, max_messages=None):
     selected = None
+    # For each candidate, try the literal form AND its IMAP-modified-UTF7
+    # encoded form (only differs when the name contains non-ASCII chars).
+    tried = []
     for name in candidates:
-        typ, _ = M.select(f'"{name}"', readonly=True)
-        if typ == "OK":
-            selected = name
+        for variant in dict.fromkeys([name, imap_utf7_encode(name)]):
+            tried.append(variant)
+            typ, _ = M.select(f'"{variant}"', readonly=True)
+            if typ == "OK":
+                selected = variant
+                break
+        if selected:
             break
     if not selected:
-        print(f"⚠ {label}: aucun candidat ne matche ({candidates}), on saute")
+        print(f"⚠ {label}: aucun candidat ne matche, on saute (essayés : {tried})")
         return []
 
     since_str = since_date.strftime("%d-%b-%Y")

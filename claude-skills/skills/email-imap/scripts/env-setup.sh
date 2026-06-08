@@ -99,12 +99,15 @@ APP_PWD=$(ask_password "App password (input hidden)")
 
 mkdir -p "$(dirname "$ENV_PATH")"
 umask 077
+# Quote values so unquoted spaces (e.g. Gmail app passwords like
+# 'rvpe qgvf ygtq xlst') survive bash sourcing by callers. Python loaders
+# strip the outer quotes.
 cat > "$ENV_PATH" <<EOF
 # email-imap credentials — chmod 600, do not commit
-IMAP_USER=$USER_EMAIL
-IMAP_APP_PASSWORD=$APP_PWD
-IMAP_HOST=$IMAP_HOST
-IMAP_PORT=$IMAP_PORT
+IMAP_USER="$USER_EMAIL"
+IMAP_APP_PASSWORD="$APP_PWD"
+IMAP_HOST="$IMAP_HOST"
+IMAP_PORT="$IMAP_PORT"
 EOF
 chmod 600 "$ENV_PATH"
 

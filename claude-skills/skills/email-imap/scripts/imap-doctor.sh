@@ -69,8 +69,22 @@ if [ -n "$CHOSEN_ENV" ]; then
     warn "perms are $perms — should be 600 (run: chmod 600 $CHOSEN_ENV)"
     WARN=1
   fi
-  # shellcheck disable=SC1090
-  set -a; . "$CHOSEN_ENV"; set +a
+  # Parse KEY=VALUE without shell sourcing — unquoted spaces in values
+  # (e.g. Gmail app passwords) would otherwise be interpreted as commands.
+  while IFS= read -r kv_line; do
+    case "$kv_line" in ""|\#*) continue ;; esac
+    key="${kv_line%%=*}"
+    val="${kv_line#*=}"
+    # Strip a single layer of surrounding quotes
+    case "$val" in
+      \"*\") val="${val#\"}"; val="${val%\"}" ;;
+      \'*\') val="${val#\'}"; val="${val%\'}" ;;
+    esac
+    # Don't override already-exported vars
+    if [ -z "$(eval echo "\${$key+x}")" ]; then
+      export "$key=$val"
+    fi
+  done < "$CHOSEN_ENV"
 else
   warn "no credentials file found at $DEFAULT_ENV (relying on env vars)"
   WARN=1
