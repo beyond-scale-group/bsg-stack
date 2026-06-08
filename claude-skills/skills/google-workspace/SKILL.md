@@ -96,6 +96,48 @@ or service failing). Auto-repairs missing scopes by re-running
 `auth-login.sh` and re-checking — only escalates to manual if the scope
 is missing from the consent-screen registration.
 
+## Multi-account → `scripts/gws-switch.sh`
+
+`gws` only authenticates one account at a time (credentials live under
+`$GOOGLE_WORKSPACE_CLI_CONFIG_DIR`, default `~/.config/gws`). For
+agents juggling a personal account + several client accounts, the switch
+script wraps a per-profile config-dir pattern so toggling between them
+is a single command — no re-auth, no browser re-consent.
+
+```bash
+# Create a profile (one-time browser consent, scoped to its own dir):
+bash scripts/gws-switch.sh init prizoners
+bash scripts/gws-switch.sh init client-acme --readonly
+
+# Inspect:
+bash scripts/gws-switch.sh list      # PROFILE | EMAIL | DIR
+bash scripts/gws-switch.sh whoami    # current profile + bound email
+
+# Activate in the current shell (needs eval because env exports don't
+# survive a child bash):
+eval "$(bash scripts/gws-switch.sh use prizoners)"
+eval "$(bash scripts/gws-switch.sh use default)"
+
+# Cleaner UX — install the shell function once, then `gws-switch X`:
+bash scripts/gws-switch.sh install >> ~/.zshrc.user
+source ~/.zshrc.user
+gws-switch prizoners                 # → active
+gws-switch default                   # → back to ~/.config/gws
+gws-switch list
+
+# Remove a profile when the engagement ends:
+bash scripts/gws-switch.sh remove client-acme --yes
+```
+
+After `gws-switch.sh install`, every subsequent terminal can toggle
+between accounts with a single word. Token caches stay alive across
+switches — only the *first* auth on a profile requires the browser.
+
+⚠ Each profile carries its **own** OAuth tokens and scope set. Running
+`doctor.sh` or `signature-audit.sh` operates against whichever profile
+is active in the current shell — be explicit about which account you're
+auditing in any human-facing report.
+
 ## Gmail audit → aliases & signatures
 
 The skill ships three companion scripts that close the loop on the most
@@ -342,6 +384,7 @@ mention any drift to the user.
 ```
 First-time setup?  → bash scripts/onboard.sh         §First-time setup
 Health check?      → bash scripts/doctor.sh          §Daily health check
+Switch accounts?   → bash scripts/gws-switch.sh      §Multi-account
 Audit aliases?     → bash scripts/signature-audit.sh §Gmail audit
 Set a signature?   → bash scripts/signature-set.sh   §Gmail audit
 Markdown → email?  → bash scripts/email-md-send.sh   §Markdown email
