@@ -19,7 +19,8 @@ winget_apps:
 
 # --- Accounts (printed checklist) ---
 accounts:
-  - { name: "Work email (Google Workspace / Microsoft 365)", url: "https://accounts.google.com", notes: "Sign in with the address provisioned by IT and enable MFA." }
+  - { name: "Work email (Google Workspace / Microsoft 365)", url: "https://accounts.google.com", notes: "Sign in with the address provisioned by IT." }
+  - { name: "Google Account — enable 2-step verification", url: "https://myaccount.google.com/signinoptions/two-step-verification", notes: "MANDATORY. Use an authenticator app (not SMS). Save backup codes in your password manager." }
   - { name: "Slack workspace", url: "https://YOUR-WORKSPACE.slack.com", notes: "Use your work email." }
   - { name: "Password manager vault", url: "https://1password.com/signin", notes: "Ask IT for the team invite link." }
 

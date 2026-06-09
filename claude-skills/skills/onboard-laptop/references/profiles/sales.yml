@@ -25,7 +25,8 @@ winget_apps:
 
 # --- Accounts ---
 accounts:
-  - { name: "Work email", url: "https://accounts.google.com", notes: "Enable MFA first — gates everything else." }
+  - { name: "Work email", url: "https://accounts.google.com", notes: "Sign in first — gates everything else." }
+  - { name: "Google Account — enable 2-step verification", url: "https://myaccount.google.com/signinoptions/two-step-verification", notes: "MANDATORY. Use an authenticator app (not SMS). Save backup codes in your password manager." }
   - { name: "CRM (HubSpot / Salesforce / Pipedrive)", url: "https://app.hubspot.com/login", notes: "Sales ops provisions the seat." }
   - { name: "LinkedIn Sales Navigator", url: "https://www.linkedin.com/sales", notes: "IT will hand you the seat." }
   - { name: "Calendar booking (Calendly / Cal.com)", url: "https://calendly.com", notes: "Connect to your work calendar." }

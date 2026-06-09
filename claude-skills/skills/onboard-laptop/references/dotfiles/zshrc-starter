@@ -1,0 +1,81 @@
+# ~/.zshrc — starter shipped by claude-skills/skills/onboard-laptop.
+#
+# This file is a STARTER. Copy it, then own it — the skill never
+# overwrites an existing ~/.zshrc. Customize freely.
+
+# ----------------------------------------------------------------------
+# Homebrew on Apple Silicon — must come before anything that calls brew
+# ----------------------------------------------------------------------
+if [ -x /opt/homebrew/bin/brew ]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+fi
+
+# ----------------------------------------------------------------------
+# Oh My Zsh
+# ----------------------------------------------------------------------
+export ZSH="$HOME/.oh-my-zsh"
+
+# Theme — `robbyrussell` is the OMZ default; `agnoster` needs a powerline font.
+ZSH_THEME="robbyrussell"
+
+# Plugins. Keep this list short — every plugin adds shell startup time.
+# `git` is the headline plugin; `zsh-syntax-highlighting` and
+# `zsh-autosuggestions` come from Homebrew (declare them in the profile's
+# `brew:` list).
+plugins=(
+  git
+  docker
+  npm
+)
+
+# Load Oh My Zsh — guarded so this file stays sourceable even if OMZ is
+# not yet installed (fresh machine, mid-onboarding).
+[ -f "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"
+
+# ----------------------------------------------------------------------
+# Brew-installed zsh enhancements (optional — guarded)
+# ----------------------------------------------------------------------
+SYNTAX_HL="$(brew --prefix 2>/dev/null)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+AUTOSUGG="$(brew --prefix 2>/dev/null)/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+[ -f "$SYNTAX_HL" ] && source "$SYNTAX_HL"
+[ -f "$AUTOSUGG" ] && source "$AUTOSUGG"
+
+# ----------------------------------------------------------------------
+# History — keep it generous and shared across sessions
+# ----------------------------------------------------------------------
+HISTSIZE=100000
+SAVEHIST=100000
+setopt SHARE_HISTORY HIST_IGNORE_DUPS HIST_IGNORE_SPACE
+
+# ----------------------------------------------------------------------
+# Editor
+# ----------------------------------------------------------------------
+if command -v code >/dev/null 2>&1; then
+  export EDITOR="code --wait"
+  export VISUAL="$EDITOR"
+elif command -v nvim >/dev/null 2>&1; then
+  export EDITOR="nvim"
+  export VISUAL="$EDITOR"
+fi
+
+# ----------------------------------------------------------------------
+# PATH additions — language toolchains
+# ----------------------------------------------------------------------
+# Volta / nvm / pyenv go here if you use them.
+# Example (commented — opt in only if relevant):
+# export PATH="$HOME/.volta/bin:$PATH"
+# eval "$(pyenv init -)"
+
+# ----------------------------------------------------------------------
+# Aliases
+# ----------------------------------------------------------------------
+alias ll='ls -lah'
+alias g='git'
+alias gst='git status --short'
+alias gco='git checkout'
+alias gp='git pull'
+
+# ----------------------------------------------------------------------
+# Local overrides — keep machine-specific tweaks here, NOT in this file
+# ----------------------------------------------------------------------
+[ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"

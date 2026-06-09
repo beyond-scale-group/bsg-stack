@@ -31,7 +31,8 @@ winget_apps:
 accounts:
   - { name: "Figma team", url: "https://figma.com/login", notes: "Ask design lead for team invite." }
   - { name: "Adobe Creative Cloud", url: "https://account.adobe.com", notes: "IT provisions the license." }
-  - { name: "Work email", url: "https://accounts.google.com", notes: "Enable MFA first." }
+  - { name: "Work email", url: "https://accounts.google.com", notes: "Sign in first." }
+  - { name: "Google Account — enable 2-step verification", url: "https://myaccount.google.com/signinoptions/two-step-verification", notes: "MANDATORY. Use an authenticator app (not SMS)." }
   - { name: "Slack workspace", url: "https://YOUR-WORKSPACE.slack.com", notes: "" }
   - { name: "Password manager", url: "https://1password.com/signin", notes: "Ask IT for the invite." }
 

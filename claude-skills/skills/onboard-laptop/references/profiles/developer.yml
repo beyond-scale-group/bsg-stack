@@ -16,9 +16,12 @@ brew:
   - openjdk@21
   - docker
   - docker-compose
+  - zsh-syntax-highlighting
+  - zsh-autosuggestions
 brew_cask:
   - visual-studio-code
   - cursor
+  - ghostty                  # https://ghostty.org — GPU-accelerated terminal
   - iterm2
   - google-chrome
   - slack
@@ -60,16 +63,21 @@ pip_global:
   - ruff
   - virtualenv
 
-# --- post_install: idempotent git defaults ---
+# --- post_install: idempotent git defaults + shell setup ---
 post_install:
   - 'git config --global init.defaultBranch main'
   - 'git config --global pull.rebase true'
   - 'git config --global core.editor "code --wait"'
+  # Oh My Zsh — the wrapper is idempotent; it skips when ~/.oh-my-zsh
+  # exists, runs --unattended otherwise (KEEP_ZSHRC=yes, CHSH=no).
+  # $ONBOARD_SCRIPT_DIR is exported by apply-profile.sh.
+  - 'bash "$ONBOARD_SCRIPT_DIR/install-oh-my-zsh.sh"'
 
 # --- Accounts ---
 accounts:
   - { name: "GitHub", url: "https://github.com/join", notes: "Ask your manager for the org invitation. Enable MFA + add SSH key." }
-  - { name: "Work email (Google Workspace)", url: "https://accounts.google.com", notes: "Enable MFA — required before any other access." }
+  - { name: "Work email (Google Workspace)", url: "https://accounts.google.com", notes: "Sign in with your work address provisioned by IT." }
+  - { name: "Google Account — enable 2-step verification", url: "https://myaccount.google.com/signinoptions/two-step-verification", notes: "MANDATORY. Use an authenticator app (Authy / 1Password / Google Authenticator), not SMS. Save backup codes in your password manager." }
   - { name: "Slack workspace", url: "https://YOUR-WORKSPACE.slack.com", notes: "Use your work email." }
   - { name: "Password manager vault", url: "https://1password.com/signin", notes: "Ask IT for the team invite link." }
   - { name: "VPN (if any)", url: "https://your-vpn-portal.example", notes: "IT will hand you the config file." }

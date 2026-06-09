@@ -16,6 +16,14 @@ PARSER="$SCRIPT_DIR/_parse-profile.py"
 FAIL_LOG="${TMPDIR:-/tmp}/onboard-laptop-failures.log"
 : > "$FAIL_LOG"
 
+# Exported so `post_install:` commands in a profile can reference
+# bundled helpers without hard-coding the install path. Example:
+#   post_install:
+#     - 'bash "$ONBOARD_SCRIPT_DIR/install-oh-my-zsh.sh"'
+export ONBOARD_SCRIPT_DIR="$SCRIPT_DIR"
+export ONBOARD_SKILL_DIR
+ONBOARD_SKILL_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
+
 DRY=0
 ONLY=""
 PROFILE=""
