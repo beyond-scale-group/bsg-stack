@@ -168,10 +168,13 @@ pip_global:
 mas:
   - { id: "497799835", name: "Xcode" }
 
-# Post-install commands to run verbatim (idempotent only — last-resort hatch)
+# Post-install commands to run verbatim (idempotent only — last-resort hatch).
+# $ONBOARD_SCRIPT_DIR and $ONBOARD_SKILL_DIR are exported by apply-profile.sh
+# so a profile can call bundled helpers without hard-coding the install path.
 post_install:
   - 'git config --global init.defaultBranch main'
   - 'git config --global pull.rebase true'
+  - 'bash "$ONBOARD_SCRIPT_DIR/install-oh-my-zsh.sh"'
 
 # Account checklist items — printed, never executed
 accounts:
@@ -293,6 +296,62 @@ no implicit "BSG stack" or hidden default.
   not signed in.
 - **Linux** is not supported in this version. The detection script
   reports `linux` and exits with a clear message. PRs welcome.
+
+## Shell setup — Oh My Zsh and a starter `.zshrc`
+
+The `developer` profile installs **Oh My Zsh** via a bundled
+`scripts/install-oh-my-zsh.sh` wrapper called from `post_install:`.
+The wrapper is intentionally conservative:
+
+- **Idempotent.** Detects `~/.oh-my-zsh` and exits early when present.
+- **Never overwrites your `.zshrc`.** Runs the official installer with
+  `KEEP_ZSHRC=yes`, so an existing dotfile is left untouched.
+- **Never calls `chsh`.** Runs with `CHSH=no`, so your login shell is
+  not changed. Switch with `chsh -s "$(which zsh)"` when you're ready.
+- **Optional starter `.zshrc`.** Pass `--with-starter-zshrc` to drop
+  the bundled `references/dotfiles/zshrc-starter` at `~/.zshrc` —
+  only when no `~/.zshrc` exists. The starter sources Homebrew, OMZ,
+  `zsh-syntax-highlighting`, and `zsh-autosuggestions` (declared in
+  the profile's `brew:` list) and exposes a `~/.zshrc.local` hook for
+  machine-specific tweaks.
+
+The `developer` profile pulls `zsh-syntax-highlighting` and
+`zsh-autosuggestions` via `brew:`, then runs the wrapper. To opt
+into the starter `.zshrc` too, change the `post_install:` line to:
+
+```yaml
+- 'bash "$ONBOARD_SCRIPT_DIR/install-oh-my-zsh.sh" --with-starter-zshrc'
+```
+
+`$ONBOARD_SCRIPT_DIR` (and `$ONBOARD_SKILL_DIR`) are exported by
+`apply-profile.sh` so `post_install:` commands can reference bundled
+helpers without hard-coding the install path.
+
+## Default terminal — Ghostty
+
+The `developer` profile ships **Ghostty** ([ghostty.org](https://ghostty.org/))
+as the default GPU-accelerated terminal (Mac and Linux only — Windows
+is not yet supported upstream; the profile keeps Windows Terminal /
+Warp / Cursor as alternates). `iterm2` stays in the cask list as a
+fallback for muscle-memory users. The `interview.sh` Q&A offers
+`ghostty | iterm2 | warp | wt | none` and defaults to Ghostty.
+
+## Mandatory 2-step verification on the Google account
+
+Every profile that touches a Google Workspace email ships an explicit
+checklist row for **2-step verification**:
+
+```yaml
+- { name: "Google Account — enable 2-step verification",
+    url: "https://myaccount.google.com/signinoptions/two-step-verification",
+    notes: "MANDATORY. Use an authenticator app (not SMS).
+            Save backup codes in your password manager." }
+```
+
+The URL goes straight to the 2FA settings page — no clicking through
+account settings to find it. The `security:` block also carries the
+opaque `mfa_on_email` token; the step-by-step lives in
+`references/CHECKLIST-SECURITY.md`.
 
 ## When something fails
 

@@ -89,12 +89,22 @@ case "$IDE" in
 esac
 
 # Terminal
-TERM_EMU=$(prompt "Terminal emulator (iterm2|warp|wt|none)" "iterm2")
+TERM_EMU=$(prompt "Terminal emulator (ghostty|iterm2|warp|wt|none)" "ghostty")
 case "$TERM_EMU" in
-  iterm2) CASK+=("iterm2") ;;
-  warp)   CASK+=("warp"); WAPPS+=("Warp.Warp") ;;
-  wt)     WAPPS+=("Microsoft.WindowsTerminal") ;;
+  ghostty) CASK+=("ghostty") ;;  # mac/linux only — Windows unsupported
+  iterm2)  CASK+=("iterm2") ;;
+  warp)    CASK+=("warp"); WAPPS+=("Warp.Warp") ;;
+  wt)      WAPPS+=("Microsoft.WindowsTerminal") ;;
 esac
+
+# Shell — Oh My Zsh post_install
+INSTALL_OMZ=0
+if yesno "Install Oh My Zsh (idempotent, never overwrites your .zshrc)?" "y"; then
+  INSTALL_OMZ=1
+  # Add the syntax-highlight + autosuggest plugins to brew too — the
+  # starter .zshrc sources them when present.
+  BREW+=("zsh-syntax-highlighting" "zsh-autosuggestions")
+fi
 
 # Browsers
 if yesno "Add Google Chrome?" "y"; then
@@ -137,8 +147,8 @@ if yesno "Add a Slack workspace checklist item?" "y"; then
   WS=$(prompt "Slack workspace URL" "https://YOUR-WORKSPACE.slack.com")
   ACCOUNTS+=("Slack|${WS}|Use your work email.")
 fi
-if yesno "Add a Google Workspace checklist item?" "y"; then
-  ACCOUNTS+=("Google Workspace|https://workspace.google.com|Your work email + MFA.")
+if yesno "Add a Google account 2FA checklist item?" "y"; then
+  ACCOUNTS+=("Google Account — enable 2-step verification|https://myaccount.google.com/signinoptions/two-step-verification|MANDATORY. Use an authenticator app (not SMS). Save backup codes in your password manager.")
 fi
 
 # Security baseline
@@ -163,6 +173,15 @@ emit_list brew_cask "${CASK[@]:-}"
 emit_list winget "${WINGET[@]:-}"
 emit_list winget_apps "${WAPPS[@]:-}"
 emit_list npm_global "${NPMG[@]:-}"
+
+if [ "$INSTALL_OMZ" -eq 1 ]; then
+  cat <<'EOF'
+post_install:
+  # Oh My Zsh — idempotent wrapper. Skips when ~/.oh-my-zsh exists;
+  # otherwise runs --unattended (KEEP_ZSHRC=yes, CHSH=no).
+  - 'bash "$ONBOARD_SCRIPT_DIR/install-oh-my-zsh.sh"'
+EOF
+fi
 
 if [ "${#ACCOUNTS[@]}" -gt 0 ]; then
   echo "accounts:"
