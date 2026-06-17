@@ -69,29 +69,97 @@ By default clasp stores credentials globally in `~/.clasprc.json` — one
 account at a time. To work with a different Google account (e.g.
 `gdumas@expert-flow.ai` instead of your default):
 
-### Option 1: `CLASP_AUTH` env var (recommended for multi-account)
+### Option 1: `CLASP_AUTH` env var (for running commands)
 
 Point `CLASP_AUTH` to a separate credentials file per account:
 
 ```bash
-# Login with the other account and store creds separately
-CLASP_AUTH=~/.clasprc-expert-flow.json clasp login
-
-# All subsequent commands use that account
 export CLASP_AUTH=~/.clasprc-expert-flow.json
 clasp clone <scriptId>
 clasp push
 clasp run myFunction
 ```
 
-Add to `~/.zshrc.user` to persist:
+**Caveat (clasp ≥ 3.3.0):** `CLASP_AUTH` is respected for all commands
+**except `clasp login`**. Login always writes to `~/.clasprc.json`
+regardless of the env var. Workaround — delete the file first, login,
+then copy the result:
 
 ```bash
-export CLASP_AUTH_EXPERT_FLOW="$HOME/.clasprc-expert-flow.json"
-# Then use: CLASP_AUTH=$CLASP_AUTH_EXPERT_FLOW clasp <command>
+rm -f ~/.clasprc.json
+clasp login
+cp ~/.clasprc.json ~/.clasprc-expert-flow.json
+export CLASP_AUTH=~/.clasprc-expert-flow.json
 ```
 
-### Option 2: switch the global account
+### Option 2: shell helpers (recommended for persistent multi-account)
+
+Add to `~/.zshrc` for ergonomic account switching:
+
+```zsh
+export CLASP_AUTH="$HOME/.clasprc-expert-flow.json"  # default account
+
+clasp-use() {
+  local alias="$1"
+  local src
+  case "$alias" in
+    expert-flow) src="$HOME/.clasprc-expert-flow.json" ;;
+    the-shift)   src="$HOME/.clasprc-the-shift.json"   ;;
+    personal)    src="$HOME/.clasprc-personal.json"     ;;
+    *) echo "Comptes : expert-flow | the-shift | personal"; return 1 ;;
+  esac
+  [ ! -f "$src" ] && { echo "No token for $alias — run: clasp-login $alias"; return 1; }
+  cp "$src" ~/.clasprc.json
+  export CLASP_AUTH="$src"
+  echo "clasp → $alias"
+}
+
+clasp-login() {
+  local alias="${1:-expert-flow}"
+  local target_file
+  case "$alias" in
+    expert-flow) target_file="$HOME/.clasprc-expert-flow.json" ;;
+    the-shift)   target_file="$HOME/.clasprc-the-shift.json"   ;;
+    personal)    target_file="$HOME/.clasprc-personal.json"     ;;
+    *) echo "Comptes : expert-flow | the-shift | personal"; return 1 ;;
+  esac
+  rm -f ~/.clasprc.json      # force fresh login (clasp ignores CLASP_AUTH on login)
+  clasp login
+  cp ~/.clasprc.json "$target_file"
+  export CLASP_AUTH="$target_file"
+  echo "Token saved → $target_file"
+}
+
+clasp-whoami() {
+  local f="${CLASP_AUTH:-$HOME/.clasprc.json}"
+  [ ! -f "$f" ] && { echo "No token: $f"; return 1; }
+  # clasp 3.3.0 token structure: tokens.default.access_token
+  local token=$(python3 -c "
+import json
+d = json.load(open('$f'))
+t = d.get('tokens', {})
+print(t.get('default', t).get('access_token', ''))
+" 2>/dev/null)
+  [ -z "$token" ] && { echo "Empty token — run: clasp-login"; return 1; }
+  curl -s "https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=$token" \
+    | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('email', d))"
+}
+```
+
+**Token structure change in clasp 3.3.0:** The `~/.clasprc.json` format
+changed from `tokens.access_token` to `tokens.default.access_token`.
+If reading the token with `jq .token.access_token` returns null, use:
+
+```bash
+python3 -c "
+import json
+d = json.load(open('$HOME/.clasprc.json'))
+t = d.get('tokens', {})
+print(t.get('default', t).get('access_token', ''))
+"
+```
+
+### Option 3: switch the global account
 
 ```bash
 clasp logout
@@ -100,7 +168,7 @@ clasp login    # authenticate with the other account
 
 This overwrites `~/.clasprc.json` — you lose the previous session.
 
-### Option 3: per-project local auth
+### Option 4: per-project local auth
 
 ```bash
 cd my-project/
@@ -109,15 +177,6 @@ clasp login --no-localhost   # stores .clasprc.json in the project dir
 
 Clasp checks the project directory first, then `$CLASP_AUTH`, then
 `~/.clasprc.json`.
-
-### Which account am I using?
-
-```bash
-# Check the current credentials file
-cat "${CLASP_AUTH:-$HOME/.clasprc.json}" | jq '.token.access_token' -r \
-  | xargs -I{} curl -s "https://www.googleapis.com/oauth2/v1/tokeninfo?access_token={}" \
-  | jq '.email'
-```
 
 The preflight script (`scripts/preflight.sh`) respects `CLASP_AUTH` — set
 it before running and the auto-onboard will store credentials in the
@@ -186,6 +245,45 @@ clasp push --watch   # auto-push on file changes
 Only files matching the `filePushOrder` and file extensions in
 `appsscript.json` are uploaded. `.claspignore` works like `.gitignore`
 for excluding files from push.
+
+**`clasp push --force` is broken when `.js` and `.gs` coexist.** If
+`clasp pull` previously created a `Code.js` file alongside your `Code.gs`,
+clasp treats `.js` as the canonical source and reports "Script is already
+up to date" — silently ignoring your `.gs` changes. Fix: use the Apps
+Script REST API directly:
+
+```python
+import json, urllib.request
+
+with open('~/.clasprc.json') as f:
+    d = json.load(f)
+t = d.get('tokens', {})
+token = t.get('default', t).get('access_token', '')
+
+with open('Code.gs') as f:
+    code = f.read()
+with open('appsscript.json') as f:
+    manifest = f.read()
+
+script_id = '<your-script-id>'
+payload = json.dumps({
+    "files": [
+        {"name": "Code", "type": "SERVER_JS", "source": code},
+        {"name": "appsscript", "type": "JSON", "source": manifest}
+    ]
+}).encode()
+
+req = urllib.request.Request(
+    f'https://script.googleapis.com/v1/projects/{script_id}/content',
+    data=payload, method='PUT',
+    headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+)
+with urllib.request.urlopen(req) as r:
+    print('OK', r.status)
+```
+
+Alternatively, delete `Code.js` so clasp no longer sees a conflict, then
+run `clasp push` normally.
 
 ### Run
 
@@ -402,6 +500,101 @@ operations (push, pull, deploy).
 Adapted from [jezweb/claude-skills](https://github.com/jezweb/claude-skills)
 (google-apps-script, MIT license).
 
+## Enabling `clasp logs` (Cloud Logging / Stackdriver)
+
+By default `clasp logs` returns nothing — it requires a GCP project
+linked to the script. One-time setup:
+
+**1. Create a GCP project**
+
+```bash
+# Via gcloud CLI
+gcloud projects create <project-id> --name="<Display Name>"
+# or create via https://console.cloud.google.com/projectcreate
+```
+
+**2. Enable required APIs**
+
+```bash
+gcloud services enable script.googleapis.com logging.googleapis.com \
+  --project=<project-id>
+```
+
+**3. Configure OAuth consent screen** (required before linking)
+
+Navigate to:
+`https://console.cloud.google.com/auth/overview/create?project=<project-id>`
+
+Set: App name, user support email, developer contact email.
+For internal Workspace use, select type "Internal".
+
+**4. Link the GCP project to your Apps Script**
+
+In the Apps Script editor:
+Settings (gear icon) → Google Cloud Platform (GCP) Project → Change project
+→ Enter the GCP project number (not ID) → Set project
+
+**5. Add projectId to `.clasp.json`**
+
+```json
+{"scriptId": "<scriptId>", "rootDir": ".", "projectId": "<project-id>"}
+```
+
+**6. Use `console.log()`, not `Logger.log()`**
+
+`Logger.log()` writes to the in-editor "Execution log" only — it does NOT
+appear in Cloud Logging or `clasp logs`. Use `console.log()` for all
+output you want visible via `clasp logs`.
+
+```javascript
+// ❌ invisible in clasp logs
+Logger.log('Processing event: ' + ev.title);
+
+// ✅ visible in clasp logs
+console.log('Processing event: ' + ev.title);
+```
+
+After setup, stream logs in real time:
+
+```bash
+clasp logs --watch
+clasp logs --json | jq
+```
+
+## OAuth authorization for new scopes
+
+When a script function needs permissions it hasn't been granted yet
+(Gmail, Calendar, Drive, etc.), the first execution in the Apps Script
+editor shows "Authorization required". This blocks automated runs until
+a human completes the OAuth flow:
+
+1. Open the script editor: `clasp open`
+2. Select the function in the dropdown and click "Run"
+3. Click "Review permissions" → choose account → "Allow"
+
+The authorized scopes are inferred from the code (what services the
+script actually calls). If you add new services (e.g. `GmailApp`,
+`Calendar.Events.list()`), re-authorization is required.
+
+**Advanced services need explicit declaration in `appsscript.json`:**
+Standard services (`CalendarApp`, `GmailApp`, `SpreadsheetApp`) are
+auto-detected. Advanced API services (Calendar API v3 with
+`Calendar.Events.list()`, Sheets API, etc.) must be declared:
+
+```json
+{
+  "dependencies": {
+    "enabledAdvancedServices": [{
+      "userSymbol": "Calendar",
+      "serviceId": "calendar",
+      "version": "v3"
+    }]
+  }
+}
+```
+
+The advanced service must also be enabled in the linked GCP project.
+
 ## Common pitfalls
 
 - **`clasp run` "Script function not found"** — the function must be
@@ -421,6 +614,22 @@ Adapted from [jezweb/claude-skills](https://github.com/jezweb/claude-skills)
 - **Bound scripts** (container-bound to a Sheet/Doc) can't be cloned
   by URL — use the script ID from
   Extensions → Apps Script → Project Settings
+- **`clasp push --force` ignored when `.js` exists** — if `clasp pull`
+  created a `Code.js` alongside `Code.gs`, clasp treats `.js` as canonical
+  and ignores `.gs` changes; delete `Code.js` or use the REST API directly
+  (see the Push section)
+- **`clasp login` ignores `CLASP_AUTH`** (clasp ≥ 3.3.0) — login always
+  writes to `~/.clasprc.json`; workaround: `rm ~/.clasprc.json && clasp login`
+  then copy to your named account file
+- **Token structure changed in clasp 3.3.0** — `tokens.access_token` is
+  now `tokens.default.access_token`; scripts parsing the JSON must be updated
+- **GCP OAuth consent screen must be configured before linking** — attempting
+  to link a new GCP project to an Apps Script project fails if the OAuth
+  consent screen isn't set up; configure it first at
+  `/auth/overview/create?project=<id>`
+- **Sync token 410 error (Calendar API)** — sync tokens expire; catch HTTP
+  410 errors and retry with a full `timeMin`-based query (delete the stored
+  sync token and start fresh)
 
 ---
 
