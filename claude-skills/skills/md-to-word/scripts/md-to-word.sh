@@ -1,27 +1,36 @@
 #!/usr/bin/env bash
-# md-to-word.sh — generic branded markdown → .docx converter
+# md-to-word.sh — generic branded markdown → .docx (+ optional PDF) converter
 # Reads brand tokens from .bsg/DESIGN.md in the repo root.
 #
-# Usage: md-to-word.sh <file.md> [--force-template] [--logo /path/to/logo.png]
+# Usage: md-to-word.sh <file.md> [--force-template] [--logo /path/to/logo.png] [--pdf]
 #   --force-template  Regenerate brand/templates/reference.docx even if present
 #   --logo PATH       Override the cover logo (else: DESIGN.md company match,
 #                     then generic discovery). Also settable via $MD_TO_WORD_LOGO.
+#   --pdf             Also export a PDF via LibreOffice headless. The TOC is
+#                     rebuilt automatically thanks to the updateFields flag
+#                     written by post-process.py.
 set -euo pipefail
 
 FILE="${1:-}"
 if [[ -z "$FILE" || ! -f "$FILE" ]]; then
-  echo "Usage: md-to-word.sh <file.md> [--force-template] [--logo PATH]" >&2
+  echo "Usage: md-to-word.sh <file.md> [--force-template] [--logo PATH] [--pdf]" >&2
   exit 1
 fi
 shift
 
 FORCE_TEMPLATE=false
 LOGO="${MD_TO_WORD_LOGO:-}"
+EXPORT_PDF=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --force-template) FORCE_TEMPLATE=true; shift ;;
     --logo)           LOGO="${2:-}"; shift 2 ;;
-    *)                shift ;;
+    --pdf)            EXPORT_PDF=true; shift ;;
+    *)
+      echo "Unknown option: $1" >&2
+      echo "Usage: md-to-word.sh <file.md> [--force-template] [--logo PATH] [--pdf]" >&2
+      exit 1
+      ;;
   esac
 done
 
@@ -78,3 +87,33 @@ POST_ARGS=("$OUTPUT" --repo "$REPO_ROOT")
 python3 "$SKILL_DIR/scripts/post-process.py" "${POST_ARGS[@]}"
 
 echo "✓ Exporté : $OUTPUT"
+
+# 5. Optional PDF export via LibreOffice headless.
+#    The post-process step set <w:updateFields w:val="true"/> in settings.xml,
+#    so LibreOffice rebuilds the TOC + page numbers when it opens the docx —
+#    no macro / UNO bridge needed.
+if [[ "$EXPORT_PDF" == true ]]; then
+  SOFFICE=$(command -v soffice 2>/dev/null || command -v libreoffice 2>/dev/null || true)
+  if [[ -z "$SOFFICE" ]]; then
+    echo "⚠ LibreOffice introuvable (soffice/libreoffice). Skip --pdf." >&2
+    echo "  → brew install --cask libreoffice  ou  apt install libreoffice" >&2
+    exit 1
+  fi
+
+  PDF_OUT="${OUTPUT%.docx}.pdf"
+  OUT_DIR="$(dirname "$OUTPUT")"
+  echo "→ Conversion PDF (LibreOffice headless)…"
+  # Use an isolated user profile so a busy LibreOffice instance can't lock us out.
+  USER_PROFILE="$(mktemp -d -t lo-profile-XXXXXX)"
+  trap 'rm -rf "$USER_PROFILE"' EXIT
+  "$SOFFICE" \
+    --headless --norestore --nologo --nofirststartwizard \
+    "-env:UserInstallation=file://$USER_PROFILE" \
+    --convert-to pdf --outdir "$OUT_DIR" "$OUTPUT" >/dev/null
+  if [[ -f "$PDF_OUT" ]]; then
+    echo "✓ PDF exporté : $PDF_OUT"
+  else
+    echo "⚠ Échec de la conversion PDF." >&2
+    exit 1
+  fi
+fi
