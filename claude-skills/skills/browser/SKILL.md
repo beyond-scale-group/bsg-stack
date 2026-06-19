@@ -11,6 +11,7 @@ description: >-
   persistent profile management, a curated Google login helper, and
   headed-first-then-headless defaults.
 version: 0.1.0
+model: sonnet
 ---
 
 # Browser Skill

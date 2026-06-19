@@ -8,6 +8,7 @@ description: >
   to avoid re-drafting. Use when the user asks to "find newsworthy
   events", "draft a press release", "check press-kit freshness", or
   "plan the announcement schedule". No external API calls.
+model: haiku
 ---
 
 # PR / Comms Report

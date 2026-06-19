@@ -8,6 +8,7 @@ description: >-
   Triggers include "google apps script", "clasp", "debug apps script",
   "run apps script", "push apps script", "deploy apps script",
   "pull apps script", "apps script logs".
+model: sonnet
 ---
 
 # Google Apps Script (`clasp`)

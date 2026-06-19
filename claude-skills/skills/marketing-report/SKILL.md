@@ -8,6 +8,7 @@ description: >
   when the user asks to "check marketing alignment", "audit content
   calendar", "generate campaign brief from milestone", or "find
   unmarketed releases". Scripts do the aggregation; the LLM narrates.
+model: haiku
 ---
 
 # Marketing Report

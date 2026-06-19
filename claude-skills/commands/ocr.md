@@ -1,3 +1,9 @@
+---
+name: ocr
+description: >-
+  Extract text from an image or PDF without uploading it into Claude's context.
+model: haiku
+---
 Extract text from an image or PDF **without** uploading it into Claude's context: $ARGUMENTS
 
 You are invoking the `ocr` skill. The goal is to save Anthropic tokens by

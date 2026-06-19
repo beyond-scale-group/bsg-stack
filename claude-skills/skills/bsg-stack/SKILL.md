@@ -15,6 +15,7 @@ init: >
   init scripts are responsible for their own scan + draft logic;
   this skill routes the call.
 version: 0.1.0
+model: haiku
 ---
 
 # /bsg-stack — BSG infrastructure umbrella

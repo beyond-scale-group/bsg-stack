@@ -9,7 +9,7 @@ description: >
   dry-run mode (lists what it would do, touches nothing) — recommended for
   first invocation on any repo.
 tools: Read, Glob, Grep, Bash, Write
-model: sonnet
+model: haiku
 skills: []
 color: gray
 output: pr

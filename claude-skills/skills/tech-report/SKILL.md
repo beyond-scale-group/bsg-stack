@@ -9,6 +9,7 @@ description: >
   the user asks for "tech health", "architecture review",
   "dependency lag", "tech debt", "ADR gaps", "code complexity", or
   "biggest files". Scripts do the counting; the LLM narrates.
+model: sonnet
 ---
 
 # Tech Report

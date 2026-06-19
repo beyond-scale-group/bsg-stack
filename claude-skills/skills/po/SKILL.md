@@ -10,6 +10,7 @@ description: >
   "generate a PO report", or any product-ownership question. Reporting
   is one capability among many — not the primary purpose.
 version: 0.2.0
+model: sonnet
 ---
 
 # Product Owner

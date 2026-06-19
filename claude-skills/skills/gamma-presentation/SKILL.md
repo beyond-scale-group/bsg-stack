@@ -12,6 +12,7 @@ version: 0.1.0
 output: chat
 auto-implements: []
 never-auto-implements: []
+model: haiku
 ---
 
 # Gamma Presentation Skill

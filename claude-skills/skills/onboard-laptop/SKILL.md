@@ -12,6 +12,7 @@ description: >-
   setup", "setup mac for new hire", "setup windows for new hire",
   "install dev environment for new employee", "onboarding ordinateur",
   "setup poste nouvel employé", "configure laptop for onboarding".
+model: haiku
 ---
 
 # onboard-laptop

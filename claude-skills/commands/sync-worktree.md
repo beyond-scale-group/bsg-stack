@@ -1,3 +1,9 @@
+---
+name: sync-worktree
+description: >-
+  Synchronize git worktrees with their PRs and prune obsolete ones.
+model: haiku
+---
 Synchronize git worktrees with their PRs and prune obsolete ones: $ARGUMENTS
 
 You are invoking the `sync-worktree` command. Its job is to reconcile the

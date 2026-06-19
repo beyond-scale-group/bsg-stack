@@ -8,6 +8,7 @@ description: >
   vulnerabilities", "check for leaked secrets", "run a security audit",
   "OWASP check", "CVE scan", or "are there known vulns". Heavy lifting
   happens in bash + jq scripts; the LLM narrates the findings.
+model: sonnet
 ---
 
 # Security Report

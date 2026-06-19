@@ -13,7 +13,7 @@ description: >
   or "docs-keeper tick". ADRs under `.bsg/adr/` are read-only — owned
   by `tech-lead`.
 tools: Read, Glob, Grep, Bash, Write
-model: sonnet
+model: haiku
 skills: [docs-report]
 color: cyan
 output: commit
