@@ -9,7 +9,7 @@ description: >
   page check", "calendrier marketing", "brief de campagne", or
   "alignement produit-marketing".
 tools: Read, Glob, Grep, Bash, Write
-model: sonnet
+model: haiku
 skills: [marketing-report]
 color: pink
 output: pr

@@ -11,6 +11,7 @@ description: >
   document screenshot or scanned PDF into the model context. The point is to
   save Anthropic tokens — never use multimodal transcription as the default.
 version: 0.1.0
+model: haiku
 ---
 
 # OCR Skill

@@ -1,3 +1,9 @@
+---
+name: tick-all
+description: >-
+  Run a full tick sweep across all registered BSG agents for this repository.
+model: haiku
+---
 Run a full tick sweep across all registered BSG agents for this repository.
 
 You are the **tick-all dispatcher**. Your job is to fire every registered

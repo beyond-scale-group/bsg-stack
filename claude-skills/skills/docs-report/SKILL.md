@@ -8,6 +8,7 @@ description: >
   `Makefile`, and tagged releases missing from CHANGELOG. Scripts do
   the aggregation; the LLM narrates. ADRs under `.bsg/adr/` are read-only
   in this skill — they belong to `tech-report`.
+model: haiku
 ---
 
 # Docs Report

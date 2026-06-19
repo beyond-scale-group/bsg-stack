@@ -9,7 +9,7 @@ description: >
   "structured data", "audit SEO", "référencement", or "optimisation
   moteurs de recherche".
 tools: Read, Glob, Grep, Bash, Write
-model: sonnet
+model: haiku
 skills: [seo-report]
 color: orange
 output: commit

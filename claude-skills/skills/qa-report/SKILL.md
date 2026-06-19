@@ -8,6 +8,7 @@ description: >
   report. Use when the user asks to "check test coverage", "score
   regression risk", "detect flaky tests", "run a QA audit", or "show
   coverage trends". Scripts do the aggregation; the LLM narrates.
+model: haiku
 ---
 
 # QA Report

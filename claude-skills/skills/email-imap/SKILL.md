@@ -19,6 +19,7 @@ description: >-
   Not for sending — pair with SMTP or the `google-workspace` skill for
   send flows. Not for OAuth-friendly accounts where you control the
   GCP project — `google-workspace` gives you a richer surface there.
+model: haiku
 ---
 
 # email-imap

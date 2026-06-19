@@ -8,6 +8,7 @@ description: >
   "check team assignments", "fix repo permissions", "run compliance check", or
   "github-compliance tick". Works with the `beyond-scale-group` org and the
   `board` team by default.
+model: haiku
 ---
 
 # GitHub Compliance

@@ -19,6 +19,7 @@ description: >-
   "prochaine réunion", "Google Workspace", "créer un brouillon",
   "draft an email", "brouillon gmail", "envoie un mail". Not for Admin
   SDK / user provisioning — use the `workspace-admin` skill instead.
+model: sonnet
 ---
 
 # Google Workspace (`gws`)

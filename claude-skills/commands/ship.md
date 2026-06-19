@@ -1,3 +1,9 @@
+---
+name: ship
+description: >-
+  Ship the current branch: run preflight checks, commit, push, and open a PR.
+model: haiku
+---
 Ship the current branch: run preflight checks, commit, push, and open a PR. $ARGUMENTS
 
 You are the **ship** command. Your job is to take the current branch from

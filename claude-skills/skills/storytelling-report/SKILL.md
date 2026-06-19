@@ -10,6 +10,7 @@ description: >
   drafts for unnarrated releases. Use when the user asks to "check
   brand voice", "audit narrative consistency", "draft talking points",
   or "find key messages missing from README". No external NLP APIs.
+model: haiku
 ---
 
 # Storytelling Report

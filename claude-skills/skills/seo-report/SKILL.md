@@ -9,6 +9,7 @@ description: >
   Use when the user asks to "audit SEO", "check meta tags", "find
   orphan pages", "verify sitemap", or "check keyword coverage". No
   external API calls — everything is source-at-rest.
+model: haiku
 ---
 
 # SEO Report

@@ -1,3 +1,9 @@
+---
+name: ship_and_merge
+description: >-
+  Ship and merge the current branch: preflight checks, fix failures, commit, push, open a PR, wait for CI green, and merge.
+model: haiku
+---
 Ship and merge the current branch: run preflight checks, fix failures, commit, push, open a PR, wait for CI green, and merge. $ARGUMENTS
 
 You are the **ship_and_merge** command. You do everything `/ship` does, plus

@@ -8,6 +8,7 @@ description: >
   entries, file reorganization, workflow improvements. Presents a numbered menu and
   applies whichever items the user selects. Short-circuits with a one-line receipt when
   no new signal is detected vs. recent prior iterations (dedup check, #104).
+model: sonnet
 ---
 
 # Learn
