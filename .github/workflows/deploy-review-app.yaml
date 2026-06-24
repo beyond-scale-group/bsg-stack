@@ -227,7 +227,7 @@ jobs:
 
       - name: Deploy Code
         if: inputs.action == 'deploy'
-        uses: 47ng/actions-clever-cloud@v2.1.0
+        uses: docker://ghcr.io/47ng/actions-clever-cloud:pr-227
         with:
           appID: ${{ steps.app_id.outputs.id }}
           force: true

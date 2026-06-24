@@ -107,7 +107,7 @@ jobs:
           fetch-depth: 0
 
       - name: Deploy
-        uses: 47ng/actions-clever-cloud@v2.1.0
+        uses: docker://ghcr.io/47ng/actions-clever-cloud:pr-227
         with:
           appID: ${{ inputs.app_id }}
           force: true
