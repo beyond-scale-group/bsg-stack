@@ -43,6 +43,11 @@ on:
         required: false
         type: string
         default: "temurin"
+      pre_test_script:
+        description: "Script to run before sbt (e.g. DB seed). Runs from working_directory."
+        required: false
+        type: string
+        default: ""
 
 jobs:
   test:
@@ -81,6 +86,12 @@ jobs:
 
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
+
+      - name: Pre-test setup
+        if: ${{ inputs.pre_test_script != '' }}
+        run: ${{ inputs.pre_test_script }}
+        env:
+          TEST_DB_URL: postgresql://jarvis:jarvis@localhost:5432/jarvis
 
       - name: Run tests
         if: ${{ !inputs.coverage }}
