@@ -2,18 +2,28 @@
 # md-to-word.sh — generic branded markdown → .docx converter
 # Reads brand tokens from .bsg/DESIGN.md in the repo root.
 #
-# Usage: md-to-word.sh <file.md> [--force-template]
+# Usage: md-to-word.sh <file.md> [--force-template] [--logo /path/to/logo.png]
 #   --force-template  Regenerate brand/templates/reference.docx even if present
+#   --logo PATH       Override the cover logo (else: DESIGN.md company match,
+#                     then generic discovery). Also settable via $MD_TO_WORD_LOGO.
 set -euo pipefail
 
 FILE="${1:-}"
 if [[ -z "$FILE" || ! -f "$FILE" ]]; then
-  echo "Usage: md-to-word.sh <file.md> [--force-template]" >&2
+  echo "Usage: md-to-word.sh <file.md> [--force-template] [--logo PATH]" >&2
   exit 1
 fi
+shift
 
 FORCE_TEMPLATE=false
-[[ "${2:-}" == "--force-template" ]] && FORCE_TEMPLATE=true
+LOGO="${MD_TO_WORD_LOGO:-}"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --force-template) FORCE_TEMPLATE=true; shift ;;
+    --logo)           LOGO="${2:-}"; shift 2 ;;
+    *)                shift ;;
+  esac
+done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -63,6 +73,8 @@ echo "→ Conversion pandoc…"
 
 # 4. Post-process: logo + full-width branded tables
 echo "→ Post-traitement…"
-python3 "$SKILL_DIR/scripts/post-process.py" "$OUTPUT" --repo "$REPO_ROOT"
+POST_ARGS=("$OUTPUT" --repo "$REPO_ROOT")
+[[ -n "$LOGO" ]] && POST_ARGS+=(--logo "$LOGO")
+python3 "$SKILL_DIR/scripts/post-process.py" "${POST_ARGS[@]}"
 
 echo "✓ Exporté : $OUTPUT"
