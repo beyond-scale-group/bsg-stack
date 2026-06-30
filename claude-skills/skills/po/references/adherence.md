@@ -10,10 +10,18 @@ tickets, and milestone progress are supporting evidence below it.
 
 ## Preconditions
 
-- `po/PLAN.md` exists in the target repo and parses (see
-  `references/plan-schema.md` for the grammar).
-- If it doesn't exist, route to the **bootstrap flow** below instead —
-  don't silently create one.
+**Never check for PLAN.md by path directly.** Always use the script:
+
+```bash
+bash scripts/parse-plan.sh --typed | jq -r .status
+# "ok"      → plan found and parseable, proceed
+# "missing" → route to bootstrap flow below
+# "unparseable" → plan exists but has no binding tags; treat as missing
+```
+
+`parse-plan.sh` resolves `.bsg/PLAN.md` first (preferred), then falls
+back to `po/PLAN.md` (legacy). Checking the path manually breaks repos
+that store the plan under `.bsg/` — the script is the only correct probe.
 
 ## Steps
 
@@ -82,7 +90,7 @@ tickets, and milestone progress are supporting evidence below it.
 
 ## Bootstrap flow — when PLAN.md is missing
 
-1. Do **not** create `po/PLAN.md` directly. Instead:
+1. Do **not** create `po/PLAN.md` or `.bsg/PLAN.md` directly. Instead:
 
    ```bash
    mkdir -p po/drafts
@@ -96,7 +104,8 @@ tickets, and milestone progress are supporting evidence below it.
    Drafted a starter plan from your milestones and top labels:
      po/drafts/PLAN-suggested-2026-04-14.md
 
-   Edit it, then rename to po/PLAN.md to activate adherence tracking.
+   Edit it, then move to .bsg/PLAN.md (preferred) to activate adherence tracking.
+   po/PLAN.md also works but .bsg/PLAN.md is the canonical location.
    ```
 
 3. **Never** post to GitHub as part of bootstrap. The draft is local

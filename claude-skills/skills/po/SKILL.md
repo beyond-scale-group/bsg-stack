@@ -50,6 +50,10 @@ which itself orchestrates the others.
    specific ticket the user named.
 5. **Confirm before posting** anywhere external (GitHub comments, etc.). Default
    is local-only.
+6. **Never probe for PLAN.md by path** (`cat po/PLAN.md`, `ls po/`, etc.).
+   Always use `bash scripts/parse-plan.sh --typed` — it resolves `.bsg/PLAN.md`
+   first (preferred), then `po/PLAN.md` (legacy). Path-checking bypasses this
+   resolution and silently misses repos that store the plan under `.bsg/`.
 
 ## Available scripts
 
@@ -62,7 +66,7 @@ script auto-collect a fresh one.
 | Script                    | Purpose                                                                |
 | ------------------------- | ---------------------------------------------------------------------- |
 | `collect.sh`              | One paginated GraphQL fetch → full snapshot JSON (issues, PRs, milestones, releases, repo meta). Every other script consumes this. |
-| `parse-plan.sh`           | Parse `po/PLAN.md` into an array of plan items with typed bindings (`milestones`, `epics`, `labels`). Empty array if the file is missing. |
+| `parse-plan.sh`           | Parse `.bsg/PLAN.md` (preferred) or `po/PLAN.md` (legacy fallback) into an array of plan items with typed bindings (`milestones`, `epics`, `labels`). Use `--typed` for a `{status, items}` response; empty array if the file is missing in default mode. |
 | `adherence.sh`            | Join plan items with the snapshot → per-item status, evidence, and the three drift classes (`scopeCreep`, `abandonedItems`, `offCourse`). |
 | `bootstrap-plan.sh`       | Emit a draft starter `PLAN.md` from current milestones + top labels. Never writes to disk — caller saves under `po/drafts/`. |
 | `status.sh`               | Repo-wide counts + PR flow summary (review pending, failing checks, oldest open PR, avg time-to-first-review). |
