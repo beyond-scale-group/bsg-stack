@@ -5,8 +5,16 @@ Post-process a pandoc-generated .docx: full-width tables + brand colours.
 Reads brand tokens from .bsg/DESIGN.md in the repo root (falls back to
 neutral defaults if absent).  Project-agnostic — works with any BSG repo.
 
-Usage: python3 post-process.py <file.docx> [--repo /path/to/repo/root]
+Usage: python3 post-process.py <file.docx> [--repo /path/to/repo/root] [--logo /path/to/logo.png]
+
+Logo selection order:
+  1. --logo PATH (or $MD_TO_WORD_LOGO env var)
+  2. a logo whose filename matches the DESIGN.md company (e.g. "BSG Holding"
+     → logo-bsg-holding.png), searched in common brand directories
+  3. the generic discovery globs (_LOGO_GLOBS)
+  4. company name rendered as text (placeholder)
 """
+import os
 import re
 import sys
 from pathlib import Path
@@ -86,7 +94,62 @@ _LOGO_GLOBS = [
 ]
 
 
-def find_logo(repo_root: Path):
+# Directories scanned when matching a logo to the DESIGN.md brand name.
+_BRAND_DIRS = ["", "brand/assets", "brand", "public", "vitrine/public",
+               "assets", "content/images", "content/strategy/images",
+               "tools/document-generation/assets"]
+
+# Generic words dropped before matching a logo filename, so the brand tokens
+# drive the match regardless of the "Design System — Brand" / "Brand — …"
+# heading convention.
+_BRAND_STOPWORDS = {"design", "system", "the", "brand", "guide", "guidelines"}
+
+
+def _brand_tokens(text: str):
+    """"Design System — BSG Holding" -> ["bsg", "holding"]."""
+    return [t for t in re.split(r"[^a-z0-9]+", text.lower())
+            if t and t not in _BRAND_STOPWORDS]
+
+
+def _design_h1(repo_root: Path) -> str:
+    path = repo_root / ".bsg" / "DESIGN.md"
+    if not path.exists():
+        return ""
+    m = re.search(r"^#\s+(.+?)\s*$", path.read_text(encoding="utf-8"),
+                  re.MULTILINE)
+    return m.group(1) if m else ""
+
+
+def _brand_logo(repo_root: Path, company: str):
+    """Find a *logo* whose filename contains every brand token."""
+    tokens = _brand_tokens(_design_h1(repo_root) or company)
+    if not tokens:
+        return None
+    candidates = []
+    for d in _BRAND_DIRS:
+        base = repo_root / d if d else repo_root
+        if not base.is_dir():
+            continue
+        for p in base.glob("*.png"):
+            name = p.name.lower()
+            if "logo" in name and all(t in name for t in tokens):
+                candidates.append(p)
+    if candidates:
+        # shortest filename = most specific brand logo; then alphabetical
+        return str(sorted(candidates, key=lambda p: (len(p.name), p.name))[0])
+    return None
+
+
+def find_logo(repo_root: Path, override: str = "", company: str = ""):
+    # 1. explicit override (CLI flag or env var)
+    override = override or os.environ.get("MD_TO_WORD_LOGO", "")
+    if override and Path(override).exists():
+        return str(override)
+    # 2. logo matching the DESIGN.md brand name
+    by_brand = _brand_logo(repo_root, company)
+    if by_brand:
+        return by_brand
+    # 3. generic discovery globs
     for pattern in _LOGO_GLOBS:
         matches = sorted(repo_root.glob(pattern))
         if matches:
@@ -311,10 +374,11 @@ def insert_logo_before_toc(doc: Document, logo_path: str, company: str = ""):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def post_process(docx_path: str, repo_root: str = "."):
+def post_process(docx_path: str, repo_root: str = ".", logo_override: str = ""):
     root   = Path(repo_root)
     tokens = parse_design_md(root)
-    logo   = find_logo(root)
+    logo   = find_logo(root, override=logo_override,
+                       company=tokens.get("company", ""))
 
     doc = Document(docx_path)
 
@@ -335,12 +399,16 @@ def post_process(docx_path: str, repo_root: str = "."):
 if __name__ == "__main__":
     args = sys.argv[1:]
     if not args:
-        print("Usage: post-process.py <file.docx> [--repo /path/to/root]",
-              file=sys.stderr)
+        print("Usage: post-process.py <file.docx> [--repo /path/to/root] "
+              "[--logo /path/to/logo.png]", file=sys.stderr)
         sys.exit(1)
     docx  = args[0]
     root  = "."
+    logo  = ""
     if "--repo" in args:
         i    = args.index("--repo")
         root = args[i + 1]
-    post_process(docx, root)
+    if "--logo" in args:
+        i    = args.index("--logo")
+        logo = args[i + 1]
+    post_process(docx, root, logo_override=logo)

@@ -34,6 +34,8 @@ Converts markdown → branded `.docx` driven by `.bsg/DESIGN.md`.
 bash .claude/skills/md-to-word/scripts/md-to-word.sh <file.md>
 # Regenerate brand/templates/reference.docx from current .bsg/DESIGN.md:
 bash .claude/skills/md-to-word/scripts/md-to-word.sh <file.md> --force-template
+# Force a specific cover logo (overrides discovery):
+bash .claude/skills/md-to-word/scripts/md-to-word.sh <file.md> --logo path/to/logo.png
 ```
 
 Output `.docx` is written next to the source file.
@@ -93,12 +95,21 @@ Police principale : **Calibri** (Inter non embarquée dans Word ; Calibri est la
 
 ## Logo discovery order
 
-1. `vitrine/public/the-shift_dot_ai_petit.png`
-2. `vitrine/public/logo-*.png` / `vitrine/public/*logo*.png`
-3. `public/logo*.png` / `public/*logo*.png`
-4. `brand/assets/logo.png`
-5. `assets/logo.png`
-6. **No logo found** → company name shown at 18pt bold (placeholder)
+1. **`--logo PATH`** flag (or **`$MD_TO_WORD_LOGO`** env var) — explicit override.
+2. **Company-matched logo** — a `*logo*.png` whose filename contains every token
+   of the DESIGN.md company name (e.g. company `BSG Holding` →
+   `logo-bsg-holding.png`), searched in common brand dirs (repo root,
+   `brand/assets`, `brand`, `public`, `vitrine/public`, `assets`,
+   `content/images`, `content/strategy/images`,
+   `tools/document-generation/assets`). Shortest filename wins. This keeps the
+   cover logo aligned with `.bsg/DESIGN.md` instead of defaulting to whatever
+   generic `logo.png` happens to exist.
+3. Generic discovery globs:
+   `vitrine/public/the-shift_dot_ai_petit.png` →
+   `vitrine/public/logo-*.png` / `*logo*.png` →
+   `public/logo*.png` / `*logo*.png` →
+   `brand/assets/logo.png` → `assets/logo.png`.
+4. **No logo found** → company name shown at 18pt bold (placeholder).
 
 ## Tabula-inspired spacing (applied to all documents)
 
