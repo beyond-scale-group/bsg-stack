@@ -9,7 +9,7 @@ description: >
   backlog", "bootstrap a plan", "sprint health", "what's blocking us",
   "generate a PO report", or any product-ownership question. Reporting
   is one capability among many — not the primary purpose.
-version: 0.2.0
+version: 0.3.0
 model: sonnet
 ---
 
@@ -54,6 +54,113 @@ which itself orchestrates the others.
    Always use `bash scripts/parse-plan.sh --typed` — it resolves `.bsg/PLAN.md`
    first (preferred), then `po/PLAN.md` (legacy). Path-checking bypasses this
    resolution and silently misses repos that store the plan under `.bsg/`.
+
+## Conventions
+
+These conventions complement the hard rules above. Hard rules say *what
+to do*; conventions say *how it must look*. There are two distinct
+output channels — **Calendar Events** (time-blocked slots for reviews
+and meetings) and **Google Tasks** (5-min markers per actionable
+ticket) — never mix them.
+
+### Calendar events posted by the PO
+
+The PO posts calendar events for review slots, decision check-ins, and
+delegation hand-offs (via the `google-workspace` skill). Three rules
+apply to every event:
+
+1. **Title prefix `[<repo>]`** — every event title is prefixed by the
+   repo or project name in brackets so the user can recognize the
+   project at a glance from a busy day view. Examples:
+
+   ```
+   [the-shift.ai]   PO · Review storytelling #80 — NARRATIVE draft v1
+   [bsg-holding.fr] PO · Sprint planning S23
+   [expert-flow.ai] PO · Review chiffres trimestre
+   ```
+
+2. **GitHub issue URL in description** — when the event is tied to one
+   or more issues, include the full `https://github.com/.../issues/N`
+   URL(s) in the description. The title carries the issue number
+   (`#80`); the description carries the clickable link.
+
+3. **Free/busy check before posting** — call `freebusy.query` on a
+   ±2 h window around the target slot. If there is a conflict, shift
+   to the nearest free quarter-hour and **explicitly mention the shift
+   in the description** (e.g. *"Décalé de 17:00 à 17:45 — conflit avec
+   réunion 16:00–17:30"*). Never silently overlay.
+
+### Cross-repo narrative drift
+
+A PO report on repo `A` must surface — and propose to relocate — any
+narrative element that belongs to a sibling repo `B`. Examples to
+watch for:
+
+- A holding-level press talking point sitting in a portfolio company's
+  `PLAN.md` (e.g. *"Constellation Software français"* content found in
+  `the-shift.ai` when it belongs to `bsg-holding.fr`).
+- A product-specific case study in the parent holding's content
+  calendar instead of the operating company's.
+- Brand positioning lines that contradict the repo's own
+  `brand/NARRATIVE.md`.
+
+Each finding goes in a `## Cross-repo drift` subsection of the PO
+report with: (a) source line + file:line reference, (b) target repo,
+(c) one-line rewrite for the current repo, (d) one-line stub for the
+target repo. **No silent deletion** — the user decides.
+
+### Delegation to specialist skills
+
+The PO is an orchestrator, not a writer. When a backlog item requires
+brand voice, French copy review, SEO work, Qualiopi audit, or
+fact-checking, the PO does **not** write the deliverable. Instead:
+
+1. Launch the matching skill or subagent (`storytelling`, `french`,
+   `seo`, `qualiopi`, `truth`, etc.) with a self-contained brief.
+2. Post a 15-min review slot in the user's calendar following the
+   "Calendar events" convention above.
+3. Track the delegation in the PO report so accountability stays
+   clear.
+
+### Decisions must be actionable
+
+Every PO report ends with a `## Décisions à confirmer` (or `## Decisions
+to confirm`) section. Each decision is a **closed question** — yes/no
+or A/B — attached to an owner name. No open-ended deliberations like
+*"want to discuss?"* or *"tu veux qu'on en parle ?"*. Decisions move
+work; deliberations stall it.
+
+### Milestone hygiene at every check
+
+When the PO surfaces open issues that lack a milestone, it must also
+**propose the target milestone for each**, based on the issue title,
+labels, and the active `PLAN.md` objectives. Never just list *"3
+issues without milestone"* — always pair each orphan with a proposed
+rattachement so the user can ack with a single yes.
+
+### Per-ticket Google Tasks (5 min, repo-specific task list)
+
+Every open GitHub issue surfaced in a PO report has a corresponding
+**Google Task** (not Calendar Event) in the **repo-specific task
+list**. Three rules:
+
+1. **Task list = repo name** — one task list per repo
+   (`the-shift.ai`, `bsg-holding.fr`, `expert-flow.ai`, …). Create on
+   first use if absent. Never dump cross-repo tickets in a generic
+   "My Tasks" list.
+
+2. **Title format `[<repo>] #<N> · <truncated-title>`** — recognizable
+   from the merged Google Calendar / Tasks view, ticket number always
+   present so the user can `gh issue view <N>` in one keystroke. Put
+   the full GitHub URL in the task body.
+
+3. **5-min default effort + Tasks ≠ slots** — note `est: 5 min` in the
+   task body as the default. Google Tasks integrate into the Calendar
+   UI but **do not block time slots** — that's the point. Use Calendar
+   Events for time-blocked reviews / meetings (15 min slots, the
+   "Calendar events" convention above). Use Tasks for the actionable
+   work-to-do list (5 min markers). Never use a Calendar Event where a
+   Task fits.
 
 ## Available scripts
 
