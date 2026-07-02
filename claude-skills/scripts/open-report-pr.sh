@@ -145,9 +145,13 @@ if git diff --cached --quiet; then
   git checkout "$original" >/dev/null 2>&1 || true
   exit 0
 fi
-git -c "user.name=${AGENT}" \
-    -c "user.email=${AGENT}@bsg-agents.bot" \
-    commit -m "$title" >/dev/null
+# Commit with the developer's configured git identity. Overriding the
+# author to <agent>@bsg-agents.bot breaks required checks that validate
+# the author email against a GitHub account (e.g. Vercel's commit-author
+# check), leaving report PRs permanently BLOCKED on integrated repos —
+# observed on the-shift.ai (#180–#185) and prizoners (#121–#125).
+# Agent attribution lives in the commit message and PR body instead.
+git commit -m "$title" >/dev/null
 git push -u origin "$branch" >/dev/null 2>&1
 
 # Reuse an existing PR targeting this branch, otherwise open a new one.
