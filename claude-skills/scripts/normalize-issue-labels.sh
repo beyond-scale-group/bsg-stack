@@ -75,8 +75,12 @@ done
 # Cap per tick — read from $BSG_AUTOPILOT_FILE.
 MAX_ISSUES=10
 if [[ -f "$BSG_AUTOPILOT_FILE" ]]; then
+  # `|| true` swallows grep's exit 1 when the key is absent — otherwise
+  # `set -o pipefail` + `set -e` aborts the whole script before any
+  # label routing runs. `max_issues_per_tick` isn't in the documented
+  # scaffold under `budget:`, so most repos hit the no-match path.
   configured=$(grep -E '^\s*max_issues_per_tick\s*:' "$BSG_AUTOPILOT_FILE" 2>/dev/null \
-    | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
+    | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]' || true)
   if [[ -n "$configured" ]]; then
     MAX_ISSUES="$configured"
   fi

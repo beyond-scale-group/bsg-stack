@@ -151,7 +151,7 @@ fi
 # human-gated and gets the label regardless of autopilot mode.
 APPLY_REVIEW_LABEL=true
 if [[ -f "$BSG_AUTOPILOT_FILE" ]]; then
-  enabled=$(grep -E '^\s*enabled\s*:' "$BSG_AUTOPILOT_FILE" 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
+  enabled=$(grep -E '^\s*enabled\s*:' "$BSG_AUTOPILOT_FILE" 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]' || true)
   if [[ "$enabled" == "true" ]]; then
     APPLY_REVIEW_LABEL=false
   fi
@@ -164,7 +164,7 @@ fi
 # wins; otherwise read default_human_reviewer from $BSG_AUTOPILOT_FILE.
 if [[ -n "$HUMAN_REASON" && -z "$ASSIGN_TO" && -f "$BSG_AUTOPILOT_FILE" ]]; then
   ASSIGN_TO=$(grep -E '^\s*default_human_reviewer\s*:' "$BSG_AUTOPILOT_FILE" 2>/dev/null \
-    | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]"' | tr -d "'")
+    | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]"' | tr -d "'" || true)
 fi
 
 # Idempotently ensure the review label exists on the target repo when
