@@ -160,9 +160,26 @@ fi
 # no required checks / reviews configured (common for young repos).
 # The `--delete-branch` flag cleans up the remote head ref so it
 # doesn't accumulate in `gh pr list --state all` output (#363).
+#
+# `gh pr merge` performs local git operations (checking out / pulling
+# the base branch) after the remote API call succeeds. In worktree-
+# isolated sweeps (/tick-all), `main` is already checked out by a
+# sibling worktree, so that local step fails with `fatal: 'main' is
+# already used by worktree at ...` — but only *after* the remote
+# merge already landed. Under `set -euo pipefail` that would abort
+# the script and skip every cleanup step below, including printing
+# the PR URL to stdout. Re-check PR state on non-zero exit and only
+# treat it as a real failure if the PR is not actually MERGED. See #660.
 if ! gh pr merge --auto --squash --delete-branch "$pr_url" >/dev/null 2>&1; then
   echo "open-report-pr.sh: auto-merge not available, merging directly" >&2
-  gh pr merge --squash --delete-branch "$pr_url" >/dev/null
+  if ! gh pr merge --squash --delete-branch "$pr_url" >/dev/null 2>&1; then
+    merged_state=$(gh pr view "$pr_url" --json state --jq .state 2>/dev/null || true)
+    if [[ "$merged_state" != "MERGED" ]]; then
+      echo "open-report-pr.sh: gh pr merge failed and PR is not merged (state=${merged_state:-unknown})" >&2
+      exit 1
+    fi
+    echo "open-report-pr.sh: gh pr merge reported failure but PR is MERGED — continuing cleanup" >&2
+  fi
 fi
 
 # Return to the original branch. Fast-forward pull to bring in the
