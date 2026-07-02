@@ -80,9 +80,21 @@ SETTINGS_FILE = CLAUDE_DIR / "settings.json"
 COOLDOWN_FILE = SCRIPTS_DIR / ".bsg-skills-last-run"
 COOLDOWN_SECONDS = 3600
 
-# Early exit before any network I/O if we ran recently.
-if COOLDOWN_FILE.exists():
+# Early exit before any network I/O if we ran recently — unless the
+# caller explicitly asks for a refresh. The exit used to be silent,
+# which made "I ran the updater and the cache is still stale" a
+# recurring head-scratcher (2026-07-02: two separate debugging rounds
+# traced to this line). Bypass with --force or BSG_SKILLS_FORCE=1;
+# otherwise the skip now says so on stderr.
+_force = "--force" in sys.argv or os.environ.get("BSG_SKILLS_FORCE") == "1"
+if not _force and COOLDOWN_FILE.exists():
     if time.time() - COOLDOWN_FILE.stat().st_mtime < COOLDOWN_SECONDS:
+        remaining = COOLDOWN_SECONDS - (time.time() - COOLDOWN_FILE.stat().st_mtime)
+        print(
+            f"update-bsg-skills: cooldown active ({remaining:.0f}s left), "
+            "skipping — pass --force or BSG_SKILLS_FORCE=1 to refresh now",
+            file=sys.stderr,
+        )
         sys.exit(0)
 
 API_BASE = f"https://api.github.com/repos/{REPO}/contents"
