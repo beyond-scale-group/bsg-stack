@@ -37,25 +37,75 @@ if [[ -f "$NARRATIVE_PATH" ]]; then
     TONE_TARGET=$(echo "$t" | grep -oE '[0-9]+(\.[0-9]+)?' | head -1)
   fi
 
+  # Section matching is case-insensitive and tolerant of aliases (pipe-separated).
+  # The bible schema documented in references/narrative.md uses "Key Messages",
+  # "Voice Guidelines", "Value Proposition"; real files in the wild (including
+  # bsg-stack's own brand/NARRATIVE.md) use "Key messages", "Voice",
+  # "Positioning" (prose). Accepting both keeps the parser useful without
+  # forcing bibles to be rewritten. See #679.
   extract_section_bullets() {
-    local title=$1
-    awk -v title="$title" '
-      $0 ~ "^## " title "[[:space:]]*$" { in_section=1; next }
-      in_section && /^## / { in_section=0 }
-      in_section && /^[0-9]+\.[[:space:]]/ { sub(/^[0-9]+\.[[:space:]]+/, ""); print }
-      in_section && /^-[[:space:]]/       { sub(/^-[[:space:]]+/, ""); print }
+    local titles=$1
+    awk -v titles="$titles" '
+      BEGIN { n = split(tolower(titles), t, "|") }
+      {
+        line = $0
+        if (line ~ /^## /) {
+          rest = substr(line, 4)
+          sub(/[[:space:]]+$/, "", rest)
+          rlow = tolower(rest)
+          matched = 0
+          for (i = 1; i <= n; i++) {
+            if (rlow == t[i]) { matched = 1; break }
+          }
+          if (matched) { in_section = 1; next }
+          if (in_section) { in_section = 0 }
+        }
+        if (in_section) {
+          if (line ~ /^[0-9]+\.[[:space:]]/) {
+            sub(/^[0-9]+\.[[:space:]]+/, "", line); print line
+          } else if (line ~ /^-[[:space:]]/) {
+            sub(/^-[[:space:]]+/, "", line); print line
+          }
+        }
+      }
     ' "$NARRATIVE_PATH"
   }
 
   extract_kv_sublines() {
-    local title=$1
+    local titles=$1
     local key=$2
-    awk -v title="$title" -v key="$key" '
-      $0 ~ "^## " title "[[:space:]]*$" { in_section=1; next }
-      in_section && /^## / { in_section=0 }
-      in_section && $0 ~ "\\*\\*" key ":\\*\\*" {
-        sub(".*\\*\\*" key ":\\*\\*[[:space:]]*", "")
-        print
+    awk -v titles="$titles" -v key="$key" '
+      BEGIN {
+        n = split(tolower(titles), t, "|")
+        klow = tolower(key)
+      }
+      {
+        line = $0
+        if (line ~ /^## /) {
+          rest = substr(line, 4)
+          sub(/[[:space:]]+$/, "", rest)
+          rlow = tolower(rest)
+          matched = 0
+          for (i = 1; i <= n; i++) {
+            if (rlow == t[i]) { matched = 1; break }
+          }
+          if (matched) { in_section = 1; next }
+          if (in_section) { in_section = 0 }
+        }
+        if (in_section) {
+          llow = tolower(line)
+          pat = "\\*\\*" klow ":\\*\\*"
+          if (llow ~ pat) {
+            # Strip everything up to and including the "**Key:**" marker,
+            # case-insensitively, using the lowercase index as a proxy.
+            idx = match(llow, pat)
+            if (idx > 0) {
+              tail = substr(line, idx + RLENGTH)
+              sub(/^[[:space:]]+/, "", tail)
+              print tail
+            }
+          }
+        }
       }
     ' "$NARRATIVE_PATH"
   }
@@ -63,10 +113,10 @@ if [[ -f "$NARRATIVE_PATH" ]]; then
   KEY_MESSAGES_JSON=$(extract_section_bullets "Key Messages" | jq -Rn '[inputs | select(length>0)]' 2>/dev/null || echo '[]')
   DIFFERENTIATORS_JSON=$(extract_section_bullets "Value Proposition" | jq -Rn '[inputs | select(length>0)]' 2>/dev/null || echo '[]')
 
-  BANNED_RAW=$(extract_kv_sublines "Voice Guidelines" "Banned vocabulary" || true)
+  BANNED_RAW=$(extract_kv_sublines "Voice Guidelines|Voice" "Banned vocabulary" || true)
   BANNED_TERMS_JSON=$(echo "$BANNED_RAW" | tr ',' '\n' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' | jq -Rn '[inputs | select(length>0)]' 2>/dev/null || echo '[]')
 
-  PREF_RAW=$(extract_kv_sublines "Voice Guidelines" "Preferred vocabulary" || true)
+  PREF_RAW=$(extract_kv_sublines "Voice Guidelines|Voice" "Preferred vocabulary" || true)
   PREFERRED_TERMS_JSON=$(echo "$PREF_RAW" | tr ',' '\n' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' | jq -Rn '[inputs | select(length>0)]' 2>/dev/null || echo '[]')
 
   CATEGORY=$(extract_kv_sublines "Positioning" "Category" | head -1 || true)
