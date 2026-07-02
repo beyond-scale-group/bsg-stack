@@ -36,7 +36,13 @@ parallel sweep (all agents at once, cheapest wall-clock).
 
 2. **Fire the waves.** Every Agent tool call in every wave uses:
 
-   - `prompt: "tick"`
+   - `prompt: "tick — receipt discipline: your final message is ONE line
+     (≤160 chars) plus at most 3 bullets; verify any PR/issue URL you
+     cite with gh before including it."`
+     The reinforcement is not redundant with the agents' own docs: the
+     2026-07-02 sweeps showed agents drifting into multi-paragraph
+     receipts, and one citing a PR URL with the wrong org, until the
+     dispatcher prompt spelled these two rules out.
    - `subagent_type: "<name>"`
    - `isolation: "worktree"`
    - `run_in_background: false` — **synchronous, always.** Waves are
