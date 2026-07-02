@@ -67,12 +67,19 @@ Semantics every `tick` must follow:
      — that detail belongs in the report file.
   3. Contradictory receipts like `PR #94 opened. Nothing to report` — if a PR
      was opened, state what it says; if nothing to report, don't open a PR.
-- **Short-circuit on same-day idempotency.** When today's report for the
-  same agent is already merged and inputs haven't changed, the tick must
-  skip its full aggregation and return `Tick: unchanged — see PR #NN`.
-  Re-running the entire audit pipeline to produce a byte-identical PR is a
-  pure token leak on recurring sweeps. `security` and `pr-comms` already
-  implement this check — other agents should follow.
+- **Short-circuit on same-day idempotency — audit phase only.** When
+  today's report for the same agent is already merged and inputs haven't
+  changed, the tick must skip its audit/report aggregation and return
+  `Tick: unchanged — see PR #NN`. Re-running the entire audit pipeline to
+  produce a byte-identical PR is a pure token leak on recurring sweeps.
+  The short-circuit gates **only** the report: phases with independent
+  triggers — implementation (B), peer review (C), and the PO's routing
+  phases (1.4/1.5/A.5) — must still run. The fingerprint can't see
+  "work exists but was never routed": an unrouted backlog keeps the
+  fingerprint stable precisely because nothing routes it, so a
+  whole-tick stop deadlocks the delegation pipeline. `tech-lead`, `qa`,
+  `seo`, and `po-manager` implement the scoped version — other agents
+  should follow.
 - **Never pause for consent.** A `tick` on an `output: pr` agent must open
   the report PR without asking. If a silence-breaker requires a human
   decision, the report documents it and the PR *is* the consent surface —

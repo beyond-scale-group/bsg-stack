@@ -7,36 +7,59 @@ model: haiku
 Run a full tick sweep across all registered BSG agents for this repository.
 
 You are the **tick-all dispatcher**. Your job is to fire every registered
-BSG agent's `tick` action in parallel, collect their one-line results, and
-print a brief sweep summary. Nothing more — routing, work, and handoffs are
-each agent's own responsibility.
+BSG agent's `tick` action in three cascading waves, collect their one-line
+results, and print a brief sweep summary. Nothing more — routing, work, and
+handoffs are each agent's own responsibility.
+
+Why waves and not one flat parallel batch: in a flat sweep the PO routes
+labels and files issues *while* the implementers are already checking for
+candidates — anything the PO routes is only picked up on the **next**
+sweep, so tickets take two sweeps to travel from routing to implementation.
+The cascade lets a ticket flow PO → implementer → peer review inside a
+single `/tick-all` run. Pass `--flat` to force the legacy single-wave
+parallel sweep (all agents at once, cheapest wall-clock).
 
 ## Steps
 
-1. **Load the registry.**
+1. **Load the registry and partition the waves.**
 
    ```bash
    REGISTRY=$(cat claude-skills/agents/registry.json 2>/dev/null || echo '{"agents":[]}')
-   AGENTS=$(echo "$REGISTRY" | jq -r '.agents[].name')
+   ROUTERS=$(echo "$REGISTRY" | jq -r '.agents[] | select(.name == "po-manager") | .name')
+   IMPLEMENTERS=$(echo "$REGISTRY" | jq -r '.agents[] | select(.output == "commit") | .name')
+   AUDITORS=$(echo "$REGISTRY" | jq -r '.agents[] | select(.output != "commit" and .name != "po-manager") | .name')
    ```
 
    If `claude-skills/agents/registry.json` is absent, fall back to the
-   hardcoded default list at the bottom of this file.
+   hardcoded default list at the bottom of this file (po-manager is the
+   router; `output: commit` rows are implementers; the rest are auditors).
 
-2. **Fire each agent's tick in parallel — each in its own git worktree.**
-
-   Spawn one Agent tool call per entry with:
+2. **Fire the waves.** Every Agent tool call in every wave uses:
 
    - `prompt: "tick"`
    - `subagent_type: "<name>"`
    - `isolation: "worktree"`
 
-   Do **not** wait for one to finish before starting the next — send
-   all calls in the same tool-use block.
+   **Wave 1 — routing.** Fire `po-manager` alone and wait for its
+   receipt. Its routing phases (label normalization, orphan triage,
+   delegation) are what put candidates in the implementers' inboxes.
+
+   **Wave 2 — implementation.** Fire all `output: commit` agents
+   (tech-lead, qa, seo, docs-keeper) in parallel — one tool-use block,
+   do not wait between them. They consume the candidates wave 1 just
+   routed.
+
+   **Wave 3 — audit + peer review.** Fire the remaining `output: pr`
+   agents (security, marketing, storytelling, pr-comms, cleaner) in
+   parallel. Running them last means their peer-review phase sees the
+   implementation PRs wave 2 just opened, not last sweep's.
+
+   With `--flat`: fire all registered agents in a single parallel
+   tool-use block instead (the pre-cascade behavior).
 
    The `isolation: "worktree"` flag is essential: it gives each agent
    its own git worktree branched off the current HEAD. Without it,
-   eight parallel agents writing `po/`, `security/`, `qa/`,
+   parallel agents writing `po/`, `security/`, `qa/`,
    `tech/`, `seo/`, `marketing/`, `brand/`, and `comms/` into the
    same working tree produce cross-contamination — a sibling's
    untracked output dir can block another agent's
@@ -60,16 +83,23 @@ each agent's own responsibility.
    ```
    ## tick-all — 2026-04-22T14:00:00Z
 
-   ✅ po-manager   Tick: all green, report at https://github.com/…/pull/123
-   ✅ security     Tick: all green, report at https://github.com/…/pull/124
+   wave 1 — routing
+   ✅ po-manager   Tick: routed 3 — see PR #123
+
+   wave 2 — implementation
+   ✅ tech-lead    Tick: implemented #616 — https://github.com/…/pull/126
+   ✅ qa           Tick: unchanged — see PR #124 · pilot: no candidates
+
+   wave 3 — audit + peer review
    ⚠️ seo         Tick: 3 pages missing canonical — report at …/pull/125
    ❌ marketing    ERROR: registry entry missing bus_label
 
-   4 agents swept in 18 s
+   6 agents swept in 3 waves, 74 s
    ```
 
    Prefix: ✅ green (no silence-breaker), ⚠️ silence-breaker fired, ❌ error.
-   Total elapsed time on the last line.
+   Total elapsed time on the last line. With `--flat`, drop the wave
+   headers and keep the flat list.
 
 5. **Prune stale agent worktrees.**
 
@@ -115,6 +145,9 @@ See `docs/label-taxonomy.md` for the full label schema and
   that repo.
 - **Worktree-isolated.** Every agent gets `isolation: "worktree"`.
   Parallel ticks must never share a working tree.
+- **Waves are barriers, not dependencies.** A wave-1 error (or a
+  `Tick: unchanged` receipt) never cancels waves 2–3 — record the
+  receipt and keep going. The cascade only orders the start times.
 - **Human-initiated.** For recurring sweeps, use `/loop 30m /tick-all` or
   `/schedule` — never a GitHub Actions cron.
 - **Idempotent.** Re-running is safe: `open-report-pr.sh` reuses existing
@@ -126,16 +159,18 @@ See `docs/label-taxonomy.md` for the full label schema and
 
 Used when `claude-skills/agents/registry.json` is absent:
 
-| Agent name     | bus_label     | output |
-|----------------|---------------|--------|
-| `po-manager`   | `po`          | pr     |
-| `security`     | `security`    | pr     |
-| `qa`           | `qa`          | pr     |
-| `tech-lead`    | `tech`        | pr     |
-| `seo`          | `seo`         | pr     |
-| `marketing`    | `marketing`   | pr     |
-| `storytelling` | `storytelling`| pr     |
-| `pr-comms`     | `pr-comms`    | pr     |
+| Agent name     | bus_label     | output | wave |
+|----------------|---------------|--------|------|
+| `po-manager`   | `po`          | pr     | 1    |
+| `tech-lead`    | `tech`        | commit | 2    |
+| `qa`           | `qa`          | commit | 2    |
+| `seo`          | `seo`         | commit | 2    |
+| `docs-keeper`  | `docs-keeper` | commit | 2    |
+| `security`     | `security`    | pr     | 3    |
+| `marketing`    | `marketing`   | pr     | 3    |
+| `storytelling` | `storytelling`| pr     | 3    |
+| `pr-comms`     | `pr-comms`    | pr     | 3    |
+| `cleaner`      | `cleaner`     | pr     | 3    |
 
 ---
 
