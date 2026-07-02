@@ -179,21 +179,40 @@ echo "$all_open" | jq -c '.[]' | while read -r issue; do
     continue
   fi
 
-  # Apply the labels.
+  # Apply the labels. Create any label missing from the repo first:
+  # `gh issue edit --add-label` fails on repos that never bootstrapped
+  # the BSG label set, and the old unconditional `|| true` let the
+  # script post its transparency comment anyway — the label never
+  # stuck, so case B re-fired on every tick and re-commented
+  # (observed: 4 identical comments in one day on lab-mind.ai#64).
+  applied=true
   for lbl in "${added_labels[@]}"; do
-    gh issue edit "$num" "${REPO_FLAG[@]}" --add-label "$lbl" >/dev/null 2>&1 || true
+    gh label create "$lbl" "${REPO_FLAG[@]}" \
+      --color 5319e7 --description "BSG agent routing label (auto-created)" \
+      >/dev/null 2>&1 || true
+    if ! gh issue edit "$num" "${REPO_FLAG[@]}" --add-label "$lbl" >/dev/null 2>&1; then
+      applied=false
+    fi
   done
 
   # For Cas B and C, post a transparency comment so the inferred route is
-  # visible and a human or another agent can correct it cheaply.
-  if [[ "$case_name" != "A" ]]; then
+  # visible and a human or another agent can correct it cheaply — only
+  # when the labels actually stuck, and at most once per issue+case:
+  # the HTML marker makes re-runs idempotent across ticks.
+  if [[ "$case_name" != "A" && "$applied" == "true" ]]; then
     inferred_only=""
     for lbl in "${added_labels[@]}"; do
       case "$lbl" in
         tech|qa|seo) inferred_only="$lbl"; break ;;
       esac
     done
-    gh issue comment "$num" "${REPO_FLAG[@]}" --body "Auto-routed to \`${inferred_only}\` by \`normalize-issue-labels.sh\` (case ${case_name}, keyword inference). If the inference is wrong, swap the bus label — the next sweep will pick up the correct routing." >/dev/null 2>&1 || true
+    marker="<!-- bsg-normalize:${case_name}:${inferred_only} -->"
+    existing=$(gh issue view "$num" "${REPO_FLAG[@]}" --json comments \
+      --jq '.comments[].body' 2>/dev/null || true)
+    if ! grep -qF "$marker" <<<"$existing"; then
+      gh issue comment "$num" "${REPO_FLAG[@]}" --body "${marker}
+Auto-routed to \`${inferred_only}\` by \`normalize-issue-labels.sh\` (case ${case_name}, keyword inference). If the inference is wrong, swap the bus label — the next sweep will pick up the correct routing." >/dev/null 2>&1 || true
+    fi
   fi
 
   count=$((count + 1))
