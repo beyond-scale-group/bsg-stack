@@ -39,6 +39,13 @@ parallel sweep (all agents at once, cheapest wall-clock).
    - `prompt: "tick"`
    - `subagent_type: "<name>"`
    - `isolation: "worktree"`
+   - `run_in_background: false` — **synchronous, always.** Waves are
+     ordered by awaiting the previous wave's receipts; backgrounded
+     ticks break that ordering, and in headless runs (`claude -p
+     "/tick-all"`) the session terminates at the background-wait
+     ceiling (~600 s) before the sweep finishes, orphaning the agents
+     mid-wave. Parallelism within a wave comes from batching the
+     synchronous calls in one tool-use block, not from backgrounding.
 
    **Wave 1 — routing.** Fire `po-manager` alone and wait for its
    receipt. Its routing phases (label normalization, orphan triage,
