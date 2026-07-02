@@ -77,7 +77,11 @@ TODOS_JSON=$({ git grep -n -E '(TODO|FIXME|HACK)[:(]' -- '*.ts' '*.tsx' '*.js' '
 # -------------------------------------------------------------- ADRs
 
 ADR_DIR=""
-for candidate in "adr" "docs/adr" "architecture" "docs/architecture"; do
+# .bsg/adr is the canonical location per ADR-001 (the .bsg/ directory
+# convention); checked first so repos that migrated off the legacy
+# adr/ / docs/adr/ folders still get indexed instead of reporting a
+# false "no ADR directory found."
+for candidate in ".bsg/adr" "adr" "docs/adr" "architecture" "docs/architecture"; do
   if [[ -d "$candidate" ]]; then
     ADR_DIR="$candidate"; break
   fi

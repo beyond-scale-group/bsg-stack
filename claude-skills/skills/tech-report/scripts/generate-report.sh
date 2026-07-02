@@ -16,7 +16,23 @@ DEBT=$(bash "$SCRIPT_DIR/debt.sh"    --snapshot "$SNAPSHOT")
 ADR=$(bash "$SCRIPT_DIR/adr.sh"      --snapshot "$SNAPSHOT")
 
 DATE=$(date +%F)
-REPO=$(jq -r '.repoRoot' "$SNAPSHOT" | xargs -I{} basename {})
+REPO_ROOT_PATH=$(jq -r '.repoRoot' "$SNAPSHOT")
+# Prefer the origin remote's repo name over `basename $REPO_ROOT_PATH`:
+# under worktree-isolated ticks (CLAUDE.md "Worktree-isolated in
+# parallel sweeps") the working tree lives at
+# .claude/worktrees/agent-<hash>, so basename alone reports the
+# worktree hash as the repo name instead of the real repo. Parameter
+# expansion (not sed -E) for portability — BSD sed on macOS rejects
+# the non-greedy `+?` regex GNU sed accepts.
+ORIGIN_URL=$(git -C "$REPO_ROOT_PATH" remote get-url origin 2>/dev/null || true)
+REPO=""
+if [[ -n "$ORIGIN_URL" ]]; then
+  REPO="${ORIGIN_URL%.git}"
+  REPO="${REPO##*/}"
+fi
+if [[ -z "$REPO" ]]; then
+  REPO=$(basename "$REPO_ROOT_PATH")
+fi
 
 cat <<EOF
 <!-- fingerprint: ${TICK_FINGERPRINT:-none} -->
