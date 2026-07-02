@@ -86,13 +86,20 @@ issue_state=$(gh issue list --state all --limit 500 --json number,state,labels \
   --jq '[.[] | {n: .number, s: .state, l: [.labels[].name] | sort}] | sort_by(.n)' 2>/dev/null || echo "[]")
 fingerprint_inputs+="$issue_state"
 
-# 2. Open PR numbers + state
-pr_state=$(gh pr list --state all --limit 200 --json number,state \
-  --jq '[.[] | {n: .number, s: .state}] | sort_by(.n)' 2>/dev/null || echo "[]")
+# 2. PR numbers + state — excluding report PRs (reports/* branches).
+#    A tick's own landed report must be invisible to the next tick's
+#    fingerprint, or the loop never converges: report merges → PR state
+#    changes → fingerprint differs → new report → repeat. Observed as
+#    duplicate same-day report PRs (#538/#540, #541/#542).
+pr_state=$(gh pr list --state all --limit 200 --json number,state,headRefName \
+  --jq '[.[] | select(.headRefName | startswith("reports/") | not) | {n: .number, s: .state}] | sort_by(.n)' 2>/dev/null || echo "[]")
 fingerprint_inputs+="$pr_state"
 
-# 3. HEAD commit SHA (code changes)
-head_sha=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+# 3. Last non-report commit SHA (code changes). Report merges bump HEAD
+#    without changing anything an audit reads — skip them for the same
+#    convergence reason as (2).
+head_sha=$(git log -1 --invert-grep --grep='^report(' --format=%H 2>/dev/null || echo "unknown")
+[[ -n "$head_sha" ]] || head_sha="unknown"
 fingerprint_inputs+="$head_sha"
 
 # 4. Per-agent extra hash (e.g. lockfile content hash for security)
