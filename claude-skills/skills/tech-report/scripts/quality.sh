@@ -26,20 +26,24 @@ MAX_FUNCTIONS=20
 
 # Function-detection patterns per extension.
 count_functions() {
-  local f=$1
+  local f=$1 n=0
   case "$f" in
     *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs)
-      grep -cE '^\s*(export\s+)?(async\s+)?function\s+\w+|^\s*(export\s+)?const\s+\w+\s*=\s*(async\s+)?\(' "$f" 2>/dev/null || echo 0 ;;
+      n=$(grep -cE '^\s*(export\s+)?(async\s+)?function\s+\w+|^\s*(export\s+)?const\s+\w+\s*=\s*(async\s+)?\(' "$f" 2>/dev/null) || true ;;
     *.py)
-      grep -cE '^\s*(async\s+)?def\s+\w+' "$f" 2>/dev/null || echo 0 ;;
+      n=$(grep -cE '^\s*(async\s+)?def\s+\w+' "$f" 2>/dev/null) || true ;;
     *.go)
-      grep -cE '^func\s+(\([^)]+\)\s+)?\w+' "$f" 2>/dev/null || echo 0 ;;
+      n=$(grep -cE '^func\s+(\([^)]+\)\s+)?\w+' "$f" 2>/dev/null) || true ;;
     *.rs)
-      grep -cE '^\s*(pub(\([^)]+\))?\s+)?(async\s+)?fn\s+\w+' "$f" 2>/dev/null || echo 0 ;;
+      n=$(grep -cE '^\s*(pub(\([^)]+\))?\s+)?(async\s+)?fn\s+\w+' "$f" 2>/dev/null) || true ;;
     *.scala)
-      grep -cE '^\s*(private\s+|protected\s+)?def\s+\w+' "$f" 2>/dev/null || echo 0 ;;
-    *) echo 0 ;;
+      n=$(grep -cE '^\s*(private\s+|protected\s+)?def\s+\w+' "$f" 2>/dev/null) || true ;;
+    *) n=0 ;;
   esac
+  # grep -c prints the count even on no-match (exit 1); the `|| true`
+  # above only neutralizes set -e, so `n` is still a single clean
+  # digit line here. Guard against an empty/unset value regardless.
+  echo "${n:-0}"
 }
 
 # Compute per-file function counts and build oversized[] / dense[] lists.
@@ -90,16 +94,26 @@ if jq -e '[.sourceFiles[] | select(.path | test("\\.(ts|tsx|js|jsx|mjs|cjs)$"))]
         done
   done < <(jq -r '.sourceFiles[] | select(.path | test("\\.(ts|tsx|js|jsx|mjs|cjs)$")) | .path' "$SNAPSHOT") > "$GRAPH_TMP" || true
 
-  # Detect trivial 2-cycles (A imports B, B imports A).
+  # Detect trivial 2-cycles (A imports B, B imports A). Keyed on a
+  # concatenated "from\tto" string rather than a nested fwd[$1][$2]
+  # array: nested/multi-dimensional arrays are a gawk extension that
+  # BSD/macOS awk (the default `/usr/bin/awk` on developer laptops)
+  # rejects with a syntax error, silently corrupting CIRCULAR_JSON.
   CIRCULAR_JSON=$(awk -F'\t' '
-    NR==FNR { fwd[$1][$2]=1; next }
-    { if ($2 in fwd && $1 in fwd[$2]) {
+    NR==FNR { fwd[$1 "\t" $2]=1; next }
+    { if (($2 "\t" $1) in fwd) {
         a=$1; b=$2;
         key = (a < b) ? (a "\t" b) : (b "\t" a);
         seen[key]=1
       } }
     END { for (k in seen) { split(k, p, "\t"); printf "{\"a\":\"%s\",\"b\":\"%s\"}\n", p[1], p[2] } }
-  ' "$GRAPH_TMP" "$GRAPH_TMP" | jq -sc '.' 2>/dev/null || echo '[]')
+  ' "$GRAPH_TMP" "$GRAPH_TMP" 2>/dev/null | jq -sc '.' 2>/dev/null)
+  # Validate rather than `|| echo '[]'` after the pipe: under `set -o
+  # pipefail` a failing awk stage still lets a successful jq emit valid
+  # JSON, but the pipe's overall exit status is still non-zero — the
+  # old `|| echo '[]'` fallback fired anyway and appended a second
+  # "[]" line onto the already-valid output, breaking --argjson below.
+  jq -e . >/dev/null 2>&1 <<<"$CIRCULAR_JSON" || CIRCULAR_JSON='[]'
 
   rm -f "$GRAPH_TMP"
 fi
