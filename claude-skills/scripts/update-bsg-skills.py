@@ -34,6 +34,14 @@ Network errors are swallowed (exit 0) so the updater never blocks a
 Claude Code session from starting. Logs to
 ~/.claude/logs/update-bsg-skills.log (rotated at 256 KiB).
 
+Structure (#692): the real logic lives in the ``bsg_updater`` package
+next to this file. This entry point stays intentionally tiny — it
+handles the cooldown gate, bootstraps the helper package via
+raw.githubusercontent.com on first install (when only this single file
+is on disk), then delegates to ``bsg_updater.core.run``. Subsequent runs
+reuse the on-disk package, which the manifest reconcile keeps refreshed
+alongside every other BSG file.
+
 This file is a cached copy of claude-skills/scripts/update-bsg-skills.py
 in beyond-scale-group/bsg-stack. The repo is the source of truth;
 the local copy is overwritten on every run.
@@ -41,10 +49,7 @@ the local copy is overwritten on every run.
 
 from __future__ import annotations
 
-import json
 import os
-import shutil
-import subprocess
 import sys
 import time
 import urllib.error
@@ -53,30 +58,9 @@ from pathlib import Path
 
 REPO = "beyond-scale-group/bsg-stack"
 BRANCH = "main"
-SCRIPT_NAME = "update-bsg-skills.py"
-
-# Top-level settings keys the BSG updater merges from
-# claude-skills/settings.json into ~/.claude/settings.json on every run.
-# Keys not listed here are left completely alone, so user-owned settings
-# coexist with BSG-managed ones.
-BSG_MANAGED_SETTINGS_KEYS = ["autoMemoryEnabled"]
-# Sub-keys under `mcpServers` that the updater owns. Other MCP servers the
-# user has configured are preserved.
-BSG_MANAGED_MCP_SERVERS = ["context7"]
-# MCP servers previously managed by BSG that should be removed from user
-# settings on the next update run (e.g. stale entries for packages that no
-# longer exist).
-BSG_RETIRED_MCP_SERVERS = ["claude-in-chrome"]
 
 CLAUDE_DIR = Path(os.environ.get("CLAUDE_CONFIG_DIR", str(Path.home() / ".claude")))
-COMMANDS_DIR = CLAUDE_DIR / "commands"
-SKILLS_DIR = CLAUDE_DIR / "skills"
-AGENTS_DIR = CLAUDE_DIR / "agents"
 SCRIPTS_DIR = CLAUDE_DIR / "scripts"
-LOGS_DIR = CLAUDE_DIR / "logs"
-LOG_FILE = LOGS_DIR / "update-bsg-skills.log"
-MANIFEST_FILE = SCRIPTS_DIR / ".bsg-skills-manifest.json"
-SETTINGS_FILE = CLAUDE_DIR / "settings.json"
 COOLDOWN_FILE = SCRIPTS_DIR / ".bsg-skills-last-run"
 COOLDOWN_SECONDS = 3600
 
@@ -97,419 +81,69 @@ if not _force and COOLDOWN_FILE.exists():
         )
         sys.exit(0)
 
-API_BASE = f"https://api.github.com/repos/{REPO}/contents"
-API_HEADERS = {
-    "Accept": "application/vnd.github+json",
-    "X-GitHub-Api-Version": "2022-11-28",
-    "User-Agent": "bsg-skills-updater",
-}
+# ---------- helper package bootstrap ----------
+#
+# First-run scenario: the install flow (INSTALL.md) drops only this
+# single file on disk. The bsg_updater/ package does not exist yet, so
+# we fetch it once from raw.githubusercontent.com (unauth, generous
+# rate limit — no token needed for public content) before importing.
+# On subsequent runs the files already exist and this loop is a no-op;
+# reconcile keeps them in sync via the manifest.
+
+_PKG_DIR = SCRIPTS_DIR / "bsg_updater"
+_PKG_MODULES = (
+    "__init__.py",
+    "config.py",
+    "log_setup.py",
+    "http_client.py",
+    "manifest.py",
+    "installer.py",
+    "walker.py",
+    "reconcile.py",
+    "settings.py",
+    "core.py",
+)
+_RAW_BASE = (
+    f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/claude-skills/scripts/bsg_updater"
+)
 
 
-def _discover_github_token() -> str | None:
-    """Return a GitHub token from env vars or `gh auth token`, else None.
+def _bootstrap_helpers() -> bool:
+    """Fetch any missing bsg_updater/*.py so ``import bsg_updater`` works.
 
-    The unauthenticated api.github.com limit is 60/hr per IP and is easy
-    to exhaust on a shared-egress machine. Any token bumps it to 5000/hr.
-    We try env vars first (explicit > implicit) then fall back to the
-    already-authenticated `gh` CLI, so nothing is required from the user
-    when gh is installed and logged in — which every BSG skill assumes
-    anyway.
+    Returns True on success. Any network failure is non-fatal to the
+    parent script — the outermost handler still exits 0 so a flaky
+    connection never blocks a Claude Code session from starting.
     """
-    for var in ("GH_TOKEN", "GITHUB_TOKEN"):
-        token = os.environ.get(var, "").strip()
-        if token:
-            return token
-    if not shutil.which("gh"):
-        return None
-    try:
-        result = subprocess.run(
-            ["gh", "auth", "token"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
-    if result.returncode != 0:
-        return None
-    token = result.stdout.strip()
-    return token or None
-
-
-_token = _discover_github_token()
-if _token:
-    API_HEADERS["Authorization"] = f"Bearer {_token}"
-
-# Sections of the repo that are mirrored into ~/.claude/. Each tuple is:
-#   (api subpath under claude-skills/, local destination, manifest prefix)
-SECTIONS = [
-    ("commands", COMMANDS_DIR, "commands"),
-    ("skills", SKILLS_DIR, "skills"),
-    ("agents", AGENTS_DIR, "agents"),
-    ("scripts", SCRIPTS_DIR, "scripts"),
-]
-
-
-def log(msg: str) -> None:
-    print(msg, flush=True)
-
-
-def setup_dirs() -> None:
-    for d in (COMMANDS_DIR, SKILLS_DIR, AGENTS_DIR, SCRIPTS_DIR, LOGS_DIR):
-        d.mkdir(parents=True, exist_ok=True)
-
-
-def setup_logging() -> None:
-    if LOG_FILE.exists() and LOG_FILE.stat().st_size > 262144:
-        LOG_FILE.replace(LOG_FILE.with_suffix(".log.1"))
-    fp = open(LOG_FILE, "a")
-    sys.stdout = fp
-    sys.stderr = fp
-    log(f"--- {time.strftime('%Y-%m-%d %H:%M:%S')} {SCRIPT_NAME} ---")
-
-
-def http_get(url: str, raw: bool = False, timeout: int = 15):
-    req = urllib.request.Request(url, headers=API_HEADERS)
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = resp.read()
-        return data if raw else json.loads(data.decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return None
-        log(f"  HTTP {e.code} on {url}")
-        return None
-    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as e:
-        log(f"  network error on {url}: {e}")
-        return None
-
-
-# ---------- manifest ----------
-
-def load_manifest() -> dict:
-    if not MANIFEST_FILE.exists():
-        return {"version": 1, "files": []}
-    try:
-        data = json.loads(MANIFEST_FILE.read_text())
-    except json.JSONDecodeError:
-        log("  manifest is corrupt, starting fresh")
-        return {"version": 1, "files": []}
-    if not isinstance(data, dict) or not isinstance(data.get("files"), list):
-        return {"version": 1, "files": []}
-    return data
-
-
-def save_manifest(manifest: dict) -> None:
-    tmp = MANIFEST_FILE.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(manifest, indent=2) + "\n")
-    tmp.replace(MANIFEST_FILE)
-
-
-# ---------- file install ----------
-
-def is_self(rel_key: str) -> bool:
-    return rel_key == f"scripts/{SCRIPT_NAME}"
-
-
-def install_file(url: str, dest: Path, owned: set, rel_key: str) -> bool:
-    """
-    Download `url` to `dest`. Refuses to overwrite files that are not in
-    the manifest, with one exception: this script is always allowed to
-    overwrite itself (otherwise the very first run after install would
-    refuse to claim the file the install flow just dropped on disk).
-
-    Dangling symlinks (broken symlinks where the target doesn't exist) are
-    treated as writable destinations — they are removed before writing so
-    that mkdir/replace don't raise FileExistsError (issue #67).
-
-    Content-identity check (issue #313): after downloading, if the local
-    file already exists and its bytes are identical to what was fetched,
-    log "unchanged" and skip the write. This prevents false-positive
-    "updated" messages when the GitHub/CDN layer serves a cached response
-    with old bytes for a file that has not actually changed on disk.
-    """
-    # A dangling symlink: is_symlink() is True but exists() is False.
-    # Remove it so the path is clear for writing.
-    if dest.is_symlink() and not dest.exists():
+    _PKG_DIR.mkdir(parents=True, exist_ok=True)
+    for mod in _PKG_MODULES:
+        target = _PKG_DIR / mod
+        if target.exists() and target.stat().st_size > 0:
+            continue
+        url = f"{_RAW_BASE}/{mod}"
         try:
-            dest.unlink()
-            log(f"  removed dangling symlink {dest}")
-        except OSError as e:
-            log(f"  SKIP {dest} (dangling symlink, could not remove: {e})")
+            req = urllib.request.Request(
+                url, headers={"User-Agent": "bsg-skills-updater"}
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = resp.read()
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            print(f"bsg-skills-updater: bootstrap failed for {mod}: {e}", file=sys.stderr)
             return False
-
-    if dest.exists() and rel_key not in owned and not is_self(rel_key):
-        log(f"  SKIP {dest} (exists, not owned by BSG manifest)")
-        return False
-    data = http_get(url, raw=True)
-    if data is None:
-        log(f"  FAILED {url}")
-        return False
-    # Issue #313: compare fetched bytes against the existing local file.
-    # If they are identical the file is already up-to-date — log "unchanged"
-    # and skip the write so the operator can distinguish a genuine cache
-    # refresh from a CDN-cached no-op.
-    if dest.exists() and not dest.is_symlink():
-        try:
-            if dest.read_bytes() == data:
-                log(f"  unchanged {dest}")
-                return True
-        except OSError:
-            pass  # unreadable existing file — proceed with write
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    tmp = dest.with_suffix(dest.suffix + ".tmp")
-    tmp.write_bytes(data)
-    if dest.suffix in (".sh", ".py"):
-        os.chmod(tmp, 0o755)
-    tmp.replace(dest)
-    log(f"  updated {dest}")
+        tmp = target.with_suffix(target.suffix + ".tmp")
+        tmp.write_bytes(data)
+        tmp.replace(target)
     return True
 
 
-# ---------- remote walk ----------
-
-def list_dir(api_path: str):
-    """List a contents-API directory; returns list (or None on error/404)."""
-    data = http_get(f"{API_BASE}/{api_path}?ref={BRANCH}")
-    if data is None:
-        return None
-    if not isinstance(data, list):
-        return None
-    return data
-
-
-def walk_remote(api_path: str, dest_dir: Path, rel_prefix: str):
-    """
-    Walk a remote directory recursively. Returns (entries, definitive)
-    where entries is a list of (rel_key, dest_path, download_url) and
-    definitive is True iff every directory in the walk listed
-    successfully (so the caller can safely reconcile deletions).
-    """
-    listing = list_dir(api_path)
-    if listing is None:
-        return [], False
-    out = []
-    definitive = True
-    for entry in listing:
-        name = entry.get("name", "")
-        etype = entry.get("type")
-        if etype == "file":
-            rel_key = f"{rel_prefix}/{name}" if rel_prefix else name
-            url = entry.get("download_url")
-            if url:
-                out.append((rel_key, dest_dir / name, url))
-        elif etype == "dir":
-            sub_rel = f"{rel_prefix}/{name}" if rel_prefix else name
-            sub_entries, sub_def = walk_remote(
-                f"{api_path}/{name}", dest_dir / name, sub_rel
-            )
-            out.extend(sub_entries)
-            definitive = definitive and sub_def
-    return out, definitive
-
-
-# ---------- reconcile ----------
-
-def reconcile(manifest: dict) -> dict:
-    owned = set(manifest.get("files", []))
-    new_owned: set = set()
-    section_results: dict = {}
-
-    for api_sub, dest, prefix in SECTIONS:
-        log(f"fetching {api_sub}...")
-        try:
-            entries, definitive = walk_remote(
-                f"claude-skills/{api_sub}", dest, prefix
-            )
-        except Exception as e:  # noqa: BLE001
-            # Per-section isolation: one broken path must not prevent
-            # the remaining sections (agents/, scripts/) from syncing.
-            # Log the failure and leave existing files for this section alone.
-            log(f"  ERROR in {api_sub}: {e} — skipping section, existing files untouched")
-            # Preserve ownership of all files already owned under this prefix
-            # so they survive the deletion reconcile below.
-            for rel_key in owned:
-                if rel_key.split("/", 1)[0] == prefix:
-                    new_owned.add(rel_key)
-            continue
-
-        if not entries and not definitive:
-            log("  unreachable, leaving existing files alone")
-        section_results[prefix] = (entries, definitive)
-        for rel_key, dest_path, url in entries:
-            if install_file(url, dest_path, owned, rel_key):
-                new_owned.add(rel_key)
-            elif rel_key in owned:
-                # Transient failure on a file we already own — keep
-                # ownership so we don't drop it from the manifest.
-                new_owned.add(rel_key)
-
-    # Reconcile deletions: only act when we got a definitive listing.
-    for rel_key in owned:
-        prefix = rel_key.split("/", 1)[0]
-        results = section_results.get(prefix)
-        if not results or not results[1]:
-            new_owned.add(rel_key)
-            continue
-        upstream_keys = {k for k, _, _ in results[0]}
-        if rel_key in upstream_keys:
-            continue  # still upstream, already handled above
-        if is_self(rel_key):
-            # Don't delete the running script even if it disappears
-            # upstream — leaves a clean recovery path.
-            new_owned.add(rel_key)
-            continue
-        local = CLAUDE_DIR / rel_key
-        try:
-            if local.exists():
-                local.unlink()
-                log(f"  removed {local} (no longer upstream)")
-        except OSError as e:
-            log(f"  failed to remove {local}: {e}")
-            new_owned.add(rel_key)
-
-    manifest["files"] = sorted(new_owned)
-    return manifest
-
-
-# ---------- session hook self-registration ----------
-
-def register_session_hook() -> None:
-    script_path = SCRIPTS_DIR / SCRIPT_NAME
-    command = f"{script_path} &"
-
-    if SETTINGS_FILE.exists():
-        try:
-            settings = json.loads(SETTINGS_FILE.read_text())
-        except json.JSONDecodeError:
-            log(f"  {SETTINGS_FILE} is not valid JSON, refusing to modify")
-            return
-    else:
-        settings = {}
-
-    if not isinstance(settings, dict):
-        log(f"  {SETTINGS_FILE} is not a JSON object, refusing to modify")
-        return
-
-    hooks = settings.setdefault("hooks", {})
-    if not isinstance(hooks, dict):
-        log("  settings.hooks is not an object, refusing to modify")
-        return
-    session_start = hooks.setdefault("SessionStart", [])
-    if not isinstance(session_start, list):
-        log("  settings.hooks.SessionStart is not a list, refusing to modify")
-        return
-
-    for entry in session_start:
-        if not isinstance(entry, dict):
-            continue
-        for h in entry.get("hooks", []) or []:
-            if isinstance(h, dict) and SCRIPT_NAME in str(h.get("command", "")):
-                return  # already registered, nothing to do
-
-    session_start.append(
-        {
-            "matcher": "startup|resume|clear",
-            "hooks": [{"type": "command", "command": command}],
-        }
-    )
-    tmp = SETTINGS_FILE.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(settings, indent=2) + "\n")
-    tmp.replace(SETTINGS_FILE)
-    log(f"  registered SessionStart hook in {SETTINGS_FILE}")
-
-
-# ---------- BSG-managed settings merge ----------
-
-def fetch_template_settings() -> dict | None:
-    """Download the BSG settings template (claude-skills/settings.json)."""
-    meta = http_get(f"{API_BASE}/claude-skills/settings.json?ref={BRANCH}")
-    if not isinstance(meta, dict):
-        return None
-    url = meta.get("download_url")
-    if not url:
-        return None
-    raw = http_get(url, raw=True)
-    if raw is None:
-        return None
-    try:
-        data = json.loads(raw.decode("utf-8"))
-    except json.JSONDecodeError:
-        log("  BSG settings template is not valid JSON")
-        return None
-    return data if isinstance(data, dict) else None
-
-
-def merge_bsg_settings() -> None:
-    """
-    Merge BSG-managed keys from claude-skills/settings.json into
-    ~/.claude/settings.json. Only the keys listed in
-    BSG_MANAGED_SETTINGS_KEYS and BSG_MANAGED_MCP_SERVERS are touched;
-    every other user-owned setting is preserved untouched.
-
-    Idempotent: re-running with no upstream changes is a no-op.
-    """
-    template = fetch_template_settings()
-    if template is None:
-        log("  could not fetch BSG settings template, skipping merge")
-        return
-
-    if SETTINGS_FILE.exists():
-        try:
-            settings = json.loads(SETTINGS_FILE.read_text())
-        except json.JSONDecodeError:
-            log(f"  {SETTINGS_FILE} is not valid JSON, refusing to merge")
-            return
-    else:
-        settings = {}
-    if not isinstance(settings, dict):
-        log(f"  {SETTINGS_FILE} is not a JSON object, refusing to merge")
-        return
-
-    changed = False
-
-    for key in BSG_MANAGED_SETTINGS_KEYS:
-        if key in template and settings.get(key) != template[key]:
-            settings[key] = template[key]
-            changed = True
-
-    t_servers = template.get("mcpServers")
-    if isinstance(t_servers, dict):
-        servers = settings.setdefault("mcpServers", {})
-        if isinstance(servers, dict):
-            for name in BSG_MANAGED_MCP_SERVERS:
-                if name in t_servers and servers.get(name) != t_servers[name]:
-                    servers[name] = t_servers[name]
-                    changed = True
-            for name in BSG_RETIRED_MCP_SERVERS:
-                if name in servers:
-                    del servers[name]
-                    changed = True
-                    log(f"  removed retired MCP server '{name}'")
-
-    if not changed:
-        return
-
-    tmp = SETTINGS_FILE.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(settings, indent=2) + "\n")
-    tmp.replace(SETTINGS_FILE)
-    log(f"  merged BSG-managed keys into {SETTINGS_FILE}")
-
-
-# ---------- entry point ----------
-
 def main() -> int:
-    setup_dirs()
-    setup_logging()
-    register_session_hook()
-    merge_bsg_settings()
-    manifest = load_manifest()
-    manifest = reconcile(manifest)
-    save_manifest(manifest)
-    COOLDOWN_FILE.touch()
-    log("done.")
-    return 0
+    SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
+    if not _bootstrap_helpers():
+        return 0
+    if str(SCRIPTS_DIR) not in sys.path:
+        sys.path.insert(0, str(SCRIPTS_DIR))
+    from bsg_updater.core import run
+    return run()
 
 
 if __name__ == "__main__":
@@ -517,7 +151,7 @@ if __name__ == "__main__":
         sys.exit(main())
     except Exception as e:  # never let an exception block a session
         try:
-            log(f"unexpected error: {e}")
+            print(f"bsg-skills-updater: unexpected error: {e}", file=sys.stderr)
         except Exception:
             pass
         sys.exit(0)

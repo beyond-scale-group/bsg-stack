@@ -6,38 +6,32 @@ Verifies:
    — agents/ and scripts/ sections still run.
 2. install_file treats a broken symlink as a path it can overwrite
    (same as owned-by-manifest), rather than crashing.
+
+Updated for #692: the updater is split across ``bsg_updater/*.py``, so
+tests import the submodules directly (``bsg_updater.installer``,
+``bsg_updater.reconcile``) and patch at the boundary they actually use.
 """
 
-import importlib.util
-import json
-import os
 import sys
 import tempfile
 import types
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 
-def _load_updater(monkeypatch_env: dict | None = None) -> types.ModuleType:
-    """Load update-bsg-skills.py as a module without executing main()."""
-    script = (
-        Path(__file__).parent.parent / "scripts" / "update-bsg-skills.py"
-    )
-    spec = importlib.util.spec_from_file_location("update_bsg_skills", script)
-    mod = importlib.util.module_from_spec(spec)
-    # Patch CLAUDE_DIR before the module-level token discovery runs
-    if monkeypatch_env:
-        old = {k: os.environ.get(k) for k in monkeypatch_env}
-        os.environ.update(monkeypatch_env)
-    spec.loader.exec_module(mod)
-    if monkeypatch_env:
-        for k, v in old.items():
-            if v is None:
-                os.environ.pop(k, None)
-            else:
-                os.environ[k] = v
-    return mod
+def _load_bsg_updater() -> tuple[types.ModuleType, types.ModuleType]:
+    """Import the updater submodules under test.
+
+    ``update-bsg-skills.py`` is a bootstrap wrapper that fetches
+    ``bsg_updater/`` on first run. The package is committed to the repo
+    so tests can import it directly without any network I/O.
+    """
+    scripts_dir = Path(__file__).resolve().parent.parent / "scripts"
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
+    from bsg_updater import installer, reconcile  # noqa: WPS433 (deferred import)
+    return installer, reconcile
 
 
 class TestDanglingSymlinkDoesNotAbortSync(unittest.TestCase):
@@ -49,9 +43,9 @@ class TestDanglingSymlinkDoesNotAbortSync(unittest.TestCase):
     def test_per_section_isolation(self):
         """
         reconcile() must continue to the next section even when one
-        section's install_file raises an unexpected exception.
+        section's walk_remote raises an unexpected exception.
         """
-        mod = _load_updater()
+        _, reconcile_mod = _load_bsg_updater()
 
         # Track which sections were attempted
         attempted: list[str] = []
@@ -66,10 +60,10 @@ class TestDanglingSymlinkDoesNotAbortSync(unittest.TestCase):
             return [], True
 
         manifest = {"files": []}
-        with patch.object(mod, "walk_remote", side_effect=fake_walk_remote):
+        with patch.object(reconcile_mod, "walk_remote", side_effect=fake_walk_remote):
             # Should not raise; should complete all sections
             try:
-                mod.reconcile(manifest)
+                reconcile_mod.reconcile(manifest)
             except FileExistsError:
                 self.fail(
                     "reconcile() propagated FileExistsError — "
@@ -85,7 +79,7 @@ class TestDanglingSymlinkDoesNotAbortSync(unittest.TestCase):
         install_file must treat a broken symlink as a writable destination,
         not skip it as 'exists, not owned by BSG manifest'.
         """
-        mod = _load_updater()
+        installer, _ = _load_bsg_updater()
 
         with tempfile.TemporaryDirectory() as tmpdir:
             dest = Path(tmpdir) / "subdir" / "target.md"
@@ -100,8 +94,8 @@ class TestDanglingSymlinkDoesNotAbortSync(unittest.TestCase):
             owned: set = set()
             fake_content = b"# hello from upstream"
 
-            with patch.object(mod, "http_get", return_value=fake_content):
-                result = mod.install_file(
+            with patch.object(installer, "http_get", return_value=fake_content):
+                result = installer.install_file(
                     "https://example.com/fake", dest, owned, "skills/github-compliance/SKILL.md"
                 )
 
