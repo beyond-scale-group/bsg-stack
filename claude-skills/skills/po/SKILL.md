@@ -35,6 +35,7 @@ Read the user's request and pick the matching reference document:
 | Stale issues, no recent activity, abandoned work               | `references/stale.md`       |
 | PR review latency, merge queue, throughput                     | `references/pr-flow.md`     |
 | Velocity, burndown, trends, "are we speeding up/slowing down?" | `references/trends.md`      |
+| Wire the weekly plan into Google Calendar / assign issues      | `references/weekly-plan.md` |
 
 For multi-topic requests (e.g. "give me a full report"), follow `references/status.md`
 which itself orchestrates the others.
@@ -183,6 +184,7 @@ script auto-collect a fresh one.
 | `trends.sh`               | Reads `po/history/*.json` → velocity (issues closed / PRs merged per week), scope delta, timeseries. Git history is the trend store — no extra state. |
 | `generate-report.sh`      | Collects once, runs adherence, composes a full markdown report with the adherence matrix as headline. |
 | `render-adherence.jq`     | Standalone jq program that turns `adherence.sh` output into the "Plan adherence" markdown section (used by `generate-report.sh`). |
+| `weekly-plan.sh`          | Emits a Mon→Fri JSON breakdown of open issues; with `--calendar` creates/patches one `gws calendar +insert` event per working day (repo prefix mandatory); with `--assign --user X` batch-assigns the cited issues (dry-run by default, `--yes` to mutate). See `references/weekly-plan.md`. |
 
 **Invocation patterns:**
 
