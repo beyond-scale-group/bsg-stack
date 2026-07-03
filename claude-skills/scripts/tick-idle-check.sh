@@ -22,7 +22,7 @@
 # in repos that want to track agent cadence.
 #
 # Usage (sourced via eval, like tick-fingerprint.sh):
-#   eval "$(bash claude-skills/scripts/tick-idle-check.sh <agent-cli-name> <bus-label> <report-dir>)"
+#   eval "$(bash claude-skills/scripts/tick-idle-check.sh <agent-cli-name> <bus-label> <report-dir> [-- <tick-fingerprint-args>...])"
 #
 # Arguments:
 #   <agent-cli-name>  the name passed to tick-fingerprint.sh
@@ -31,6 +31,12 @@
 #                     (e.g. tech, qa, seo) — this differs from the CLI
 #                     name for tech-lead vs tech.
 #   <report-dir>      e.g. tech, qa, seo (used for idle-ticks.log path)
+#   [-- <args>...]    optional extra args forwarded verbatim to
+#                     tick-fingerprint.sh. Required for narrow-scope
+#                     agents (marketing / storytelling / pr-comms) whose
+#                     stored fingerprint used --inputs — otherwise the
+#                     idle check recomputes a default fingerprint that
+#                     will never match (#714).
 #
 # Exports:
 #   TICK_IDLE             1 if the agent should short-circuit, 0 otherwise
@@ -44,13 +50,28 @@
 set -euo pipefail
 
 if [[ $# -lt 3 ]]; then
-  echo "usage: tick-idle-check.sh <agent-cli-name> <bus-label> <report-dir>" >&2
+  echo "usage: tick-idle-check.sh <agent-cli-name> <bus-label> <report-dir> [-- <tick-fingerprint-args>...]" >&2
   exit 2
 fi
 
 AGENT_CLI="$1"
 BUS_LABEL="$2"
 REPORT_DIR="$3"
+shift 3
+
+# Optional `--` separator introduces extra args forwarded to
+# tick-fingerprint.sh (e.g. `--inputs releases,path:comms`). Callers
+# that don't need it just omit the separator.
+FP_EXTRA_ARGS=()
+if [[ $# -gt 0 ]]; then
+  if [[ "$1" == "--" ]]; then
+    shift
+    FP_EXTRA_ARGS=("$@")
+  else
+    echo "tick-idle-check.sh: expected -- before extra tick-fingerprint args, got: $1" >&2
+    exit 2
+  fi
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -62,7 +83,9 @@ candidate_count=$(printf '%s\n' "$candidates" | grep -c '^{' || true)
 # Step 2: is today's audit fingerprint already on file?
 # Run tick-fingerprint.sh in a subshell to capture its exports without
 # polluting the caller — we only need to know if SHORT_CIRCUIT was set.
-fp_exports=$(bash "$SCRIPT_DIR/tick-fingerprint.sh" "$AGENT_CLI" "$REPORT_DIR" 2>/dev/null || true)
+# Forward any extra args (typically --inputs) so the recomputed
+# fingerprint matches the one stored in today's report.
+fp_exports=$(bash "$SCRIPT_DIR/tick-fingerprint.sh" "$AGENT_CLI" "$REPORT_DIR" "${FP_EXTRA_ARGS[@]}" 2>/dev/null || true)
 short_circuit=$(printf '%s\n' "$fp_exports" | sed -n 's/^export TICK_SHORT_CIRCUIT=//p' | head -1)
 
 TICK_IDLE=0

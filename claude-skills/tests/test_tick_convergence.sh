@@ -148,6 +148,44 @@ cat > "$GH_FIXTURE_ISSUES" <<'EOF'
 EOF
 assert_ne "fp changes when needs:tech is applied" "$fp_before_label" "$(fingerprint)"
 
+# --- Test 6: --inputs scope excludes issue label churn (#714) ------------
+# The marketing agent hashes releases + marketing/ path + README, not
+# issues. Under the same-day observation that motivated #714, routing
+# labels churn every PO sweep and the audit shouldn't re-fire.
+echo "Test 6: --inputs scope skips issue label churn"
+fingerprint_scoped() {
+  bash "$TICK_FP" marketing marketing \
+    --inputs "releases,path:marketing,path:README.md" 2>/dev/null \
+    | sed -n 's/^export TICK_FINGERPRINT=//p'
+}
+# Bring the issue state back to something with routing labels to prove
+# the scoped fingerprint ignores them.
+cat > "$GH_FIXTURE_ISSUES" <<'EOF'
+[
+  {"number": 10, "state": "OPEN", "labels": [{"name": "bug"}, {"name": "tech"}]}
+]
+EOF
+fp_scoped_before=$(fingerprint_scoped)
+# Now churn only labels — the exact PO relabel-sweep pattern from #714.
+cat > "$GH_FIXTURE_ISSUES" <<'EOF'
+[
+  {"number": 10, "state": "OPEN", "labels": [{"name": "bug"}, {"name": "tech"}, {"name": "needs:tech"}, {"name": "filed-by:po"}]}
+]
+EOF
+assert_eq "scoped fp ignores routing-label churn" "$fp_scoped_before" "$(fingerprint_scoped)"
+
+# --- Test 7: --inputs scope still trips on in-scope path changes ---------
+echo "Test 7: scoped fp trips when marketing/ actually changes"
+mkdir -p marketing
+printf 'seed\n' > marketing/CALENDAR.md
+git add marketing/CALENDAR.md
+git commit -q -m "feat: seed marketing"
+fp_scoped_seed=$(fingerprint_scoped)
+printf 'seed\nupdate\n' > marketing/CALENDAR.md
+git add marketing/CALENDAR.md
+git commit -q -m "feat: update marketing"
+assert_ne "scoped fp changes when marketing/ content changes" "$fp_scoped_seed" "$(fingerprint_scoped)"
+
 echo ""
 echo "=== $((PASS + FAIL)) tests: $PASS passed, $FAIL failed ==="
 [[ "$FAIL" -eq 0 ]]
