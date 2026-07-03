@@ -15,10 +15,10 @@ color: cyan
 output: pr
 tick: >
   (0) Source `claude-skills/scripts/github-bus.sh` and call `bus_claim pr-comms` to fetch any inbox items — today this returns empty because no `needs:pr-comms` labels exist yet; once routing is active the tick processes them before running the audit (see #199).
-  (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh pr-comms comms)"`.
+  (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh pr-comms comms --inputs releases,milestones,path:comms)"` — scoped inputs so PO routing-label churn on unrelated issues doesn't re-trigger the pr-comms audit (#714).
   If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
   Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
-  (0.6) Adaptive back-off (#363): run `eval "$(bash claude-skills/scripts/tick-idle-check.sh pr-comms pr-comms comms)"`.  If TICK_IDLE=1, emit TICK_IDLE_RECEIPT and stop — no candidates AND audit fingerprint matched yesterday's, so phase (A) would re-derive identical output. The idle decision is logged to comms/idle-ticks.log.
+  (0.6) Adaptive back-off (#363): run `eval "$(bash claude-skills/scripts/tick-idle-check.sh pr-comms pr-comms comms -- --inputs releases,milestones,path:comms)"` — same selector as (0.5) so the idle recomputation matches the stored fingerprint (#714).  If TICK_IDLE=1, emit TICK_IDLE_RECEIPT and stop — no candidates AND audit fingerprint matched yesterday's, so phase (A) would re-derive identical output. The idle decision is logged to comms/idle-ticks.log.
   Scan for PR-worthy events since last tick, draft press angles for
   unannounced events, land the report as
   comms/reports/YYYY-MM-DD-events.md capturing the PR URL:
