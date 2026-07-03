@@ -329,6 +329,25 @@ def style_table_branded(tbl, tokens: dict):
                         r.font.bold = True
 
 
+# ── Force TOC / fields update on open ────────────────────────────────────────
+
+def enable_update_fields_on_open(doc: Document):
+    """Set <w:updateFields w:val="true"/> in word/settings.xml.
+
+    Without this flag, LibreOffice headless export (`soffice --convert-to pdf`)
+    leaves the pandoc-generated TOC empty because it never recomputes fields.
+    Word and LibreOffice both honour the flag and rebuild the TOC + page
+    numbers when the document is opened — which is exactly what the PDF
+    converter does behind the scenes.
+    """
+    settings_el = doc.settings.element
+    for old in settings_el.findall(qn("w:updateFields")):
+        settings_el.remove(old)
+    update = OxmlElement("w:updateFields")
+    update.set(qn("w:val"), "true")
+    settings_el.append(update)
+
+
 # ── Logo before TOC ───────────────────────────────────────────────────────────
 
 def insert_logo_before_toc(doc: Document, logo_path: str, company: str = ""):
@@ -390,6 +409,10 @@ def post_process(docx_path: str, repo_root: str = ".", logo_override: str = ""):
     for tbl in doc.tables:
         set_table_full_width(tbl)
         style_table_branded(tbl, tokens)
+
+    # 3. Tell readers (Word, LibreOffice) to refresh fields on open —
+    #    required for the TOC to appear in headless PDF exports.
+    enable_update_fields_on_open(doc)
 
     doc.save(docx_path)
     if n:
