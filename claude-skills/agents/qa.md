@@ -194,8 +194,21 @@ When the tick's phase (B) runs, the procedure is:
    `milestone:*`, only when `.bsg-autopilot.yml` authorizes qa).
    Empty output → stop.
 
-2. **Pick exactly one candidate** — oldest-first, tie-break by lowest
-   issue number. Never attempt a second issue in the same sweep.
+2. **Pick the first ELIGIBLE candidate** — walk the candidate list
+   oldest-first (tie-break by lowest issue number), applying the scope
+   contract from step 3 to each. An ineligible candidate is passed
+   over, not consumed: log one line (`pilot: skipping #NN — <reason>`),
+   release its lock (`bus_unlock NN qa`), and evaluate the next.
+   Implement at most ONE issue per sweep — the one-per-tick cap counts
+   implementations, not evaluations. A dead ticket at the head of the
+   queue must never stall the pipeline (2026-07-03: #616 then #617
+   each starved every bsg-stack sweep until a human intervened).
+   When the same issue is skipped as ineligible on a second
+   consecutive tick, remove its `needs:qa` label and post ONE
+   comment naming the matched clause (marker
+   `<!-- bsg-pilot-ineligible:qa -->`, never duplicated) — that
+   hands disposition back to the PO/human instead of re-picking it
+   forever.
 
 3. **Check the scope contract.** Read the issue body. If it matches
    any `never-auto-implements` clause, skip it silently (log one line:
