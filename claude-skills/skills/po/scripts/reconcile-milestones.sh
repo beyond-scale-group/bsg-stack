@@ -90,6 +90,17 @@ ensure_label "$SCOPE_CREEP_LABEL" "$SCOPE_CREEP_COLOR" \
 
 # Build a map: milestone-slug -> csv of bound issue numbers.
 # Supports both [milestone:Slug] bindings and inferred slug from epic title.
+# Fix #657: parse-plan.sh already strips [tag:...] brackets out of
+# `raw` and resolves the slug into `.bindings.milestones[]` — re-deriving
+# it via a regex capture() against `.raw` never matches anymore, so the
+# explicit-tag path is read straight from `.bindings.milestones[0]`.
+#
+# Independently: never bind a possibly-zero-output generator (like a
+# non-matching capture()) via `EXPR as $var | BODY` — in jq, BODY runs
+# once per *output* of EXPR, so a non-match means BODY (and any fallback
+# it contains) never runs at all. Wrapping in `[EXPR][0]` collapses the
+# generator to exactly one output (null on no match) before the `as`
+# binding, so the fallback chain below always executes.
 mapfile -t epic_lines < <(
   jq -r '
     .items[]
@@ -97,9 +108,9 @@ mapfile -t epic_lines < <(
     | .bindings.epics as $nums
     | ($nums | map(tostring) | join(",")) as $nums_csv
     | .raw as $raw
-    | ($raw | capture("\\[milestone:(?<ms>[A-Za-z0-9_-]+)\\]") // empty | .ms) as $explicit_ms
-    | ($raw | capture("^\\*\\*(?<ep>E[0-9]+) (?<name>[a-z0-9-]+)\\*\\*") // empty
-       | if . then "\(.ep)-\(.name)" else empty end) as $inferred_ms
+    | (.bindings.milestones[0]) as $explicit_ms
+    | ([$raw | capture("^\\*\\*(?<ep>E[0-9]+) (?<name>[a-z0-9-]+)\\*\\*")][0]) as $cap
+    | ($cap | if . then "\(.ep)-\(.name)" else null end) as $inferred_ms
     | ($explicit_ms // $inferred_ms) as $slug
     | if $slug then "\($slug)\t\($nums_csv)" else empty end
   ' <<<"$plan_envelope"
