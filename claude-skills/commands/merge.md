@@ -1,11 +1,13 @@
 ---
 name: merge
 description: >-
-  Signal a pull request is ready for peer review: run local preflight, take it out of draft, and request a reviewer.
+  Signal a pull request is ready for peer review: run local preflight, take it out of draft, and request a reviewer. Auto-runs /ship first when no PR exists yet.
 model: haiku
 ---
 Signal the current branch's pull request is ready for peer review: run local
-preflight, flip it out of draft, and request a reviewer. $ARGUMENTS
+preflight, flip it out of draft, and request a reviewer. If the branch has no
+open PR yet, run the `/ship` pipeline first to create one, then continue.
+$ARGUMENTS
 
 You are the **merge** command. Your job is *not* to merge code into the base
 branch — that is a human decision (or `/ship_and_merge`'s job when a repo
@@ -21,6 +23,9 @@ Typical forms:
 - `/merge --reviewer <github-handle>` — request a specific reviewer instead
   of the configured preferred list (repeatable for multiple reviewers)
 
+When the branch has no open PR yet, any of these forms first runs the
+`/ship` pipeline to create one (see step 0), then proceeds normally.
+
 ## Steps
 
 ### 0. Sanity checks
@@ -29,8 +34,18 @@ Typical forms:
 - Must NOT be on the base/target branch.
 - Find the open PR for the current branch:
   `gh pr view --json number,url,isDraft,headRefName,author 2>/dev/null`
-  - If there is no open PR, stop and tell the user to run `/ship` first —
-    `/merge` only operates on a PR that already exists.
+  - If there is no open PR, do **not** stop — run the full `/ship` pipeline
+    (see `claude-skills/commands/ship.md`) to preflight, commit, push, and
+    open the PR, then continue with the steps below against the PR it
+    created. Forward relevant flags: `--skip-checks` passes through to
+    `/ship`, and since `/merge` flips the PR to ready itself, have `/ship`
+    create the PR as a draft (`--draft`) so there is no window where an
+    unreviewed PR sits ready without a reviewer.
+  - If `/ship` stops (red preflight, nothing to commit and no commits ahead
+    of the base branch, or refused on the base branch), stop too and relay
+    its error — there is no PR to operate on.
+  - When `/ship` just ran its preflight green, skip step 1 below — re-running
+    the same checks back-to-back is pure waste.
 
 ### 1. Preflight (unless `--skip-checks`)
 
