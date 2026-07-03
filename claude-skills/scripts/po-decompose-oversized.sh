@@ -55,7 +55,7 @@ done
 MAX_LOC=200
 if [[ -f "$BSG_AUTOPILOT_FILE" ]]; then
   configured=$(grep -E '^\s*max_loc_per_issue\s*:' "$BSG_AUTOPILOT_FILE" 2>/dev/null \
-    | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
+    | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]' || true)
   if [[ -n "$configured" ]]; then
     MAX_LOC="$configured"
   fi
