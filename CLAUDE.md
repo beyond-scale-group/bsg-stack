@@ -626,6 +626,34 @@ Inside a skill, deterministic bash + jq scripts do the aggregation and
 computation (counts, risk flags, tree walks). The LLM only narrates the
 results. Agents should never re-derive numbers the scripts already emit.
 
+## Secrets policy — this repo is PUBLIC
+
+Nothing that authenticates ever lands in git. Hard rules for every session
+and every agent working in this repo:
+
+1. **Never commit credentials.** API keys, bearer/admin tokens, OAuth
+   client secrets, connection strings with passwords — none of it, in any
+   file, ever. This includes "test" keys.
+2. **Committed config references secrets by env expansion only** —
+   `${VAR}` placeholders (e.g. `.mcp.json` uses `${GBRAIN_MCP_TOKEN}`) or
+   runtime environment (Clever Cloud app env vars). Never literals.
+3. **Local-only files that hold real values** (all verified git-ignored —
+   never `git add -f` them):
+   - `deploy/gbrain/gbrain.env` — installer input keys
+     (`deploy/gbrain/.gitignore`)
+   - `.claude/settings.local.json` — session env like MCP tokens
+     (`.gitignore` ignores `.claude/`)
+   - `.mcp.json` — kept out via `.git/info/exclude` (personal endpoints
+     don't belong in a public repo)
+4. **Scan before you ship.** Before any commit/PR that adds or edits
+   config, scripts, or docs, run a secret-pattern scan over every
+   new/modified file (`git status --porcelain -uall` + grep for key
+   shapes: `sk-`, `ze_`, `sk-ant-`, 64-hex tokens, `Bearer …`) — or run
+   the `security` agent. A match blocks the commit until resolved.
+5. **If a credential ever reaches a commit**, treat it as burned: rotate
+   it at the provider first, then rewrite/drop the commit — deleting the
+   file in a follow-up commit is not remediation.
+
 ## Contributing to the shared catalog
 
 Files in `~/.claude/` on a developer's machine are cached copies — they get
