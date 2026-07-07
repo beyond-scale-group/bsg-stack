@@ -13,6 +13,10 @@ from pathlib import Path
 REPO = "beyond-scale-group/bsg-stack"
 BRANCH = "main"
 SCRIPT_NAME = "update-bsg-skills.py"
+# Opt-in SessionEnd hook that uploads the session transcript to a personal
+# gbrain. Registered for everyone (it no-ops without GBRAIN_INGEST_URL +
+# GBRAIN_MCP_TOKEN in the environment).
+CAPTURE_SCRIPT_NAME = "upload-session-to-gbrain.py"
 
 # Top-level settings keys the BSG updater merges from
 # claude-skills/settings.json into ~/.claude/settings.json on every run.
