@@ -46,6 +46,12 @@ fi
 # the built assets inside the package — expose them where it looks.
 ln -sfn node_modules/gbrain/admin admin
 
+# Minion job worker: /ingest and every queued job sit in `waiting` forever
+# without one. The supervisor spawns `gbrain jobs work` and auto-restarts
+# it on crash (see docs/guides/minions-deployment.md).
+"$GBRAIN" jobs supervisor start --detach --json --concurrency 2 \
+  || log "worker supervisor failed to start (non-fatal)"
+
 log "starting HTTP MCP server on :${PORT:-8080}"
 exec "$GBRAIN" serve --http \
   --port "${PORT:-8080}" \
