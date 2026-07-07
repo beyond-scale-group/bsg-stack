@@ -108,6 +108,42 @@ The merge is **idempotent** and **narrow**:
 To add or remove a managed key, edit `claude-skills/settings.json` **and**
 update the `BSG_MANAGED_*` lists in the installer in the same PR.
 
+## Session capture to a personal gbrain (opt-in)
+
+The updater registers a `SessionEnd` hook
+(`scripts/upload-session-to-gbrain.py`) for every developer. The hook is a
+**silent no-op** unless you opt in by exporting two environment variables:
+
+```bash
+GBRAIN_INGEST_URL=https://your-brain.example.com   # gbrain HTTP server
+GBRAIN_MCP_TOKEN=gbrain_xxx                        # bearer token, write scope
+```
+
+Put them in your shell profile, or in the `env` block of
+`~/.claude/settings.json` so they only apply to Claude Code sessions.
+
+When opted in, every session end uploads the **full transcript** (user
+turns, assistant turns, tool calls, truncated tool results) to
+`POST $GBRAIN_INGEST_URL/ingest` as a markdown page under
+`sources/claude-sessions/`. gbrain dedups on content hash, so re-uploads
+are idempotent. Tuning knobs:
+
+| Env var | Default | Effect |
+|---|---|---|
+| `GBRAIN_CAPTURE_TOOL_RESULT_MAX` | `2000` | Per-block tool-result truncation (chars); `0` = unlimited |
+| `GBRAIN_CAPTURE_MAX_BYTES` | `900000` | Payload split threshold (gbrain's `/ingest` caps at 1 MB by default) |
+
+**Secrets:** the uploader runs a blocking redaction pass (API-key
+prefixes, bearer tokens, 64-hex secrets, connection-string passwords)
+before anything leaves the machine. Redaction is pattern-based, not
+perfect — treat the target brain as a private store, and point the hook
+only at a brain you own. Failures never block the session; they log to
+`~/.claude/logs/gbrain-capture.log`.
+
+Recommended gbrain-side setup: route `sources/claude-sessions/` to the
+`db_only` storage tier in the brain's `gbrain.yml` so bulk transcripts
+stay out of the brain's git history.
+
 ## GitHub labels used by BSG agents
 
 BSG agents expect the following labels to exist on any repo where they file

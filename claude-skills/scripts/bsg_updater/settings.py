@@ -16,6 +16,7 @@ from bsg_updater.config import (
     BSG_MANAGED_MCP_SERVERS,
     BSG_MANAGED_SETTINGS_KEYS,
     BSG_RETIRED_MCP_SERVERS,
+    CAPTURE_SCRIPT_NAME,
     SCRIPTS_DIR,
     SCRIPT_NAME,
     SETTINGS_FILE,
@@ -67,6 +68,55 @@ def register_session_hook() -> None:
     tmp.write_text(json.dumps(settings, indent=2) + "\n")
     tmp.replace(SETTINGS_FILE)
     log(f"  registered SessionStart hook in {SETTINGS_FILE}")
+
+
+def register_session_end_hook() -> None:
+    """Register the opt-in gbrain session-capture hook (SessionEnd).
+
+    Same idempotence contract as :func:`register_session_hook` — detected
+    by script name, appended once, refuses to touch malformed settings.
+    The hook itself is a no-op unless the developer exports
+    ``GBRAIN_INGEST_URL`` + ``GBRAIN_MCP_TOKEN`` (see INSTALL.md).
+    """
+    script_path = SCRIPTS_DIR / CAPTURE_SCRIPT_NAME
+    command = f"python3 {script_path}"
+
+    if SETTINGS_FILE.exists():
+        try:
+            settings = json.loads(SETTINGS_FILE.read_text())
+        except json.JSONDecodeError:
+            log(f"  {SETTINGS_FILE} is not valid JSON, refusing to modify")
+            return
+    else:
+        settings = {}
+
+    if not isinstance(settings, dict):
+        log(f"  {SETTINGS_FILE} is not a JSON object, refusing to modify")
+        return
+
+    hooks = settings.setdefault("hooks", {})
+    if not isinstance(hooks, dict):
+        log("  settings.hooks is not an object, refusing to modify")
+        return
+    session_end = hooks.setdefault("SessionEnd", [])
+    if not isinstance(session_end, list):
+        log("  settings.hooks.SessionEnd is not a list, refusing to modify")
+        return
+
+    for entry in session_end:
+        if not isinstance(entry, dict):
+            continue
+        for h in entry.get("hooks", []) or []:
+            if isinstance(h, dict) and CAPTURE_SCRIPT_NAME in str(h.get("command", "")):
+                return  # already registered, nothing to do
+
+    session_end.append(
+        {"hooks": [{"type": "command", "command": command, "timeout": 60}]}
+    )
+    tmp = SETTINGS_FILE.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(settings, indent=2) + "\n")
+    tmp.replace(SETTINGS_FILE)
+    log(f"  registered SessionEnd gbrain-capture hook in {SETTINGS_FILE}")
 
 
 def _fetch_template_settings() -> dict | None:
