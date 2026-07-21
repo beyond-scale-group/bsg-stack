@@ -47,7 +47,11 @@ NAME_CATALOG_ROW_RE = re.compile(r"^\|\s*`([a-z0-9_-]+)`\s*\|", re.MULTILINE)
 
 
 def list_commands() -> list[Path]:
-    return sorted(p for p in COMMANDS_DIR.glob("*.md") if p.is_file())
+    return sorted(
+        p
+        for p in COMMANDS_DIR.glob("*.md")
+        if p.is_file() and p.name != "README.md"
+    )
 
 
 def list_skill_entrypoints() -> list[Path]:
@@ -64,7 +68,11 @@ def list_skill_entrypoints() -> list[Path]:
 def list_agents() -> list[Path]:
     if not AGENTS_DIR.is_dir():
         return []
-    return sorted(p for p in AGENTS_DIR.glob("*.md") if p.is_file())
+    return sorted(
+        p
+        for p in AGENTS_DIR.glob("*.md")
+        if p.is_file() and p.name != "README.md"
+    )
 
 
 def all_footer_bearing_files() -> list[Path]:
