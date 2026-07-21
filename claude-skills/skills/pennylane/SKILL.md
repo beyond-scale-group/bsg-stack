@@ -22,6 +22,7 @@ token rotation, a `0600` token store, cursor pagination, and v2 JSON filters.
 
 ```bash
 S=scripts/pennylane.py
+python3 $S doctor                                     # 0. check setup, print next step
 python3 $S auth-url --state $(openssl rand -hex 16)   # 1. get consent URL
 python3 $S exchange "<code-from-redirect>"            # 2. store tokens
 python3 $S me                                         # verify (id, email, role)
@@ -31,6 +32,11 @@ python3 $S post customer_invoices --data '{...}'       # write
 ```
 
 ## First-time setup (do this before anything else)
+
+**Always run `python3 $S doctor` first.** It reports which credentials/tokens
+are present (never printing secret values) and tells you the exact next step.
+Use it to drive the setup conversation with the user — don't guess what's
+configured.
 
 1. **Credentials.** OAuth apps are provisioned by Pennylane's partnerships team
    (request a sandbox). Set, never commit:
@@ -43,8 +49,15 @@ python3 $S post customer_invoices --data '{...}'       # write
    land in `~/.config/pennylane/tokens.json` (override via
    `PENNYLANE_TOKEN_STORE`). Full flow: **[references/oauth.md](references/oauth.md)**.
 
-If `auth-url`/`exchange` errors on missing env vars, stop and ask the user for
-the missing credential — do not invent client ids or redirect URIs.
+**If credentials are missing, guide the user — don't stall and don't fabricate.**
+`doctor` and every command now emit the exact env-var exports and OAuth steps
+needed. Walk the user through them one at a time:
+1. Ask them to obtain/confirm their `CLIENT_ID`, `CLIENT_SECRET`, and
+   `REDIRECT_URI` from their Pennylane OAuth app (partnerships/sandbox).
+2. Have them `export` the three vars in the shell running the skill.
+3. Re-run `doctor`; when credentials are green, run `auth-url`, have them
+   approve in the browser, paste the redirect `code`, then `exchange <code>`.
+Never invent client ids, secrets, or redirect URIs.
 
 ## Critical rules
 

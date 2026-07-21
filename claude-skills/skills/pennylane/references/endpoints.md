@@ -7,7 +7,6 @@ Base: `https://app.pennylane.com/api/external/v2`. Auth header on every call:
 
 | Resource | Path | Methods | Notes |
 |---|---|---|---|
-| Companies | `/companies` | GET | Structures a firm token can reach |
 | Whoami | `/me` | GET | id, email, role — verify a token |
 | Customer invoices | `/customer_invoices` | GET, POST | invoices + credit notes |
 | Customer invoice | `/customer_invoices/{id}` | GET | single |
@@ -23,6 +22,21 @@ Base: `https://app.pennylane.com/api/external/v2`. Auth header on every call:
 
 Endpoint names occasionally change; confirm exact paths/fields against the live
 reference at `https://pennylane.readme.io/reference` before production use.
+
+## Firm referential — a separate base path (NOT /v2)
+
+The firm-level "list companies" endpoint does **not** live under `/v2`. It has
+its own base path and its own reference site (`https://firm-pennylane.readme.io`):
+
+| Resource | Full path | Methods | Scope | Notes |
+|---|---|---|---|---|
+| Companies | `https://app.pennylane.com/api/external/firm/v1/companies` | GET | `companies:readonly` | Every structure a firm token can reach |
+
+`scripts/pennylane.py companies` targets this firm base automatically (constant
+`FIRM_API_BASE`); do **not** call `get companies` (that hits `/v2/companies`,
+which returns **404** — the endpoint only exists under `firm/v1`). Verified live:
+`GET /api/external/v2/companies` → 404, `GET /api/external/firm/v1/companies` →
+401 (`www-authenticate: Bearer realm="Pennylane"`).
 
 ## Pagination — cursor based
 

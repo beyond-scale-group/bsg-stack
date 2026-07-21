@@ -16,6 +16,7 @@ Credentials are read from the environment, never written to disk:
 Only the access/refresh tokens are persisted to PENNYLANE_TOKEN_STORE (0600).
 
 Usage:
+  pennylane.py doctor                      # check credentials/token state + next step
   pennylane.py auth-url [--scopes "a b c"] [--state XYZ]
   pennylane.py exchange <authorization_code>
   pennylane.py refresh
@@ -39,6 +40,9 @@ AUTHORIZE_URL = "https://app.pennylane.com/oauth/authorize"
 TOKEN_URL = "https://app.pennylane.com/oauth/token"
 REVOKE_URL = "https://app.pennylane.com/oauth/revoke"
 API_BASE = "https://app.pennylane.com/api/external/v2"
+# The firm referential endpoints (e.g. /companies) live under a separate base
+# path — NOT under /v2. Only firm-scoped resources use this.
+FIRM_API_BASE = "https://app.pennylane.com/api/external/firm/v1"
 
 DEFAULT_SCOPES = (
     "companies:read customer_invoices:all supplier_invoices:all "
@@ -72,10 +76,26 @@ def save_tokens(tokens):
     os.replace(tmp, path)  # atomic — a crash never loses the only valid refresh token
 
 
+_SETUP_HINT = {
+    "PENNYLANE_CLIENT_ID": "OAuth app client id",
+    "PENNYLANE_CLIENT_SECRET": "OAuth app client secret",
+    "PENNYLANE_REDIRECT_URI": "registered callback URL, e.g. https://your.app/callback",
+}
+
+
 def _require(name):
     val = os.environ.get(name)
     if not val:
-        sys.exit(f"error: ${name} is not set")
+        hint = _SETUP_HINT.get(name, "")
+        sys.exit(
+            f"error: ${name} is not set ({hint}).\n"
+            f"  Set your OAuth credentials first, then re-run:\n"
+            f"    export PENNYLANE_CLIENT_ID=...\n"
+            f"    export PENNYLANE_CLIENT_SECRET=...\n"
+            f"    export PENNYLANE_REDIRECT_URI=https://your.app/callback\n"
+            f"  Run `python3 {os.path.basename(sys.argv[0])} doctor` to check what's missing.\n"
+            f"  OAuth apps are provisioned by Pennylane (partnerships/sandbox) — never invent these values."
+        )
     return val
 
 
@@ -158,7 +178,14 @@ def cmd_refresh(args):
 def valid_access_token():
     tokens = load_tokens()
     if not tokens:
-        sys.exit("error: no tokens stored — run `auth-url` then `exchange`")
+        prog = os.path.basename(sys.argv[0])
+        sys.exit(
+            "error: no tokens stored — you haven't authorized yet.\n"
+            f"  1. Set PENNYLANE_CLIENT_ID / _SECRET / _REDIRECT_URI (see `python3 {prog} doctor`)\n"
+            f"  2. python3 {prog} auth-url --state $(openssl rand -hex 16)   # open the URL, approve access\n"
+            f"  3. python3 {prog} exchange <code-from-redirect>             # stores tokens\n"
+            f"  Then re-run this command."
+        )
     if int(time.time()) >= tokens.get("expires_at", 0):
         tokens = do_refresh()
     return tokens["access_token"]
@@ -168,8 +195,8 @@ def cmd_token(args):
     print(valid_access_token())
 
 
-def _api_request(method, path, query=None, body=None):
-    url = API_BASE + "/" + path.lstrip("/")
+def _api_request(method, path, query=None, body=None, base=None):
+    url = (base or API_BASE) + "/" + path.lstrip("/")
     if query:
         url += "?" + urllib.parse.urlencode(query)
     data = json.dumps(body).encode() if body is not None else None
@@ -203,12 +230,12 @@ def _build_query(args):
     return query
 
 
-def _paginate(path, query):
+def _paginate(path, query, base=None):
     """Follow cursor pagination, yielding each item across all pages."""
     items = []
     q = dict(query)
     while True:
-        page = _api_request("GET", path, query=q)
+        page = _api_request("GET", path, query=q, base=base)
         items.extend(page.get("items", page.get("data", [])))
         nxt = page.get("next_cursor") or (page.get("pagination") or {}).get("next_cursor")
         has_more = page.get("has_more")
@@ -232,15 +259,52 @@ def cmd_post(args):
 
 
 def cmd_companies(args):
-    # Firm-scoped tokens expose every connected structure here.
+    # Firm-scoped tokens expose every connected structure here. This referential
+    # endpoint lives under the firm base (/api/external/firm/v1), NOT /v2.
     if args.all:
-        print(json.dumps(_paginate("companies", {}), indent=2, ensure_ascii=False))
+        print(json.dumps(_paginate("companies", {}, base=FIRM_API_BASE), indent=2, ensure_ascii=False))
     else:
-        print(json.dumps(_api_request("GET", "companies"), indent=2, ensure_ascii=False))
+        print(json.dumps(_api_request("GET", "companies", base=FIRM_API_BASE), indent=2, ensure_ascii=False))
 
 
 def cmd_me(args):
     print(json.dumps(_api_request("GET", "me"), indent=2, ensure_ascii=False))
+
+
+def cmd_doctor(args):
+    """Report setup state and the exact next step — no network calls, no secrets printed."""
+    prog = os.path.basename(sys.argv[0])
+    lines = ["Pennylane connector — setup check", ""]
+    missing_env = [n for n in _SETUP_HINT if not os.environ.get(n)]
+    for name, hint in _SETUP_HINT.items():
+        ok = bool(os.environ.get(name))
+        lines.append(f"  [{'x' if ok else ' '}] {name}  ({hint})")
+
+    store = _store_path()
+    tokens = load_tokens()
+    has_tokens = bool(tokens.get("access_token"))
+    lines.append(f"  [{'x' if has_tokens else ' '}] token store: {store}"
+                 + ("" if has_tokens else "  (none yet)"))
+    if has_tokens:
+        exp = tokens.get("expires_at", 0)
+        state = "expired (auto-refresh on next call)" if int(time.time()) >= exp else "valid"
+        lines.append(f"        access token: {state}")
+
+    lines.append("")
+    if missing_env:
+        lines.append("Next step — set the missing credential(s), never commit them:")
+        for n in missing_env:
+            example = "https://your.app/callback" if n.endswith("REDIRECT_URI") else "..."
+            lines.append(f"    export {n}={example}")
+        lines.append("  OAuth apps come from Pennylane (partnerships/sandbox request);"
+                     " do not invent client ids or secrets.")
+    elif not has_tokens:
+        lines.append("Next step — authorize (credentials look set):")
+        lines.append(f"    python3 {prog} auth-url --state $(openssl rand -hex 16)   # open URL, approve")
+        lines.append(f"    python3 {prog} exchange <code-from-redirect>             # stores tokens")
+    else:
+        lines.append(f"All set. Verify with:  python3 {prog} me")
+    print("\n".join(lines))
 
 
 def cmd_revoke(args):
@@ -271,6 +335,7 @@ def main():
     e.add_argument("code")
     e.set_defaults(func=cmd_exchange)
 
+    sub.add_parser("doctor", help="check setup state and print the next step").set_defaults(func=cmd_doctor)
     sub.add_parser("refresh", help="force a token refresh").set_defaults(func=cmd_refresh)
     sub.add_parser("token", help="print a valid access token").set_defaults(func=cmd_token)
     sub.add_parser("me", help="whoami (id, email, role)").set_defaults(func=cmd_me)
