@@ -15,14 +15,18 @@ command and auto-updates on every new session.
 
 | Directory | Purpose |
 |-----------|---------|
-| `commands/` | Slash commands (`/babysit`, …) — single-file prompts invoked as `/name` |
+| [`commands/`](commands/README.md) | Slash commands (`/ship`, `/tick-all`, …) — single-file prompts invoked as `/name` |
 | `skills/` | Full skills (`po`, …) — `SKILL.md` + optional `scripts/` and `references/` |
-| `agents/` | Subagents (`po-manager`, …) — role-scoped agents with their own tool budget |
-| `scripts/` | The installer (`update-bsg-skills.py`) and helper scripts |
-| `tests/` | Smoke tests for the installer and skill metadata |
+| [`agents/`](agents/README.md) | Subagents (`po-manager`, …) — role-scoped agents with their own tool budget |
+| [`scripts/`](scripts/README.md) | The installer (`update-bsg-skills.py`) and helper scripts/functions |
+| [`templates/`](templates/README.md) | Per-agent intent-file starters (`ROADMAP.md`, `SECURITY.md`, …) |
+| [`tests/`](tests/README.md) | Smoke & unit tests for the installer, scripts, and skill metadata |
+| [`prds/`](prds/README.md) | Product requirement docs the agents & skills were built from |
 
-For the current catalog of installed commands, skills, and agents, see
-the tables in [`INSTALL.md`](INSTALL.md).
+Each subfolder now carries its own `README.md` listing every file it holds —
+a new developer can open any directory and see what's available at a glance.
+For the full catalog of installed commands, skills, and agents, see the
+tables in [`INSTALL.md`](INSTALL.md).
 
 ## How to install
 
