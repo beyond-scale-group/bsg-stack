@@ -11,6 +11,27 @@ agents every company in the portfolio inherits. One repo, one source of truth.
 
 ---
 
+## The story
+
+It started with a simple problem: every new software company acquired by BSG
+came with its own CI/CD workflows, its own conventions, its own duct tape.
+Three acquisitions in, we had three different Scala pipelines, two ways to
+deploy on Clever Cloud, and zero consistency.
+
+We did what any engineer would do: we centralized. One repo, reusable
+workflows, shared conventions. But we didn't stop there.
+
+Because BSG isn't a fund that buys and flips. It's a **forever hold**. Every
+piece of software we acquire, we keep. Forever. And when you're holding 50
+software companies forever, you need a **shared stack** — the connective tissue
+that ties the portfolio together: CI/CD, Renovate configs, Claude Code skills,
+release conventions, review apps, notifications.
+
+**bsg-stack** is that foundation. One repo, one source of truth, zero
+duplication.
+
+---
+
 ## The stack
 
 | Component | What it is |
