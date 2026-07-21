@@ -1,3 +1,9 @@
+<a href="../README.md"><img src="../assets/logo-bsg-holding.png" alt="Beyond Scale Group" height="40"></a>
+
+**[Beyond Scale Group](../README.md)** · BSG Stack
+
+---
+
 # Claude Code Skills
 
 Shared [Claude Code](https://claude.com/claude-code) slash commands,
