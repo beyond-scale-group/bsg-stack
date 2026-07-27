@@ -86,6 +86,20 @@ on:
         required: false
         type: string
         default: ""
+      slim_deploy_paths:
+        description: >
+          Space-separated repo-root-relative paths to deploy as a single orphan
+          commit instead of pushing the whole repository history. `clever deploy`
+          (git push) sends every object reachable from HEAD; for a brand-new
+          Clever app that is the entire monorepo history, which can be hundreds of
+          MiB and makes the receiver drop the connection ("socket hang up" /
+          empty "unpack ok") on the initial push. Restricting the pushed tree to
+          just the app's files keeps the pack small so it unpacks within the
+          receiver's timeout. Paths are preserved, so APP_FOLDER keeps working.
+          Leave empty (default) to push the full repository unchanged.
+        required: false
+        type: string
+        default: ""
       runs_on:
         description: "Runner to use"
         required: false
@@ -224,6 +238,29 @@ jobs:
           APP_URL=$(terraform output -raw app_url)
           echo "id=${APP_ID}" >> "$GITHUB_OUTPUT"
           echo "url=${APP_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Slim deploy tree (shrink initial push)
+        if: inputs.action == 'deploy' && inputs.slim_deploy_paths != ''
+        run: |
+          set -euo pipefail
+          echo "Slimming deploy tree to: ${{ inputs.slim_deploy_paths }}"
+          git config user.email "deploy@bsg-stack.local"
+          git config user.name "bsg-stack review-app deploy"
+          # Build an orphan single commit containing ONLY the requested paths.
+          # The next step's `clever deploy` pushes every object reachable from
+          # HEAD; on a brand-new Clever app that is the whole monorepo history
+          # (hundreds of MiB), which makes the git receiver drop the initial
+          # push. Collapsing to one commit of just the app's files keeps the pack
+          # small enough to unpack in time. Paths are preserved so APP_FOLDER
+          # still resolves. See expert-flow.ai issue #2541.
+          git checkout --orphan __bsg_slim_deploy
+          git reset -q
+          # shellcheck disable=SC2086
+          git add -f -- ${{ inputs.slim_deploy_paths }}
+          git commit -q --no-verify \
+            -m "Slim deploy tree for Clever push (source ${{ inputs.head_sha }})"
+          echo "Slim commit: $(git rev-parse HEAD)"
+          echo "is-shallow: $(git rev-parse --is-shallow-repository)"
 
       - name: Deploy Code
         if: inputs.action == 'deploy'
