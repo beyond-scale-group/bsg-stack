@@ -58,10 +58,12 @@ jobs:
           extra_plugins: |
             @semantic-release/changelog
             @semantic-release/git
+            conventional-changelog-writer@8
             ${{ inputs.extra_plugins }}
           working_directory: ${{ inputs.working_directory }}
         env:
           GITHUB_TOKEN: ${{ secrets.token }}
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
       # Keep a moving major-version tag (e.g. `v2`) pointing at the
       # latest release of that major. Callers pin to `@v2` to follow
