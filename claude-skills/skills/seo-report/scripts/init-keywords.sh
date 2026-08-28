@@ -84,7 +84,13 @@ HEAD
   | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' \
   | awk 'NF > 0 && !seen[tolower($0)]++ { print "- " $0 }' \
   | head -25 \
-  | { read -r first; if [[ -z "$first" ]]; then
+  | {
+    # `read` returns 1 at EOF, i.e. exactly when no signals were found.
+    # Without the `|| true`, `set -e` aborts this group before the
+    # empty-case branch below — the branch that exists to handle it —
+    # ever runs, killing the script mid-pipeline with exit 1.
+    read -r first || true
+    if [[ -z "$first" ]]; then
       echo "- _No signals found — author this list manually._"
     else
       printf '%s\n' "$first"
