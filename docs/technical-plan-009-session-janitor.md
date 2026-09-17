@@ -599,12 +599,16 @@ verdict_for() {
 }
 ```
 
-Replace the emitting loop with:
+Replace the emitting loop. It lives **inside `main()`**, so keep it at
+`main()`'s indentation and extend that function's `local` declaration to
+`local rows collapsed pid ppid cwd rss age is_repo repo branch upstream dirty
+unpushed merged`. The new helpers above stay at top level, beside
+`etime_to_seconds`, so sourcing the file still exposes them for unit tests:
 
 ```bash
-printf '%s\n' "$collapsed" | while IFS=$'\t' read -r pid ppid cwd rss age; do
-  [ -n "$pid" ] || continue
-  is_repo=false
+  printf '%s\n' "$collapsed" | while IFS=$'\t' read -r pid ppid cwd rss age; do
+    [ -n "$pid" ] || continue
+    is_repo=false
   git -C "$cwd" rev-parse --git-dir >/dev/null 2>&1 && is_repo=true
   repo="$(git_field "$cwd" repo)"
   branch="$(git_field "$cwd" branch)"
