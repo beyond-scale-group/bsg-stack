@@ -7,10 +7,26 @@ rows by verdict, and prints one table.
 
 ```bash
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/scripts/_bsg-script-path.sh"
-bash "$(bsg_script_path session-state.sh)" > "${TMPDIR:-/tmp}/sessions.jsonl"
+bash "$(bsg_script_path session-state.sh)" > "${TMPDIR:-/tmp}/sessions.jsonl" \
+  || { echo "session-state.sh failed"; exit 1; }
 jq -r '[.pid, .verdict, (.repo // "-"), (.branch // "-"), .rss_mb] | @tsv' \
   "${TMPDIR:-/tmp}/sessions.jsonl"
 ```
+
+Check that exit status. The redirect sends everything to a file, so a
+resolver that dies mid-sweep looks exactly like a machine with no
+sessions: an empty table, no error. The resolver now degrades a bad
+field on a bad row rather than losing the batch, but an unchecked
+redirect would still hide any future failure the same way.
+
+## What counts as a dev server
+
+A descendant of the session, rooted in its worktree, that is **listening
+on a TCP port** (PRD-009 §5.4.6). Not merely any child with that cwd:
+every session spawns MCP stdio helpers under its worktree, and counting
+those made 27 of 31 sessions `keep:dev-servers`, which silenced every
+rung of the ladder below it. A `keep:dev-servers` row always names the
+pids it is protecting.
 
 ## Output contract
 
