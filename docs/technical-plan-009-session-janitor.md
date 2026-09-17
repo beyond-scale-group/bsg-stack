@@ -98,8 +98,13 @@ assert_eq() {
   fi
 }
 
+# On macOS `mktemp -d` hands back a path through /var -> /private/var, while
+# git reports the physical path. Normalise every fixture root with `pwd -P`
+# or the string comparisons below fail for the wrong reason.
+phys() { (cd "$1" && pwd -P); }
+
 # 1. Inside a repo that has the script → the repo copy wins.
-tmp_repo="$(mktemp -d)"
+tmp_repo="$(phys "$(mktemp -d)")"
 mkdir -p "$tmp_repo/claude-skills/scripts"
 git -C "$tmp_repo" init -q
 touch "$tmp_repo/claude-skills/scripts/session-state.sh"
@@ -109,9 +114,9 @@ assert_eq "repo copy wins" \
   "$tmp_repo/claude-skills/scripts/session-state.sh" "$out"
 
 # 2. Inside a repo WITHOUT the script → installed copy.
-tmp_repo2="$(mktemp -d)"
+tmp_repo2="$(phys "$(mktemp -d)")"
 git -C "$tmp_repo2" init -q
-fake_home="$(mktemp -d)"
+fake_home="$(phys "$(mktemp -d)")"
 mkdir -p "$fake_home/scripts"
 out="$(cd "$tmp_repo2" && CLAUDE_CONFIG_DIR="$fake_home" bash -c \
   'source "'"$SUT"'"; bsg_script_path session-state.sh')"
@@ -119,7 +124,7 @@ assert_eq "falls back to installed copy" \
   "$fake_home/scripts/session-state.sh" "$out"
 
 # 3. Outside any git repo → installed copy, no crash.
-tmp_bare="$(mktemp -d)"
+tmp_bare="$(phys "$(mktemp -d)")"
 out="$(cd "$tmp_bare" && CLAUDE_CONFIG_DIR="$fake_home" bash -c \
   'source "'"$SUT"'"; bsg_script_path session-state.sh')"
 assert_eq "outside a repo falls back" \
@@ -353,11 +358,12 @@ fi)"
 
 [ -n "$rows" ] || exit 0
 
-# Collapse wrapper/child pairs: when a row's ppid is also a row's pid and
-# both share a cwd, the parent is a launcher shell — drop it.
-collapsed="$(printf '%s\n' "$rows" | awk -F'\t' '
-  NR == FNR { cwd_of[$1] = $3; next }
-  { if (($2 in cwd_of) && cwd_of[$2] == $3) next; print }
+# Collapse wrapper/child pairs: when a row's pid is another row's ppid and
+# both share a cwd, THIS row is the launcher shell — drop it and keep the
+# child, which is the real session holding the memory.
+collapsed="$(awk -F'\t' '
+  NR == FNR { child_cwd[$2] = $3; next }
+  { if (($1 in child_cwd) && child_cwd[$1] == $3) next; print }
 ' <(printf '%s\n' "$rows") <(printf '%s\n' "$rows"))"
 
 verdict_for() {
@@ -882,13 +888,24 @@ lots. This release diagnoses only.
 
 ## Quick start
 
+Bootstrap the helper from the installed copy — the only path that exists
+from an arbitrary cwd — then let it resolve everything else, preferring the
+repo copy when you are working inside `bsg-stack`:
+
 ```bash
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/scripts/_bsg-script-path.sh"
+RESOLVER="$(bsg_script_path session-state.sh)"
+
 # The scorecard
-bash "$(bash -c 'source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/scripts/_bsg-script-path.sh"; bsg_script_path session-state.sh')"
+bash "$RESOLVER" | jq .
 
 # Just the sessions that could be closed
-bash claude-skills/scripts/session-state.sh | jq -r 'select(.verdict == "reapable")'
+bash "$RESOLVER" | jq -r 'select(.verdict == "reapable")'
 ```
+
+Never invoke this skill's scripts through a bare `claude-skills/scripts/…`
+path: it is repo-relative and resolves only inside `bsg-stack`, which is the
+defect PRD-009 §10 records.
 
 Under `/loop 30m /session-janitor`, stay silent unless a silence-breaker
 in `references/doctor.md` fires.
@@ -920,8 +937,10 @@ rows by verdict, and prints one table.
 ## Running it
 
 ```bash
-bash claude-skills/scripts/session-state.sh > /tmp/sessions.jsonl
-jq -r '[.pid, .verdict, (.repo // "-"), (.branch // "-"), .rss_mb] | @tsv' /tmp/sessions.jsonl
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/scripts/_bsg-script-path.sh"
+bash "$(bsg_script_path session-state.sh)" > "${TMPDIR:-/tmp}/sessions.jsonl"
+jq -r '[.pid, .verdict, (.repo // "-"), (.branch // "-"), .rss_mb] | @tsv' \
+  "${TMPDIR:-/tmp}/sessions.jsonl"
 ```
 
 ## Output contract
