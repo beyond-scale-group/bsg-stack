@@ -28,6 +28,20 @@ jobs:
       - name: Run pilot candidate tests
         run: bash claude-skills/tests/test_pilot_candidates.sh
 
+  session-janitor:
+    name: session-janitor resolver
+    runs-on: ubuntu-latest
+    # These gate a tool whose later lots send SIGTERM to whatever the
+    # resolver marks reapable, so the safety invariants must not rot.
+    # The live-path test skips its per-row assertions when no Claude
+    # session is running, which is always the case on a runner.
+    steps:
+      - uses: actions/checkout@v4
+      - name: Script path resolver
+        run: bash claude-skills/tests/test_script_path.sh
+      - name: Session state resolver
+        run: bash claude-skills/tests/test_session_state.sh
+
   integration:
     name: po integration test (edomata)
     runs-on: ubuntu-latest
