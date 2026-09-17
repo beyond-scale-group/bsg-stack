@@ -95,19 +95,78 @@ merged_into_base() {
   then echo true; else echo false; fi
 }
 
+# pr_json <cwd> <branch> — {"number":N,"state":"..."} or empty.
+pr_json() {
+  local cwd="$1" branch="$2" out
+  [ -n "$branch" ] || return 0
+  command -v gh >/dev/null 2>&1 || return 0
+  out="$(gh pr view "$branch" --json number,state 2>/dev/null)" || return 0
+  # `|| true`: under `set -e` a jq failure on empty or malformed input
+  # would abort the whole run. A missing PR is normal, not an error.
+  printf '%s' "$out" | jq -c 'select(.number != null) | {number, state}' 2>/dev/null || true
+}
+
+# issue_for <cwd> — the linked ticket, from the registry first.
+issue_for() {
+  local cwd="$1" reg="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/bsg-sessions.json"
+  [ -f "$reg" ] || return 0
+  # `|| true`: a malformed registry file must not abort the whole run.
+  jq -r --arg k "$cwd" '.[$k].issue // empty' "$reg" 2>/dev/null || true
+}
+
+# is_busy <cwd> — true when the transcript changed within the age floor.
+is_busy() {
+  local cwd="$1" cfg enc dir newest now mtime
+  cfg="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+  enc="$(printf '%s' "$cwd" | tr '/.+' '---')"
+  dir="$cfg/projects/$enc"
+  [ -d "$dir" ] || { echo false; return; }
+  # `|| true`: an unmatched glob makes `ls` exit non-zero even though
+  # "no transcript yet" is a normal, expected state, not an error.
+  newest="$(ls -t "$dir"/*.jsonl 2>/dev/null | head -1 || true)"
+  [ -n "$newest" ] || { echo false; return; }
+  now="$(date +%s)"
+  # `|| true`: a TOCTOU race (file removed between ls and stat) must not abort.
+  mtime="$(stat -f %m "$newest" 2>/dev/null || stat -c %Y "$newest" 2>/dev/null || true)"
+  [ -n "$mtime" ] || { echo false; return; }
+  if [ $((now - mtime)) -lt "$MIN_AGE_SECONDS" ]; then echo true; else echo false; fi
+}
+
+# dev_servers <pid> <cwd> — pids of live servers rooted in the worktree.
+dev_servers() {
+  local pid="$1" cwd="$2"
+  if [ -n "${BSG_SESSION_DEV_SERVER_CMD:-}" ]; then
+    # `return 0`, not a bare `return`: a failing injected command must
+    # not propagate its exit status and abort the whole run.
+    "$BSG_SESSION_DEV_SERVER_CMD" "$pid" "$cwd"
+    return 0
+  fi
+  pgrep -P "$pid" 2>/dev/null | while read -r child; do
+    lsof -a -p "$child" -d cwd -Fn 2>/dev/null \
+      | sed -n 's/^n//p' | grep -q "^$cwd" && echo "$child"
+  done
+  return 0
+}
+
 verdict_for() {
-  local pid="$1" age="$2" dirty="$3" unpushed="$4" merged="$5" is_repo="$6"
-  if [ "$pid" = "$SELF_PID" ];        then echo "keep:self";      return; fi
-  if [ "$age" -lt "$MIN_AGE_SECONDS" ]; then echo "keep:too-young"; return; fi
-  if [ "$is_repo" != "true" ];        then echo "unknown";        return; fi
-  if [ "$dirty" -gt 0 ];              then echo "keep:dirty";     return; fi
-  if [ "$unpushed" -gt 0 ];           then echo "keep:unpushed";  return; fi
-  if [ "$merged" = "true" ];          then echo "reapable";       return; fi
+  local pid="$1" age="$2" dirty="$3" unpushed="$4" merged="$5" \
+        is_repo="$6" busy="$7" servers="$8" pr_state="$9"
+  if [ "$pid" = "$SELF_PID" ];          then echo "keep:self";        return; fi
+  if [ "$age" -lt "$MIN_AGE_SECONDS" ]; then echo "keep:too-young";   return; fi
+  if [ "$busy" = "true" ];              then echo "keep:busy";        return; fi
+  if [ -n "$servers" ];                 then echo "keep:dev-servers"; return; fi
+  if [ "$is_repo" != "true" ];          then echo "unknown";          return; fi
+  if [ "$dirty" -gt 0 ];                then echo "keep:dirty";       return; fi
+  if [ "$unpushed" -gt 0 ];             then echo "keep:unpushed";    return; fi
+  if [ "$pr_state" = "OPEN" ];          then echo "keep:pr-open";     return; fi
+  if [ "$merged" = "true" ] || [ "$pr_state" = "MERGED" ] \
+     || [ "$pr_state" = "CLOSED" ];     then echo "reapable";         return; fi
   echo "unknown"
 }
 
 main() {
-  local rows collapsed pid ppid cwd rss age is_repo repo branch upstream dirty unpushed merged
+  local rows collapsed pid ppid cwd rss age is_repo repo branch upstream dirty unpushed merged \
+        pr pr_state issue busy servers servers_json
 
   rows="$(if [ -n "${BSG_SESSION_PROVIDER:-}" ]; then
     "$BSG_SESSION_PROVIDER"
@@ -135,6 +194,13 @@ main() {
     dirty="$(git_field "$cwd" dirty)"; dirty="${dirty:-0}"
     unpushed="$(unpushed_count "$cwd" "$upstream")"
     merged="$(merged_into_base "$cwd")"
+    pr="$(pr_json "$cwd" "$branch")"
+    pr_state="$(printf '%s' "$pr" | jq -r '.state // empty' 2>/dev/null)"
+    issue="$(issue_for "$cwd")"
+    busy="$(is_busy "$cwd")"
+    servers="$(dev_servers "$pid" "$cwd" | tr '\n' ' ')"
+    servers_json="$(printf '%s' "$servers" | tr ' ' '\n' \
+      | jq -Rn '[inputs | select(length > 0) | tonumber]')"
     jq -nc \
       --argjson pid "$pid" \
       --argjson ppid "$ppid" \
@@ -147,14 +213,23 @@ main() {
       --argjson dirty "$dirty" \
       --argjson unpushed "$unpushed" \
       --argjson merged_into_base "$merged" \
-      --arg verdict "$(verdict_for "$pid" "$age" "$dirty" "$unpushed" "$merged" "$is_repo")" \
+      --argjson pr "${pr:-null}" \
+      --arg issue "$issue" \
+      --argjson busy "$busy" \
+      --argjson dev_servers "$servers_json" \
+      --arg verdict "$(verdict_for "$pid" "$age" "$dirty" "$unpushed" "$merged" \
+                       "$is_repo" "$busy" "$servers" "$pr_state")" \
       '{pid: $pid, ppid: $ppid, cwd: $cwd, rss_mb: $rss_mb,
         age_seconds: $age_seconds,
         repo: (if $repo == "" then null else $repo end),
         branch: (if $branch == "" then null else $branch end),
         upstream: (if $upstream == "" then null else $upstream end),
         dirty: $dirty, unpushed: $unpushed,
-        merged_into_base: $merged_into_base, verdict: $verdict}'
+        merged_into_base: $merged_into_base,
+        pr: $pr,
+        issue: (if $issue == "" then null else ($issue | tonumber) end),
+        busy: $busy, dev_servers: $dev_servers,
+        verdict: $verdict}'
   done
 }
 

@@ -188,6 +188,90 @@ assert_eq "batch emits both rows" "2" "$row_count"
 second_verdict="$(printf '%s\n' "$out" | tail -1 | jq -r '.verdict')"
 assert_eq "batch: second row is reapable" "reapable" "$second_verdict"
 
+# stub_gh <dir> <json> — a fake `gh` on PATH returning fixed JSON.
+stub_gh() {
+  local dir="$1" json="$2"
+  mkdir -p "$dir"
+  {
+    echo '#!/usr/bin/env bash'
+    printf 'printf "%%s" %q\n' "$json"
+  } > "$dir/gh"
+  chmod +x "$dir/gh"
+}
+
+# 9. An open PR outranks a clean, merged tree.
+make_repo "$WORK/propen" clean
+stub_gh "$WORK/bin_open" '{"number":2816,"state":"OPEN"}'
+prov="$WORK/p9.sh"
+make_provider "$prov" "904	1	$WORK/propen	100	60000"
+out="$(PATH="$WORK/bin_open:$PATH" BSG_SESSION_PROVIDER="$prov" \
+  BSG_SESSION_SELF_PID=999 bash "$SUT")"
+assert_eq "pr number" "2816" "$(printf '%s' "$out" | jq -r '.pr.number')"
+assert_eq "open pr kept" "keep:pr-open" "$(printf '%s' "$out" | jq -r '.verdict')"
+
+# 10. A merged PR on a clean tree is reapable.
+make_repo "$WORK/prmerged" clean
+stub_gh "$WORK/bin_merged" '{"number":8,"state":"MERGED"}'
+prov="$WORK/p10.sh"
+make_provider "$prov" "905	1	$WORK/prmerged	100	60000"
+out="$(PATH="$WORK/bin_merged:$PATH" BSG_SESSION_PROVIDER="$prov" \
+  BSG_SESSION_SELF_PID=999 bash "$SUT")"
+assert_eq "merged pr reapable" "reapable" "$(printf '%s' "$out" | jq -r '.verdict')"
+
+# 11. A dev server running under the worktree outranks a clean tree.
+make_repo "$WORK/servers" clean
+stub_gh "$WORK/bin_none" ''
+prov="$WORK/p11.sh"
+make_provider "$prov" "906	1	$WORK/servers	100	60000"
+servers_stub="$WORK/servers_stub.sh"
+printf '#!/usr/bin/env bash\necho 4306\n' > "$servers_stub"
+chmod +x "$servers_stub"
+out="$(PATH="$WORK/bin_none:$PATH" BSG_SESSION_PROVIDER="$prov" \
+  BSG_SESSION_DEV_SERVER_CMD="$servers_stub" BSG_SESSION_SELF_PID=999 bash "$SUT")"
+assert_eq "dev server listed" "4306" "$(printf '%s' "$out" | jq -r '.dev_servers[0]')"
+assert_eq "dev servers kept" "keep:dev-servers" "$(printf '%s' "$out" | jq -r '.verdict')"
+
+# 12. A transcript touched just now marks the session busy.
+make_repo "$WORK/busy" clean
+fake_cfg="$WORK/cfg"
+enc="$(printf '%s' "$WORK/busy" | tr '/.+' '---')"
+mkdir -p "$fake_cfg/projects/$enc"
+touch "$fake_cfg/projects/$enc/session.jsonl"
+prov="$WORK/p12.sh"
+make_provider "$prov" "907	1	$WORK/busy	100	60000"
+out="$(PATH="$WORK/bin_none:$PATH" CLAUDE_CONFIG_DIR="$fake_cfg" \
+  BSG_SESSION_PROVIDER="$prov" BSG_SESSION_SELF_PID=999 bash "$SUT")"
+assert_eq "busy detected" "true" "$(printf '%s' "$out" | jq -r '.busy')"
+assert_eq "busy kept" "keep:busy" "$(printf '%s' "$out" | jq -r '.verdict')"
+
+# 13. Batch of two sessions where the first session's `gh pr view` call
+# fails outright (non-zero exit, no JSON). Under `set -e` a call-site
+# command substitution around a failing `gh` is the exact hazard Task 3
+# already hit twice with git — one bad session must not truncate the
+# batch and lose the session after it.
+make_repo "$WORK/ghfail" clean
+make_repo "$WORK/clean3" clean
+bin_fail="$WORK/bin_fail"
+mkdir -p "$bin_fail"
+{
+  echo '#!/usr/bin/env bash'
+  echo 'exit 1'
+} > "$bin_fail/gh"
+chmod +x "$bin_fail/gh"
+prov="$WORK/p13.sh"
+{
+  echo '#!/usr/bin/env bash'
+  printf 'printf "%%s\\n" %q\n' "908	1	$WORK/ghfail	100	60000"
+  printf 'printf "%%s\\n" %q\n' "909	1	$WORK/clean3	100	60000"
+} > "$prov"
+chmod +x "$prov"
+out="$(PATH="$bin_fail:$PATH" BSG_SESSION_PROVIDER="$prov" \
+  BSG_SESSION_SELF_PID=999 bash "$SUT")"
+row_count="$(printf '%s\n' "$out" | wc -l | tr -d ' ')"
+assert_eq "gh-failure batch emits both rows" "2" "$row_count"
+second_verdict="$(printf '%s\n' "$out" | tail -1 | jq -r '.verdict')"
+assert_eq "gh-failure batch: second row is reapable" "reapable" "$second_verdict"
+
 rm -rf "$WORK"
 
 echo "test_session_state.sh: $PASS passed, $FAIL failed"
