@@ -31,10 +31,24 @@ etime_to_seconds() {
   }'
 }
 
+# claude_pids_from_ps — read `ps -Ao pid=,command=` on stdin, print the pid
+# of every Claude session. Pure, so it is unit-testable with synthetic input.
+#
+# Why not pgrep: macOS pgrep excludes the calling process AND ALL ITS
+# ANCESTORS unless given -a ("By default, the current pgrep or pkill process
+# and all of its ancestors are excluded"). A janitor run from inside a Claude
+# session is always a descendant of one, so pgrep hides precisely the session
+# doing the looking — verified: 31 pids found, the caller's own session absent.
+# `-a` is not an option either: on Linux procps it means --list-full.
+claude_pids_from_ps() {
+  awk '{ pid = $1; $1 = ""; sub(/^ /, "");
+         if ($0 ~ /^claude/ || $0 ~ /\/claude /) print pid }'
+}
+
 # Default enumerator: live `claude` processes with a resolvable cwd.
 default_provider() {
   local pid ppid cwd rss etime age
-  for pid in $(pgrep -f '^claude|/claude ' 2>/dev/null || true); do
+  for pid in $(ps -Ao pid=,command= 2>/dev/null | claude_pids_from_ps || true); do
     cwd="$(lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1)"
     [ -n "$cwd" ] || continue
     ppid="$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')"

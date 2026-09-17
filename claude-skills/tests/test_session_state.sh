@@ -85,6 +85,20 @@ assert_eq "etime hh:mm:ss"    "5025"   "$(etime_to_seconds '01:23:45')"
 assert_eq "etime dd-hh:mm:ss" "183845" "$(etime_to_seconds '2-03:04:05')"
 assert_eq "etime leading zeros not octal" "489" "$(etime_to_seconds '08:09')"
 
+# 4c. claude_pids_from_ps: pure pid extraction from `ps -Ao pid=,command=`
+# shaped lines, replacing pgrep entirely (macOS pgrep hides the calling
+# session and all its ancestors by default — see the helper's own comment).
+assert_eq "bare claude line matches" "42" \
+  "$(printf '   42 claude --dangerously-skip-permissions\n' | claude_pids_from_ps)"
+assert_eq "absolute-path claude line matches" "43" \
+  "$(printf '   43 /Users/x/.local/bin/claude --resume abc123\n' | claude_pids_from_ps)"
+assert_eq "dotfile .claude/ path does not match" "" \
+  "$(printf '   44 bash /Users/x/.claude/scripts/session-state.sh\n' | claude_pids_from_ps)"
+assert_eq "prefix false positive faithfully preserved from old pgrep pattern" "45" \
+  "$(printf '   45 claude-mock-server --port 1234\n' | claude_pids_from_ps)"
+assert_eq "mixed batch returns exact pid list" "$(printf '42\n43\n45')" \
+  "$(printf '   42 claude --dangerously-skip-permissions\n   43 /Users/x/.local/bin/claude --resume abc123\n   44 bash /Users/x/.claude/scripts/session-state.sh\n   45 claude-mock-server --port 1234\n' | claude_pids_from_ps)"
+
 # make_repo <path> <state> — build a fixture repo in a known state.
 make_repo() {
   local path="$1" state="$2"
