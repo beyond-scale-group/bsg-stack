@@ -595,6 +595,49 @@ out="$(PATH="$WORK/bin_none:$PATH" CLAUDE_CONFIG_DIR="$fake_cfg" \
   BSG_SESSION_PROVIDER="$prov" BSG_SESSION_SELF_PID=999 bash "$SUT")"
 assert_eq "stale transcript is not busy" "false" "$(printf '%s' "$out" | jq -r '.busy')"
 
+# 15d. REGRESSION: `is_busy` must not be poisonable by a non-numeric
+# mtime. The real defect (line 318, pre-fix) was `stat -f %m` succeeding
+# on GNU coreutils — `-f` there means `--file-system`, takes no argument,
+# so `%m` is parsed as a FILE operand and `stat` prints a multi-line
+# "  File: ..." filesystem block and exits 0. `mtime` then held that text
+# and `$((now - mtime))` died with `set -u`'s "unbound variable", killing
+# the WHOLE run, not just this row.
+#
+# Both stat forms behave differently per platform, so this stub ignores
+# its arguments entirely and always emits the GNU-filesystem-block shape,
+# reproducing the poison identically on macOS or Linux, whichever runs
+# this suite.
+make_repo "$WORK/busybadstat" clean
+make_repo "$WORK/afterbadstat" clean
+badstat_enc="$(printf '%s' "$WORK/busybadstat" | tr '/.+' '---')"
+mkdir -p "$fake_cfg/projects/$badstat_enc"
+touch "$fake_cfg/projects/$badstat_enc/session.jsonl"
+bin_badstat="$WORK/bin_badstat"
+mkdir -p "$bin_badstat"
+{
+  echo '#!/usr/bin/env bash'
+  echo 'printf "  File: \"/some/mount/point\"\n"'
+  echo 'printf "  ID: deadbeef Namelen: 255     Type: apfs\n"'
+  echo 'exit 0'
+} > "$bin_badstat/stat"
+chmod +x "$bin_badstat/stat"
+prov="$WORK/p15d.sh"
+{
+  echo '#!/usr/bin/env bash'
+  printf 'printf "%%s\\n" %q\n' "924	1	$WORK/busybadstat	100	60000"
+  printf 'printf "%%s\\n" %q\n' "925	1	$WORK/afterbadstat	100	60000"
+} > "$prov"
+chmod +x "$prov"
+rc15d=0
+out="$(PATH="$bin_badstat:$WORK/bin_none:$PATH" CLAUDE_CONFIG_DIR="$fake_cfg" \
+  BSG_SESSION_PROVIDER="$prov" BSG_SESSION_SELF_PID=999 bash "$SUT")" || rc15d=$?
+assert_eq "poisoned stat: run does not abort" "0" "$rc15d"
+assert_eq "poisoned stat: both rows still emit" "2" "$(line_count "$out")"
+assert_eq "poisoned stat: busy is false, not poisoned into a crash" "false" \
+  "$(printf '%s\n' "$out" | head -1 | jq -r '.busy')"
+assert_eq "poisoned stat: the row after it still gets a real verdict" "reapable" \
+  "$(printf '%s\n' "$out" | tail -1 | jq -r '.verdict')"
+
 # 16. Batch of two sessions where the first session's `gh pr view` call
 # fails outright (non-zero exit, no JSON). Under `set -e` a call-site
 # command substitution around a failing `gh` is the exact hazard Task 3

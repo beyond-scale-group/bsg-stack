@@ -315,8 +315,23 @@ is_busy() {
   [ -n "$newest" ] || { echo false; return; }
   now="$(date +%s)"
   # `|| true`: a TOCTOU race (file removed between ls and stat) must not abort.
-  mtime="$(stat -f %m "$newest" 2>/dev/null || stat -c %Y "$newest" 2>/dev/null || true)"
-  [ -n "$mtime" ] || { echo false; return; }
+  #
+  # GNU form FIRST, then BSD: `stat -c %Y` is rejected outright by BSD
+  # stat, so macOS still falls through to the second branch correctly.
+  # The reverse order is the actual portability trap and must never come
+  # back: `stat -f %m` cannot be used as a "does this fail on Linux?"
+  # probe, because it does not fail. On GNU coreutils `-f` means
+  # `--file-system` and takes NO argument, so `%m` is parsed as a FILE
+  # operand — `stat` reports the filesystem of $newest, exits 0, and
+  # prints a multi-line block whose first line starts with `  File: `.
+  # mtime then holds that text and poisons the arithmetic below.
+  mtime="$(stat -c %Y "$newest" 2>/dev/null || stat -f %m "$newest" 2>/dev/null || true)"
+  # Trust neither form's success: validate mtime is a bare run of digits
+  # before using it in arithmetic. Order alone is not a fix — it just
+  # moves the same landmine to whatever platform runs the fallback branch.
+  case "$mtime" in
+    ''|*[!0-9]*) echo false; return ;;
+  esac
   if [ $((now - mtime)) -lt "$MIN_AGE_SECONDS" ]; then echo true; else echo false; fi
 }
 
