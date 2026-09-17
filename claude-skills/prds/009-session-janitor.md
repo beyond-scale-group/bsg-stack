@@ -177,7 +177,7 @@ Field derivation:
 | `pr` | `gh pr view <branch>`, else `gh pr list --head <branch> --state all` |
 | `issue` | registry lookup (§5.5), else `closingIssuesReferences`, else `null` |
 | `busy` | session runtime state, cross-checked against transcript mtime |
-| `dev_servers` | child processes of the session whose cwd is under the worktree |
+| `dev_servers` | descendant processes rooted in the worktree that are **listening on a TCP port** |
 
 `verdict` is one of `reapable`, `keep:dirty`, `keep:unpushed`,
 `keep:pr-open`, `keep:busy`, `keep:dev-servers`, `keep:too-young`,
@@ -195,12 +195,32 @@ hold. Each was derived from a real session in the 2026-09-17 audit that
 a naive reaper would have destroyed.
 
 1. `dirty == 0` — the worktree has no modified or staged files.
-2. `unpushed == 0` **and** an upstream exists. A branch with no upstream
-   is never reapable, whatever its commit count.
+2. `unpushed == 0`, where a branch with **no** upstream has its commits
+   counted against `origin/<base>` instead. Such a branch is
+   `keep:unpushed` exactly when it holds commits the base does not.
+
+   An earlier draft of this clause read "a branch with no upstream is
+   never reapable, whatever its commit count". That was wrong, and
+   wrong in the direction that voids the tool: every one of the nine
+   sessions reaped in the §1 audit sat on a worktree branch with no
+   upstream whose HEAD was already an ancestor of `main`. Read
+   literally, the old clause keeps all nine forever. What must never be
+   reaped is a branch holding commits that exist nowhere else — which
+   is what counting against the base measures, and what still protects
+   the two `keep:unpushed` sessions in §1. The field table in §5.3 and
+   the sample JSON above it always described this behaviour; this
+   clause was the outlier.
 3. `merged_into_base == true` **or** the PR is `MERGED`/`CLOSED`.
 4. No PR is `OPEN` for the branch.
 5. `busy == false`.
-6. `dev_servers` is empty.
+6. `dev_servers` is empty. "Dev server" means a descendant process
+   rooted in the worktree that is **listening on a TCP port** — not
+   merely any child process with that cwd. Every Claude session spawns
+   MCP stdio helpers under its worktree; counting those made 27 of 31
+   sessions `keep:dev-servers` on a real machine and drove `reapable`
+   to zero, so the looser definition does not merely over-flag, it
+   silences the whole ladder below rung 4. Listening on a port is what
+   the founding case actually was: three Vite servers on 5173-5175.
 7. `age_seconds >= 300`.
 8. The PID is not this session's own, and not its parent.
 

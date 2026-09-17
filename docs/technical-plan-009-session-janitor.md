@@ -38,8 +38,9 @@ resolver, §5.4 invariants, §5.6 path resolution, §9 testing)
   the last 300 seconds (spec §12.3 fallback, adopted for lot 1).
 - **Transcript directory encoding:** the session cwd with `/`, `.` and `+` each
   replaced by `-`, under `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects/`.
-- **No upstream means unpushed.** A branch with no configured upstream is
-  `keep:unpushed` whatever its commit count (spec §5.4.2).
+- **No upstream means counted against the base.** A branch with no configured
+  upstream is `keep:unpushed` exactly when it holds commits `origin/<base>` does
+  not (spec §5.4.2, corrected after the final review).
 - **Every new `SKILL.md` needs the `## How to improve this skill` footer**
   referencing its own canonical path, and a row in the "Available skills" table
   of `claude-skills/INSTALL.md`. Both are enforced by
