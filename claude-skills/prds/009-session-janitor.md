@@ -174,7 +174,7 @@ Field derivation:
 | `repo` | `git remote get-url origin`, normalised to `owner/name` |
 | `unpushed` | `git rev-list --count @{u}..HEAD`; `null` upstream ⇒ treat every local commit as unpushed |
 | `merged_into_base` | `git merge-base --is-ancestor HEAD origin/<base>` |
-| `pr` | `gh pr view <branch>`, else `gh pr list --head <branch> --state all` |
+| `pr` | `gh pr view <branch> --repo <owner/name>` — the session's repo, never the janitor's |
 | `issue` | registry lookup (§5.5), else `closingIssuesReferences`, else `null` |
 | `busy` | session runtime state, cross-checked against transcript mtime |
 | `dev_servers` | descendant processes rooted in the worktree that are **listening on a TCP port** |
@@ -407,10 +407,12 @@ active use and this PRD does not break it.
 
 5. **`doctor`'s cost is network-bound and will not scale silently.**
    Measured at ~33 s for 31 sessions across 5 repositories, almost
-   entirely `gh` round-trips. Lot 1 already batches one `gh pr list` per
-   repository rather than one `gh pr view` per session. The next lever is
-   caching PR state between runs, which only matters once `/loop` makes
-   the call recurrent — decide it when lot 2 lands, not before.
+   entirely `gh` round-trips: lot 1 issues one `gh pr view --repo` per
+   session, with no batching and no cache. The obvious lever is one
+   `gh pr list --repo X` per distinct repository — 5 calls instead of 31
+   on the measured machine — and caching between runs after that. Neither
+   is done; both only start to matter once `/loop` makes the call
+   recurrent, so decide them when lot 2 lands.
 
 ## 13. Success Metrics
 
@@ -428,11 +430,11 @@ active use and this PRD does not break it.
   that matters — not reapable — rather than a rung the ladder was never
   going to produce.
 - `doctor` completes in under 45 s for ~30 sessions, dominated by one
-  `gh pr list --repo X` per distinct repository rather than per session.
-  An earlier draft budgeted 15 s, written before anything existed;
-  measured cost is ~33 s for 31 sessions across 5 repositories. At a
-  `/loop 30m` cadence that is affordable, but it is the first thing to
-  optimise if the session count grows — see §12.5.
+  `gh pr view --repo <owner/name>` round-trip per session. An earlier
+  draft budgeted 15 s, written before anything existed; measured cost is
+  ~33 s for 31 sessions. At a `/loop 30m` cadence that is affordable, but
+  it is the first thing to optimise if the session count grows — see
+  §12.5.
 - Zero sessions reaped with uncommitted or unpushed work, measured across
   the first month of use.
 - Steady-state session count on the machine stops growing monotonically.
