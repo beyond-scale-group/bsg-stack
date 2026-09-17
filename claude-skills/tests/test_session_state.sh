@@ -75,7 +75,18 @@ make_provider "$prov" "800	1	$WORK/none	100	120"
 out="$(BSG_SESSION_PROVIDER="$prov" BSG_SESSION_SELF_PID=999 bash "$SUT")"
 assert_eq "too young" "keep:too-young" "$(printf '%s' "$out" | jq -r '.verdict')"
 
+# 4b. etime parsing. macOS ps has no `etimes` keyword, so the default
+# enumerator reads POSIX `etime` ([[dd-]hh:]mm:ss) and converts it. Sourcing
+# the script defines the helpers without running main.
+source "$SUT"
+assert_eq "etime mm:ss"       "0"      "$(etime_to_seconds '00:00')"
+assert_eq "etime mm:ss again" "330"    "$(etime_to_seconds '05:30')"
+assert_eq "etime hh:mm:ss"    "5025"   "$(etime_to_seconds '01:23:45')"
+assert_eq "etime dd-hh:mm:ss" "183845" "$(etime_to_seconds '2-03:04:05')"
+assert_eq "etime leading zeros not octal" "489" "$(etime_to_seconds '08:09')"
+
 rm -rf "$WORK"
 
 echo "test_session_state.sh: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]
+
