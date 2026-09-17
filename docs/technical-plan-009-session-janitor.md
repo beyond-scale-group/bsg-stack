@@ -297,6 +297,16 @@ make_provider "$prov" "800	1	$WORK/none	100	120"
 out="$(BSG_SESSION_PROVIDER="$prov" BSG_SESSION_SELF_PID=999 bash "$SUT")"
 assert_eq "too young" "keep:too-young" "$(printf '%s' "$out" | jq -r '.verdict')"
 
+# 4b. etime parsing. macOS ps has no `etimes` keyword, so the default
+# enumerator reads POSIX `etime` ([[dd-]hh:]mm:ss) and converts it. Sourcing
+# the script defines the helpers without running main.
+source "$SUT"
+assert_eq "etime mm:ss"       "0"      "$(etime_to_seconds '00:00')"
+assert_eq "etime mm:ss again" "330"    "$(etime_to_seconds '05:30')"
+assert_eq "etime hh:mm:ss"    "5025"   "$(etime_to_seconds '01:23:45')"
+assert_eq "etime dd-hh:mm:ss" "183845" "$(etime_to_seconds '2-03:04:05')"
+assert_eq "etime leading zeros not octal" "489" "$(etime_to_seconds '08:09')"
+
 rm -rf "$WORK"
 
 echo "test_session_state.sh: $PASS passed, $FAIL failed"
@@ -335,36 +345,35 @@ set -euo pipefail
 MIN_AGE_SECONDS=300
 SELF_PID="${BSG_SESSION_SELF_PID:-$PPID}"
 
+# etime_to_seconds <etime> — POSIX `ps -o etime=` is [[dd-]hh:]mm:ss.
+# macOS ps has no `etimes` keyword (verified: "ps: etimes: keyword not
+# found"), and macOS is the supported target, so parse the portable form.
+etime_to_seconds() {
+  printf '%s\n' "$1" | awk -F'[-:]' '{
+    n = NF
+    s = $n + 0
+    m = (n >= 2) ? $(n-1) + 0 : 0
+    h = (n >= 3) ? $(n-2) + 0 : 0
+    d = (n >= 4) ? $(n-3) + 0 : 0
+    print ((d * 24 + h) * 60 + m) * 60 + s
+  }'
+}
+
 # Default enumerator: live `claude` processes with a resolvable cwd.
 default_provider() {
-  local pid ppid cwd rss age
+  local pid ppid cwd rss etime age
   for pid in $(pgrep -f '^claude|/claude ' 2>/dev/null || true); do
     cwd="$(lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1)"
     [ -n "$cwd" ] || continue
     ppid="$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')"
     rss="$(ps -o rss= -p "$pid" 2>/dev/null | tr -d ' ')"
-    age="$(ps -o etimes= -p "$pid" 2>/dev/null | tr -d ' ')"
+    etime="$(ps -o etime= -p "$pid" 2>/dev/null | tr -d ' ')"
     [ -n "$rss" ] || continue
+    age="$([ -n "$etime" ] && etime_to_seconds "$etime" || echo 0)"
     printf '%s\t%s\t%s\t%s\t%s\n' \
       "$pid" "${ppid:-1}" "$cwd" "$((rss / 1024))" "${age:-0}"
   done
 }
-
-rows="$(if [ -n "${BSG_SESSION_PROVIDER:-}" ]; then
-  "$BSG_SESSION_PROVIDER"
-else
-  default_provider
-fi)"
-
-[ -n "$rows" ] || exit 0
-
-# Collapse wrapper/child pairs: when a row's pid is another row's ppid and
-# both share a cwd, THIS row is the launcher shell — drop it and keep the
-# child, which is the real session holding the memory.
-collapsed="$(awk -F'\t' '
-  NR == FNR { child_cwd[$2] = $3; next }
-  { if (($1 in child_cwd) && child_cwd[$1] == $3) next; print }
-' <(printf '%s\n' "$rows") <(printf '%s\n' "$rows"))"
 
 verdict_for() {
   local pid="$1" age="$2"
@@ -373,24 +382,51 @@ verdict_for() {
   echo "unknown"
 }
 
-printf '%s\n' "$collapsed" | while IFS=$'\t' read -r pid ppid cwd rss age; do
-  [ -n "$pid" ] || continue
-  jq -nc \
-    --argjson pid "$pid" \
-    --argjson ppid "$ppid" \
-    --arg cwd "$cwd" \
-    --argjson rss_mb "$rss" \
-    --argjson age_seconds "$age" \
-    --arg verdict "$(verdict_for "$pid" "$age")" \
-    '{pid: $pid, ppid: $ppid, cwd: $cwd, rss_mb: $rss_mb,
-      age_seconds: $age_seconds, verdict: $verdict}'
-done
+main() {
+  local rows collapsed pid ppid cwd rss age
+
+  rows="$(if [ -n "${BSG_SESSION_PROVIDER:-}" ]; then
+    "$BSG_SESSION_PROVIDER"
+  else
+    default_provider
+  fi)"
+
+  [ -n "$rows" ] || return 0
+
+  # Collapse wrapper/child pairs: when a row's pid is another row's ppid and
+  # both share a cwd, THIS row is the launcher shell — drop it and keep the
+  # child, which is the real session holding the memory.
+  collapsed="$(awk -F'\t' '
+    NR == FNR { child_cwd[$2] = $3; next }
+    { if (($1 in child_cwd) && child_cwd[$1] == $3) next; print }
+  ' <(printf '%s\n' "$rows") <(printf '%s\n' "$rows"))"
+
+  printf '%s\n' "$collapsed" | while IFS=$'\t' read -r pid ppid cwd rss age; do
+    [ -n "$pid" ] || continue
+    jq -nc \
+      --argjson pid "$pid" \
+      --argjson ppid "$ppid" \
+      --arg cwd "$cwd" \
+      --argjson rss_mb "$rss" \
+      --argjson age_seconds "$age" \
+      --arg verdict "$(verdict_for "$pid" "$age")" \
+      '{pid: $pid, ppid: $ppid, cwd: $cwd, rss_mb: $rss_mb,
+        age_seconds: $age_seconds, verdict: $verdict}'
+  done
+}
+
+# Run only when executed. Sourcing this file defines the helpers without
+# emitting anything, so the pure functions above (etime_to_seconds here,
+# git_field and base_ref in later tasks) can be unit-tested directly.
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  main "$@"
+fi
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `bash claude-skills/tests/test_session_state.sh`
-Expected: `test_session_state.sh: 8 passed, 0 failed`
+Expected: `test_session_state.sh: 13 passed, 0 failed`
 
 - [ ] **Step 5: Verify it is read-only against the live machine**
 
@@ -602,7 +638,7 @@ done
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `bash claude-skills/tests/test_session_state.sh`
-Expected: `test_session_state.sh: 19 passed, 0 failed`
+Expected: `test_session_state.sh: 24 passed, 0 failed`
 
 - [ ] **Step 5: Commit**
 
@@ -808,7 +844,7 @@ and pass the new arguments to `verdict_for`:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `bash claude-skills/tests/test_session_state.sh`
-Expected: `test_session_state.sh: 26 passed, 0 failed`
+Expected: `test_session_state.sh: 31 passed, 0 failed`
 
 - [ ] **Step 5: Verify the live machine still yields sane verdicts**
 
