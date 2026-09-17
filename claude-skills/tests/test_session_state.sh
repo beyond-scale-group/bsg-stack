@@ -85,6 +85,66 @@ assert_eq "etime hh:mm:ss"    "5025"   "$(etime_to_seconds '01:23:45')"
 assert_eq "etime dd-hh:mm:ss" "183845" "$(etime_to_seconds '2-03:04:05')"
 assert_eq "etime leading zeros not octal" "489" "$(etime_to_seconds '08:09')"
 
+# make_repo <path> <state> — build a fixture repo in a known state.
+make_repo() {
+  local path="$1" state="$2"
+  mkdir -p "$path"
+  git -C "$path" init -q -b main
+  git -C "$path" config user.email t@t.t
+  git -C "$path" config user.name t
+  git -C "$path" remote add origin https://github.com/acme/widget.git
+  echo base > "$path/f.txt"
+  git -C "$path" add f.txt
+  git -C "$path" commit -qm base
+  git -C "$path" update-ref refs/remotes/origin/main HEAD
+  git -C "$path" symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
+  case "$state" in
+    clean) : ;;
+    dirty) echo changed > "$path/f.txt" ;;
+    unpushed)
+      git -C "$path" checkout -qb feature
+      echo more > "$path/g.txt"
+      git -C "$path" add g.txt
+      git -C "$path" commit -qm "local only"
+      ;;
+  esac
+}
+
+# 5. A clean repo whose HEAD is in origin/main is reapable.
+make_repo "$WORK/clean" clean
+prov="$WORK/p5.sh"
+make_provider "$prov" "900	1	$WORK/clean	100	60000"
+out="$(BSG_SESSION_PROVIDER="$prov" BSG_SESSION_SELF_PID=999 bash "$SUT")"
+assert_eq "repo parsed"    "acme/widget" "$(printf '%s' "$out" | jq -r '.repo')"
+assert_eq "clean is 0"     "0"    "$(printf '%s' "$out" | jq -r '.dirty')"
+assert_eq "merged is true" "true" "$(printf '%s' "$out" | jq -r '.merged_into_base')"
+assert_eq "clean+merged reapable" "reapable" "$(printf '%s' "$out" | jq -r '.verdict')"
+
+# 6. A dirty tree is kept — the build+socle-v0 case from PRD-009 §1.
+make_repo "$WORK/dirty" dirty
+prov="$WORK/p6.sh"
+make_provider "$prov" "901	1	$WORK/dirty	100	60000"
+out="$(BSG_SESSION_PROVIDER="$prov" BSG_SESSION_SELF_PID=999 bash "$SUT")"
+assert_eq "dirty counted" "1" "$(printf '%s' "$out" | jq -r '.dirty')"
+assert_eq "dirty is kept"  "keep:dirty" "$(printf '%s' "$out" | jq -r '.verdict')"
+
+# 7. Commits with no upstream are kept — the clear-harbor-6a62 case.
+make_repo "$WORK/unpushed" unpushed
+prov="$WORK/p7.sh"
+make_provider "$prov" "902	1	$WORK/unpushed	100	60000"
+out="$(BSG_SESSION_PROVIDER="$prov" BSG_SESSION_SELF_PID=999 bash "$SUT")"
+assert_eq "no upstream"  "null" "$(printf '%s' "$out" | jq -r '.upstream')"
+assert_eq "unpushed > 0" "1"    "$(printf '%s' "$out" | jq -r '.unpushed')"
+assert_eq "unpushed kept" "keep:unpushed" "$(printf '%s' "$out" | jq -r '.verdict')"
+
+# 8. A cwd that is not a git repo yields nulls, never a crash.
+mkdir -p "$WORK/plain"
+prov="$WORK/p8.sh"
+make_provider "$prov" "903	1	$WORK/plain	100	60000"
+out="$(BSG_SESSION_PROVIDER="$prov" BSG_SESSION_SELF_PID=999 bash "$SUT")"
+assert_eq "non-repo has null repo" "null" "$(printf '%s' "$out" | jq -r '.repo')"
+assert_eq "non-repo is unknown" "unknown" "$(printf '%s' "$out" | jq -r '.verdict')"
+
 rm -rf "$WORK"
 
 echo "test_session_state.sh: $PASS passed, $FAIL failed"

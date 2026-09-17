@@ -47,15 +47,65 @@ default_provider() {
   done
 }
 
+# git_field <cwd> <what> — echo one piece of git state, empty when absent.
+git_field() {
+  local cwd="$1" what="$2"
+  git -C "$cwd" rev-parse --git-dir >/dev/null 2>&1 || return 0
+  case "$what" in
+    repo)
+      # owner/name from https, ssh and scp-style remotes alike. No
+      # non-greedy quantifiers — POSIX ERE has none.
+      git -C "$cwd" remote get-url origin 2>/dev/null \
+        | sed -E 's#\.git$##; s#^git@[^:]+:##; s#^[a-z]+://[^/]+/##'
+      ;;
+    branch)   git -C "$cwd" rev-parse --abbrev-ref HEAD 2>/dev/null ;;
+    upstream) git -C "$cwd" rev-parse --abbrev-ref '@{u}' 2>/dev/null || true ;;
+    dirty)    git -C "$cwd" status --porcelain 2>/dev/null | wc -l | tr -d ' ' ;;
+  esac
+}
+
+# base_ref <cwd> — the remote base branch, defaulting to main.
+base_ref() {
+  local cwd="$1" b
+  b="$(git -C "$cwd" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
+       | sed 's#.*origin/##')"
+  printf '%s\n' "${b:-main}"
+}
+
+# unpushed_count <cwd> <upstream> — commits not on the upstream. With no
+# upstream every commit ahead of the base counts (PRD-009 §5.4.2).
+unpushed_count() {
+  local cwd="$1" upstream="$2" base
+  git -C "$cwd" rev-parse --git-dir >/dev/null 2>&1 || { echo 0; return; }
+  if [ -n "$upstream" ]; then
+    git -C "$cwd" rev-list --count "$upstream..HEAD" 2>/dev/null || echo 0
+  else
+    base="origin/$(base_ref "$cwd")"
+    git -C "$cwd" rev-list --count "$base..HEAD" 2>/dev/null || echo 0
+  fi
+}
+
+# merged_into_base <cwd> — true when HEAD is already an ancestor of base.
+merged_into_base() {
+  local cwd="$1"
+  git -C "$cwd" rev-parse --git-dir >/dev/null 2>&1 || { echo false; return; }
+  if git -C "$cwd" merge-base --is-ancestor HEAD "origin/$(base_ref "$cwd")" 2>/dev/null
+  then echo true; else echo false; fi
+}
+
 verdict_for() {
-  local pid="$1" age="$2"
-  if [ "$pid" = "$SELF_PID" ]; then echo "keep:self"; return; fi
+  local pid="$1" age="$2" dirty="$3" unpushed="$4" merged="$5" is_repo="$6"
+  if [ "$pid" = "$SELF_PID" ];        then echo "keep:self";      return; fi
   if [ "$age" -lt "$MIN_AGE_SECONDS" ]; then echo "keep:too-young"; return; fi
+  if [ "$is_repo" != "true" ];        then echo "unknown";        return; fi
+  if [ "$dirty" -gt 0 ];              then echo "keep:dirty";     return; fi
+  if [ "$unpushed" -gt 0 ];           then echo "keep:unpushed";  return; fi
+  if [ "$merged" = "true" ];          then echo "reapable";       return; fi
   echo "unknown"
 }
 
 main() {
-  local rows collapsed pid ppid cwd rss age
+  local rows collapsed pid ppid cwd rss age is_repo repo branch upstream dirty unpushed merged
 
   rows="$(if [ -n "${BSG_SESSION_PROVIDER:-}" ]; then
     "$BSG_SESSION_PROVIDER"
@@ -75,15 +125,34 @@ main() {
 
   printf '%s\n' "$collapsed" | while IFS=$'\t' read -r pid ppid cwd rss age; do
     [ -n "$pid" ] || continue
+    is_repo=false
+    git -C "$cwd" rev-parse --git-dir >/dev/null 2>&1 && is_repo=true
+    repo="$(git_field "$cwd" repo)"
+    branch="$(git_field "$cwd" branch)"
+    upstream="$(git_field "$cwd" upstream)"
+    dirty="$(git_field "$cwd" dirty)"; dirty="${dirty:-0}"
+    unpushed="$(unpushed_count "$cwd" "$upstream")"
+    merged="$(merged_into_base "$cwd")"
     jq -nc \
       --argjson pid "$pid" \
       --argjson ppid "$ppid" \
       --arg cwd "$cwd" \
       --argjson rss_mb "$rss" \
       --argjson age_seconds "$age" \
-      --arg verdict "$(verdict_for "$pid" "$age")" \
+      --arg repo "$repo" \
+      --arg branch "$branch" \
+      --arg upstream "$upstream" \
+      --argjson dirty "$dirty" \
+      --argjson unpushed "$unpushed" \
+      --argjson merged_into_base "$merged" \
+      --arg verdict "$(verdict_for "$pid" "$age" "$dirty" "$unpushed" "$merged" "$is_repo")" \
       '{pid: $pid, ppid: $ppid, cwd: $cwd, rss_mb: $rss_mb,
-        age_seconds: $age_seconds, verdict: $verdict}'
+        age_seconds: $age_seconds,
+        repo: (if $repo == "" then null else $repo end),
+        branch: (if $branch == "" then null else $branch end),
+        upstream: (if $upstream == "" then null else $upstream end),
+        dirty: $dirty, unpushed: $unpushed,
+        merged_into_base: $merged_into_base, verdict: $verdict}'
   done
 }
 
