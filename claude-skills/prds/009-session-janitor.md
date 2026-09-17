@@ -372,7 +372,18 @@ active use and this PRD does not break it.
 3. **`busy` detection.** Reading session runtime state cross-checked
    against transcript mtime is proposed; if that proves unreliable, the
    fallback is to treat every session whose transcript changed in the
-   last 5 minutes as busy.
+   last 5 minutes as busy. *(Lot 1 shipped the fallback.)*
+4. **The session matcher is a prefix match, and lot 2 must tighten it
+   before shipping `reap`.** Enumeration selects a command line starting
+   with `claude` or containing `/claude `, which also matches a process
+   named, say, `claude-mock-server`. Harmless while the skill only reads:
+   a false positive shows up as one extra row in a scorecard. It stops
+   being harmless the moment `reap` sends signals, because such a process
+   sitting in a clean, merged repository would be classified `reapable`
+   and killed. The weakness is inherited from the original `pgrep`
+   pattern rather than introduced by lot 1, and tightening it to require
+   a word boundary (`claude` followed by whitespace or end of line) is a
+   behaviour change that belongs with the lot that makes it dangerous.
 
 ## 13. Success Metrics
 
