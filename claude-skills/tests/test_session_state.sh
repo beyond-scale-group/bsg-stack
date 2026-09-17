@@ -145,6 +145,49 @@ out="$(BSG_SESSION_PROVIDER="$prov" BSG_SESSION_SELF_PID=999 bash "$SUT")"
 assert_eq "non-repo has null repo" "null" "$(printf '%s' "$out" | jq -r '.repo')"
 assert_eq "non-repo is unknown" "unknown" "$(printf '%s' "$out" | jq -r '.verdict')"
 
+# 9. A repo with no origin remote still emits a row, repo field is null.
+mkdir -p "$WORK/no-origin"
+git -C "$WORK/no-origin" init -q -b main
+git -C "$WORK/no-origin" config user.email t@t.t
+git -C "$WORK/no-origin" config user.name t
+echo base > "$WORK/no-origin/f.txt"
+git -C "$WORK/no-origin" add f.txt
+git -C "$WORK/no-origin" commit -qm base
+prov="$WORK/p9.sh"
+make_provider "$prov" "904	1	$WORK/no-origin	100	60000"
+out="$(BSG_SESSION_PROVIDER="$prov" BSG_SESSION_SELF_PID=999 bash "$SUT")"
+assert_eq "no-origin repo is null" "null" "$(printf '%s' "$out" | jq -r '.repo')"
+assert_eq "no-origin exits 0" "1" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')"
+
+# 10. A fresh git init with no commits (unborn HEAD) still emits a row.
+mkdir -p "$WORK/unborn"
+git -C "$WORK/unborn" init -q -b main
+git -C "$WORK/unborn" config user.email t@t.t
+git -C "$WORK/unborn" config user.name t
+git -C "$WORK/unborn" remote add origin https://github.com/acme/widget.git
+prov="$WORK/p10.sh"
+make_provider "$prov" "905	1	$WORK/unborn	100	60000"
+out="$(BSG_SESSION_PROVIDER="$prov" BSG_SESSION_SELF_PID=999 bash "$SUT")"
+assert_eq "unborn row emitted" "1" "$(printf '%s\n' "$out" | wc -l | tr -d ' ')"
+assert_eq "unborn script exits 0" "0" "$?"
+
+# 11. Batch of two sessions where first is broken repo, second is normal clean repo.
+# This is the critical regression test: if first session kills the script, second never
+# emits and the verdict is lost. The batch must emit both rows.
+make_repo "$WORK/clean2" clean
+prov="$WORK/p11.sh"
+{
+  echo '#!/usr/bin/env bash'
+  printf 'printf "%%s\\n" %q\n' "906	1	$WORK/no-origin	100	60000"
+  printf 'printf "%%s\\n" %q\n' "907	1	$WORK/clean2	100	60000"
+} > "$prov"
+chmod +x "$prov"
+out="$(BSG_SESSION_PROVIDER="$prov" BSG_SESSION_SELF_PID=999 bash "$SUT")"
+row_count="$(printf '%s\n' "$out" | wc -l | tr -d ' ')"
+assert_eq "batch emits both rows" "2" "$row_count"
+second_verdict="$(printf '%s\n' "$out" | tail -1 | jq -r '.verdict')"
+assert_eq "batch: second row is reapable" "reapable" "$second_verdict"
+
 rm -rf "$WORK"
 
 echo "test_session_state.sh: $PASS passed, $FAIL failed"

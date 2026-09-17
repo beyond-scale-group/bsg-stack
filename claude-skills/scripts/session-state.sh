@@ -48,6 +48,7 @@ default_provider() {
 }
 
 # git_field <cwd> <what> — echo one piece of git state, empty when absent.
+# All branches are guarded to return empty on git failure, never abort caller.
 git_field() {
   local cwd="$1" what="$2"
   git -C "$cwd" rev-parse --git-dir >/dev/null 2>&1 || return 0
@@ -55,20 +56,21 @@ git_field() {
     repo)
       # owner/name from https, ssh and scp-style remotes alike. No
       # non-greedy quantifiers — POSIX ERE has none.
-      git -C "$cwd" remote get-url origin 2>/dev/null \
-        | sed -E 's#\.git$##; s#^git@[^:]+:##; s#^[a-z]+://[^/]+/##'
+      (git -C "$cwd" remote get-url origin 2>/dev/null || echo "") | \
+        sed -E 's#\.git$##; s#^git@[^:]+:##; s#^[a-z]+://[^/]+/##'
       ;;
-    branch)   git -C "$cwd" rev-parse --abbrev-ref HEAD 2>/dev/null ;;
-    upstream) git -C "$cwd" rev-parse --abbrev-ref '@{u}' 2>/dev/null || true ;;
-    dirty)    git -C "$cwd" status --porcelain 2>/dev/null | wc -l | tr -d ' ' ;;
+    branch)   (git -C "$cwd" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "") ;;
+    upstream) (git -C "$cwd" rev-parse --abbrev-ref '@{u}' 2>/dev/null || echo "") ;;
+    dirty)    (git -C "$cwd" status --porcelain 2>/dev/null || echo "") | wc -l | tr -d ' ' ;;
   esac
 }
 
 # base_ref <cwd> — the remote base branch, defaulting to main.
+# Guarded to never abort: git failure on origin/HEAD yields empty, defaults to main.
 base_ref() {
   local cwd="$1" b
-  b="$(git -C "$cwd" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
-       | sed 's#.*origin/##')"
+  b="$( (git -C "$cwd" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null || echo "") | \
+       sed 's#.*origin/##' )"
   printf '%s\n' "${b:-main}"
 }
 
