@@ -642,7 +642,7 @@ done
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `bash claude-skills/tests/test_session_state.sh`
-Expected: `test_session_state.sh: 24 passed, 0 failed`
+Expected: `test_session_state.sh: 30 passed, 0 failed`
 
 - [ ] **Step 5: Commit**
 
@@ -848,7 +848,7 @@ and pass the new arguments to `verdict_for`:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `bash claude-skills/tests/test_session_state.sh`
-Expected: `test_session_state.sh: 31 passed, 0 failed`
+Expected: `test_session_state.sh: 37 passed, 0 failed`
 
 - [ ] **Step 5: Verify the live machine still yields sane verdicts**
 
