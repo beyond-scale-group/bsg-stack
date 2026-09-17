@@ -99,6 +99,66 @@ assert_eq "prefix false positive faithfully preserved from old pgrep pattern" "4
 assert_eq "mixed batch returns exact pid list" "$(printf '42\n43\n45')" \
   "$(printf '   42 claude --dangerously-skip-permissions\n   43 /Users/x/.local/bin/claude --resume abc123\n   44 bash /Users/x/.claude/scripts/session-state.sh\n   45 claude-mock-server --port 1234\n' | claude_pids_from_ps)"
 
+# 4d. resolve_self_pid: walks the process tree to the nearest `claude`
+# ancestor, so keep:self can't silently point at a wrapper shell instead of
+# the actual session. Each case redefines _cmd_of/_ppid_of inside a
+# $(...) command substitution, which is its own subshell — the stubs never
+# leak into later tests.
+
+# a. A Claude session sits two hops up the chain: 100 -> 200 (claude) -> 300 -> 1.
+assert_eq "resolve_self_pid finds a claude ancestor" "200" "$(
+  _cmd_of()  { case "$1" in
+                 100) echo "bash foo.sh" ;;
+                 200) echo "claude --dangerously-skip-permissions" ;;
+                 300) echo "-zsh" ;;
+               esac; }
+  _ppid_of() { case "$1" in
+                 100) echo 200 ;;
+                 200) echo 300 ;;
+                 300) echo 1 ;;
+               esac; }
+  resolve_self_pid 100
+)"
+
+# b. No Claude ancestor anywhere in the chain: falls back to the start pid,
+# never to empty and never to the init pid the walk terminated on.
+assert_eq "resolve_self_pid falls back to start pid, not empty or 1" "400" "$(
+  _cmd_of()  { case "$1" in
+                 400) echo "bash foo.sh" ;;
+                 401) echo "-zsh" ;;
+               esac; }
+  _ppid_of() { case "$1" in
+                 400) echo 401 ;;
+                 401) echo 1 ;;
+               esac; }
+  resolve_self_pid 400
+)"
+
+# c. A cycle (ppid always points back to the same pid) must terminate via
+# the 12-hop cap rather than spin, and still fall back to the start pid.
+assert_eq "resolve_self_pid terminates on a cycle via the hop cap" "500" "$(
+  _cmd_of()  { echo "bash loop.sh"; }
+  _ppid_of() { echo 500; }
+  resolve_self_pid 500
+)"
+
+# d. An absolute-path session command matches; a non-session command that
+# merely contains the literal word "claude" in a dotfile path does not.
+assert_eq "absolute-path claude command matches" "600" "$(
+  _cmd_of()  { case "$1" in
+                 600) echo "/Users/x/.local/bin/claude --resume abc123" ;;
+               esac; }
+  _ppid_of() { echo 1; }
+  resolve_self_pid 600
+)"
+assert_eq "dotfile .claude/ path is not mistaken for a session" "700" "$(
+  _cmd_of()  { case "$1" in
+                 700) echo "bash /Users/x/.claude/scripts/session-state.sh" ;;
+               esac; }
+  _ppid_of() { echo 1; }
+  resolve_self_pid 700
+)"
+
 # make_repo <path> <state> — build a fixture repo in a known state.
 make_repo() {
   local path="$1" state="$2"
