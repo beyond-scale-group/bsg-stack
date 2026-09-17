@@ -405,15 +405,34 @@ active use and this PRD does not break it.
    a word boundary (`claude` followed by whitespace or end of line) is a
    behaviour change that belongs with the lot that makes it dangerous.
 
+5. **`doctor`'s cost is network-bound and will not scale silently.**
+   Measured at ~33 s for 31 sessions across 5 repositories, almost
+   entirely `gh` round-trips. Lot 1 already batches one `gh pr list` per
+   repository rather than one `gh pr view` per session. The next lever is
+   caching PR state between runs, which only matters once `/loop` makes
+   the call recurrent — decide it when lot 2 lands, not before.
+
 ## 13. Success Metrics
 
 - Replayed against the §1 audit encoded as fixtures, `doctor` reproduces
-  its verdicts exactly: the 9 merged-and-clean sessions as `reapable`,
-  `build+socle-v0` as `keep:dirty` rather than `reapable`, and the two
-  no-upstream sessions as `keep:unpushed`. (The 9 live sessions were
-  closed by hand on 2026-09-17, so the fixtures — not the machine — are
-  the reproducible artefact.)
-- `doctor` completes in under 15 s for 35 sessions.
+  its verdicts: the 9 merged-and-clean sessions as `reapable`, the two
+  no-upstream sessions as `keep:unpushed`, and `build+socle-v0` as some
+  `keep:*` and never `reapable`. (The 9 live sessions were closed by hand
+  on 2026-09-17, so the fixtures — not the machine — are the reproducible
+  artefact.)
+
+  An earlier draft named `keep:dirty` as that session's expected rung.
+  The frozen precedence in §5.2 puts `dev-servers` above `dirty`, and
+  that session genuinely had three Vite servers listening, so it reports
+  `keep:dev-servers`. Both protect it; the metric asserts the property
+  that matters — not reapable — rather than a rung the ladder was never
+  going to produce.
+- `doctor` completes in under 45 s for ~30 sessions, dominated by one
+  `gh pr list --repo X` per distinct repository rather than per session.
+  An earlier draft budgeted 15 s, written before anything existed;
+  measured cost is ~33 s for 31 sessions across 5 repositories. At a
+  `/loop 30m` cadence that is affordable, but it is the first thing to
+  optimise if the session count grows — see §12.5.
 - Zero sessions reaped with uncommitted or unpushed work, measured across
   the first month of use.
 - Steady-state session count on the machine stops growing monotonically.
