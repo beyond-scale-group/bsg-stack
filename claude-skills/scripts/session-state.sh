@@ -39,6 +39,9 @@
 # fell back to 0, and a session holding a commit that exists nowhere
 # else was classified `reapable`. Two of 31 live sessions were in
 # exactly that state.
+#
+# The `dirty` case in git_field is the one exception, and it is
+# deliberately fail-CLOSED, not fail-open — see the comment there.
 
 set -euo pipefail
 
@@ -190,9 +193,23 @@ git_field() {
       printf '%s\n' "$out"
       ;;
     dirty)
-      out="$(git -C "$cwd" status --porcelain 2>/dev/null)" || out=""
-      if [ -z "$out" ]; then printf '0\n'
-      else printf '%s\n' "$out" | wc -l | tr -d ' '; fi
+      # The one field in this file that does NOT follow the header rule
+      # above. Every other git call here fails OPEN (empty on failure)
+      # because the danger for those fields is a placeholder string
+      # mistaken for real data. `dirty` is different: it gates keep:dirty,
+      # the rung that stops a worktree with real uncommitted work from
+      # being destroyed. If `git status --porcelain` fails (for example
+      # an unreadable `.git/index`), we cannot know the tree is clean —
+      # so failure must count as dirty, not clean. Do not "fix" this to
+      # match the capture-on-success pattern above; that reintroduces a
+      # fail-open path straight into the reaper's most safety-critical
+      # rung.
+      if out="$(git -C "$cwd" status --porcelain 2>/dev/null)"; then
+        if [ -z "$out" ]; then printf '0\n'
+        else printf '%s\n' "$out" | wc -l | tr -d ' '; fi
+      else
+        printf '1\n'
+      fi
       ;;
   esac
 }

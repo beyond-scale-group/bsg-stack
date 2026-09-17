@@ -326,6 +326,26 @@ out="$(BSG_SESSION_PROVIDER="$prov" BSG_SESSION_SELF_PID=999 bash "$SUT")"
 assert_eq "dirty counted" "1" "$(printf '%s' "$out" | jq -r '.dirty')"
 assert_eq "dirty is kept"  "keep:dirty" "$(printf '%s' "$out" | jq -r '.verdict')"
 
+# 6b. REGRESSION: a repo with real uncommitted AND untracked changes
+# whose `.git/index` cannot be read (replaced by a directory, the
+# reviewer's reproduction — index.lock and a broken core.fsmonitor do
+# NOT trigger it, only an unreadable index does) must still be kept.
+# `git status --porcelain` fails in this state; the capture-on-success
+# pattern used everywhere else in git_field would map that failure to
+# `dirty:0` and this worktree — holding real work — would be classified
+# reapable, and a later lot would SIGTERM it. dirty must fail CLOSED.
+make_repo "$WORK/dirty-unreadable" dirty
+echo untracked > "$WORK/dirty-unreadable/u.txt"
+rm -f "$WORK/dirty-unreadable/.git/index"
+mkdir "$WORK/dirty-unreadable/.git/index"
+prov="$WORK/p6b.sh"
+make_provider "$prov" "903	1	$WORK/dirty-unreadable	100	60000"
+out="$(BSG_SESSION_PROVIDER="$prov" BSG_SESSION_SELF_PID=999 bash "$SUT")"
+assert_eq "unreadable git status: dirty is non-zero" "yes" \
+  "$(printf '%s' "$out" | jq -r 'if (.dirty // 0) > 0 then "yes" else "no" end')"
+assert_eq "unreadable git status: kept, not reaped" "keep:dirty" \
+  "$(printf '%s' "$out" | jq -r '.verdict')"
+
 # 7. Commits with no upstream are kept — the clear-harbor-6a62 case.
 make_repo "$WORK/unpushed" unpushed
 prov="$WORK/p7.sh"
