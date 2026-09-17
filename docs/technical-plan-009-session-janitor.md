@@ -343,7 +343,36 @@ Create `claude-skills/scripts/session-state.sh`:
 set -euo pipefail
 
 MIN_AGE_SECONDS=300
-SELF_PID="${BSG_SESSION_SELF_PID:-$PPID}"
+
+# Process-tree accessors, kept as one-line indirections so tests can stub
+# them and drive resolve_self_pid over a synthetic ancestry.
+_cmd_of()  { ps -o command= -p "$1" 2>/dev/null || true; }
+_ppid_of() { ps -o ppid= -p "$1" 2>/dev/null | tr -d ' ' || true; }
+
+# resolve_self_pid [start-pid] — the pid of the Claude session this janitor
+# is running inside, found by walking up to the nearest Claude ancestor.
+#
+# $PPID alone is wrong: invoked as `bash session-state.sh` the parent is the
+# calling shell, not the session, and each extra hop (a wrapper script, a
+# tool harness) adds another. Getting this wrong means the janitor fails to
+# recognise itself — and a later lot's `reap` could kill the very session
+# running it. Falls back to the starting pid when no Claude ancestor is
+# found, so an unrecognised environment errs toward protecting something
+# rather than nothing.
+resolve_self_pid() {
+  local pid="${1:-$PPID}" start="${1:-$PPID}" cmd hops=0
+  while [ -n "$pid" ] && [ "$pid" != "1" ] && [ "$hops" -lt 12 ]; do
+    cmd="$(_cmd_of "$pid")"
+    case "$cmd" in
+      claude|claude\ *|*/claude|*/claude\ *) printf '%s\n' "$pid"; return 0 ;;
+    esac
+    pid="$(_ppid_of "$pid")"
+    hops=$((hops + 1))
+  done
+  printf '%s\n' "$start"
+}
+
+SELF_PID="${BSG_SESSION_SELF_PID:-$(resolve_self_pid)}"
 
 # etime_to_seconds <etime> — POSIX `ps -o etime=` is [[dd-]hh:]mm:ss.
 # macOS ps has no `etimes` keyword (verified: "ps: etimes: keyword not
