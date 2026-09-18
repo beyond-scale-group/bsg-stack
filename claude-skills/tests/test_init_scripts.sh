@@ -9,6 +9,9 @@
 #      always has *something* to write — first-tick repos shouldn't fail)
 #   5. Not write to the cwd (the contract is stdout-only; the orchestrator
 #      owns the disk side)
+#   6. Exit 0 in an empty tmp repo — the orchestrator requires exit 0 AND
+#      non-empty stdout, so a non-zero exit discards the output even when
+#      bytes were produced
 #
 # Add a row to INIT_SCRIPTS when shipping a new per-agent init script.
 
@@ -42,13 +45,13 @@ check_script() {
 
   # Run in an empty git repo, capture stdout, verify no disk write
   # happens inside the tmpdir (the contract is stdout-only).
-  local tmp
+  local tmp rc=0
   tmp="$(mktemp -d)"
   (
     cd "$tmp"
     git init -q
-    bash "$path" > /tmp/init-script-output.$$ 2>/dev/null || true
-  )
+    bash "$path" > /tmp/init-script-output.$$ 2>/dev/null
+  ) || rc=$?
   local pre_files=$(find "$tmp" -mindepth 1 -not -path '*/.git*' 2>/dev/null | wc -l | tr -d ' ')
   # Byte count via `wc -c` is portable across GNU and BSD. Don't use
   # `stat -f %z` (BSD) with a `stat -c %s` (GNU) fallback: on GNU
@@ -60,6 +63,7 @@ check_script() {
   rm -rf "$tmp" /tmp/init-script-output.$$
 
   assert "$name emits non-empty stdout in empty repo" "[[ '$out_size' -gt 50 ]]"
+  assert "$name exits 0 in empty repo"                "[[ '$rc' -eq 0 ]]"
   assert "$name does not write to cwd"                "[[ '$pre_files' -eq 0 ]]"
 }
 
