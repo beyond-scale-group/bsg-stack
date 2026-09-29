@@ -1,12 +1,23 @@
 # Drive
 
-Prefer `+upload` for uploading. Raw API for search, permissions, folders,
-shared drives, exports, and copies.
+Prefer the first-class `gog drive` commands (`ls`, `search`, `get`,
+`download`, `upload`, `mkdir`, `move`, `rename`, `copy`, `share`,
+`permissions`, `delete`). Use `gog api call drive v3 ...` for anything they
+do not cover (domain-wide permission rules, arbitrary `files.update`
+payloads); `gog drive raw <fileId>` gives a lossless metadata dump.
+
+Global flags: `--json` / `--plain`, `--results-only`, `--select`,
+`--account <email|alias>` (or `GOG_ACCOUNT`), `--dry-run`, `--no-input`,
+`--force`, `--readonly`. Exit codes: 0 ok, 2 usage, 3 empty results,
+4 auth_required, 5 not_found, 6 permission_denied, 7 rate_limited,
+8 retryable, 10 config.
 
 ## Drive query language (`q` param)
 
-Passed as `q` inside `--params`. Strings are quoted with escaped
-double-quotes inside JSON.
+Pass it to `gog drive search --raw-query '<q>'`, to `gog drive ls --query '<q>'`,
+or as `q` inside `--params` of `gog api call drive v3 files.list`. Without
+`--raw-query`, `gog drive search` treats the argument as plain full-text.
+String values are single-quoted.
 
 ```
 name = 'Quarterly report.pdf'
@@ -47,107 +58,117 @@ image                     image/png, image/jpeg, image/webp
 
 ```bash
 # All PDFs modified in the last week
-gws drive files list --params '{
-  "q":"mimeType=\"application/pdf\" and modifiedTime>\"2026-04-09T00:00:00Z\" and trashed=false",
-  "pageSize":50,
-  "fields":"files(id,name,modifiedTime,owners(emailAddress)),nextPageToken",
-  "orderBy":"modifiedTime desc"
-}'
+gog drive search "mimeType = 'application/pdf' and modifiedTime > '2026-04-09T00:00:00Z' and trashed = false" \
+  --raw-query --max 50 --json
 
-# Contents of a folder
-gws drive files list --params '{
-  "q":"'"'"'FOLDER_ID'"'"' in parents and trashed=false",
-  "pageSize":100,
-  "fields":"files(id,name,mimeType,size)"
-}'
+# Contents of a folder (newest first by default; --sort / --order to change)
+gog drive ls --parent FOLDER_ID --max 100 --json
+gog drive ls --parent FOLDER_ID --query "trashed = false" \
+  --fields 'files(id,name,mimeType,size),nextPageToken'
 
-# Paginate all results
-gws drive files list --params '{"q":"trashed=false","pageSize":100}' \
-  --page-all --page-limit 50
+# Plain full-text search
+gog drive search 'invoice 2026' --max 20
+
+# Paginate: --page <nextPageToken>, or use the raw call with a pageToken loop
+gog drive ls --query 'trashed = false' --max 100 --page TOKEN
 ```
 
-Include shared drives in listings:
+Shared drives are included by default (`--all-drives`); use
+`--no-all-drives` for My Drive only, `--drive DRIVE_ID` to scope a search to
+one shared drive, and `--parent FOLDER_ID` to scope it to a folder. Get
+drive IDs with `gog drive drives`.
+
+Raw equivalent (full control of `corpora`, `orderBy`, ...):
 
 ```bash
-gws drive files list --params '{
+gog api call drive v3 files.list --json --params '{
   "q":"name contains '\''report'\''",
   "supportsAllDrives":true,
   "includeItemsFromAllDrives":true,
-  "corpora":"allDrives"
+  "corpora":"allDrives",
+  "pageSize":50,
+  "fields":"files(id,name,modifiedTime,owners(emailAddress)),nextPageToken",
+  "orderBy":"modifiedTime desc"
 }'
 ```
 
 ## Create a folder
 
 ```bash
-gws drive files create --json '{
-  "name":"New folder",
-  "mimeType":"application/vnd.google-apps.folder",
-  "parents":["PARENT_FOLDER_ID"]
-}'
+gog drive mkdir "New folder" --parent PARENT_FOLDER_ID
 ```
 
 ## Upload
 
-Prefer `+upload` helper. Raw:
-
 ```bash
-gws drive files create \
-  --json '{"name":"report.pdf","parents":["FOLDER_ID"]}' \
-  --upload ./report.pdf
+gog drive upload ./report.pdf --parent FOLDER_ID
+gog drive upload ./report.pdf --parent FOLDER_ID --name "Q2 report.pdf"
+
+# Convert to a native Google format on upload (doc | sheet | slides)
+gog drive upload ./notes.md --convert-to doc
+gog drive upload ./data.csv --convert-to sheet
+
+# Replace the content of an existing file (keeps link and permissions)
+gog drive upload ./report-v2.pdf --replace FILE_ID
 ```
 
 ## Download / export
 
 ```bash
-# Native Drive file (binary)
-gws drive files get --params '{"fileId":"FILE_ID","alt":"media"}' --output ./file.bin
+# Native Drive file (binary); default output dir is gog's config dir, so pass --out
+gog drive download FILE_ID --out ./file.bin
 
-# Export a Google Doc to PDF
-gws drive files export --params '{"fileId":"DOC_ID","mimeType":"application/pdf"}' --output ./doc.pdf
+# Export a Google Doc to PDF (--format pdf|csv|xlsx|pptx|txt|png|docx|md)
+gog drive download DOC_ID --format pdf --out ./doc.pdf
 
 # Export a Sheet to CSV (first sheet only, Drive export limitation)
-gws drive files export --params '{"fileId":"SHEET_ID","mimeType":"text/csv"}' --output ./sheet.csv
+gog drive download SHEET_ID --format csv --out ./sheet.csv
 ```
+
+Add `--overwrite` to replace an existing output file. For an export MIME
+type `--format` does not cover, call `files.export` directly
+(`gog api call drive v3 files.export --params '{"fileId":"ID","mimeType":"..."}'`).
 
 ## Copy / move / rename
 
 ```bash
 # Copy
-gws drive files copy --params '{"fileId":"FILE_ID"}' \
-  --json '{"name":"Copy of report.pdf","parents":["FOLDER_ID"]}'
+gog drive copy FILE_ID "Copy of report.pdf" --parent FOLDER_ID
 
-# Move (update parents)
-gws drive files update --params '{
-  "fileId":"FILE_ID",
-  "addParents":"NEW_PARENT",
-  "removeParents":"OLD_PARENT"
-}' --json '{}'
+# Move (changes the parent folder)
+gog drive move FILE_ID --parent NEW_PARENT
 
 # Rename
-gws drive files update --params '{"fileId":"FILE_ID"}' --json '{"name":"New name"}'
+gog drive rename FILE_ID "New name"
 ```
 
 ## Share / permissions
 
 ```bash
 # List permissions
-gws drive permissions list --params '{"fileId":"FILE_ID","fields":"permissions(id,type,role,emailAddress)"}'
+gog drive permissions FILE_ID --json
 
-# Share with a user (reader/commenter/writer)
-gws drive permissions create --params '{"fileId":"FILE_ID","sendNotificationEmail":true}' \
-  --json '{"role":"writer","type":"user","emailAddress":"alice@x.com"}'
+# Share with a user (reader/commenter/writer); --notify sends the invitation email
+gog drive share FILE_ID --to user --email alice@x.com --role writer --notify
 
 # Share a whole domain
-gws drive permissions create --params '{"fileId":"FILE_ID"}' \
-  --json '{"role":"reader","type":"domain","domain":"the-shift.ai"}'
+gog drive share FILE_ID --to domain --domain the-shift.ai --role reader
 
 # Anyone with the link
-gws drive permissions create --params '{"fileId":"FILE_ID"}' \
-  --json '{"role":"reader","type":"anyone"}'
+gog drive share FILE_ID --to anyone --role reader
 
 # Remove a permission
-gws drive permissions delete --params '{"fileId":"FILE_ID","permissionId":"PERM_ID"}'
+gog drive unshare FILE_ID PERM_ID
+```
+
+`gog drive share` supports roles `reader` · `commenter` · `writer`. Ownership
+transfer and shared-drive roles (`owner`, `organizer`, `fileOrganizer`) go
+through the raw API:
+
+```bash
+gog api call drive v3 permissions.create --allow-write --force \
+  --params '{"fileId":"FILE_ID","supportsAllDrives":true}' \
+  --body '{"role":"fileOrganizer","type":"user","emailAddress":"alice@x.com"}'
 ```
 
 Roles: `owner` · `organizer` (shared drives) · `fileOrganizer` · `writer` ·
@@ -156,22 +177,24 @@ Roles: `owner` · `organizer` (shared drives) · `fileOrganizer` · `writer` ·
 ## Trash / delete
 
 ```bash
-# Trash
-gws drive files update --params '{"fileId":"FILE_ID"}' --json '{"trashed":true}'
+# Trash (recoverable)
+gog drive delete FILE_ID
 
 # Permanent delete (no undo)
-gws drive files delete --params '{"fileId":"FILE_ID"}'
+gog drive delete FILE_ID --permanent
 ```
 
-Always prefer trash; use permanent delete only on explicit user request.
+Always prefer trash; use `--permanent` only on explicit user request.
+Use `--dry-run` to preview and `--force` to skip the confirmation prompt
+in non-interactive runs.
 
 ## Shared drives
 
 ```bash
 # List shared drives the user can access
-gws drive drives list --params '{"pageSize":50}'
+gog drive drives --max 50
 
-# Create a file in a shared drive
-gws drive files create --params '{"supportsAllDrives":true}' \
-  --json '{"name":"Doc","parents":["SHARED_DRIVE_ID"]}'
+# Create a file/folder in a shared drive (use the shared drive ID as parent)
+gog drive mkdir "Doc folder" --parent SHARED_DRIVE_ID
+gog drive upload ./doc.pdf --parent SHARED_DRIVE_ID
 ```

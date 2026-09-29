@@ -22,7 +22,7 @@ PO still has to:
 1. **Reads the snapshot** (`collect.sh` or `--snapshot`) and emits a JSON
    per-day breakdown for Mon→Fri.
 2. **With `--calendar`**: creates (or patches, if same-prefix event exists)
-   one Google Calendar event per working day via `gws calendar +insert`.
+   one Google Calendar event per working day via `gog calendar create`.
 3. **With `--assign --user <login>`**: dry-runs the `gh issue edit
    --add-assignee` calls; `--yes` actually mutates.
 
@@ -134,13 +134,13 @@ the repo prefix and all 5 events had to be patched the next morning.
 
 ## Idempotency
 
-Before inserting, the script asks `gws calendar events list` for events
+Before inserting, the script asks `gog api call calendar v3 events.list` for events
 between `00:00` and `23:59` on the target date, filters by
 `summary | startswith("[<repo-short>] PO Daily — <day>")`, and:
 
-- **Match found** → `gws calendar events patch` (updates summary +
+- **Match found** → `gog calendar update` (updates summary +
   description + start + end).
-- **No match** → `gws calendar +insert`.
+- **No match** → `gog calendar create`.
 
 So re-running the same command on the same week is safe.
 

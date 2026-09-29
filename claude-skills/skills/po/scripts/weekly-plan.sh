@@ -13,7 +13,7 @@
 #   --timezone <TZ>         IANA tz, default `Europe/Paris`.
 #   --report <path>         Markdown report to reference in event description.
 #                           Default: po/reports/<today>-weekly-plan-s<isoweek>.md
-#   --calendar              Create/patch one event per working day via gws.
+#   --calendar              Create/patch one event per working day via gog.
 #   --calendar-id <ID>      Calendar to write to. Default `primary`.
 #   --assign                For each task, set assignee + milestone (dry-run).
 #   --user <login>          Login used by --assign. Required if --assign.
@@ -22,7 +22,7 @@
 # Exit codes:
 #   0 = success
 #   2 = usage error
-#   3 = missing dependency (gh / jq / gws / python3)
+#   3 = missing dependency (gh / jq / gog / python3)
 #
 # Notes:
 # - Repo is resolved like collect.sh does: $GH_REPO env or `gh repo view`.
@@ -320,8 +320,9 @@ plan_report_path=$(jq -r '.reportPath' <<<"$plan_json")
 # --- calendar -------------------------------------------------------------
 
 if [[ $do_calendar -eq 1 ]]; then
-  if ! command -v gws >/dev/null 2>&1; then
-    echo "weekly-plan.sh: gws CLI not found — skipping --calendar" >&2
+  GOG_BIN="${GOG_BIN:-gog}"
+  if ! command -v "$GOG_BIN" >/dev/null 2>&1; then
+    echo "weekly-plan.sh: gog CLI not found (brew install openclaw/tap/gogcli) — skipping --calendar" >&2
     exit 3
   fi
 
@@ -381,33 +382,31 @@ PY
     time_min="${date}T00:00:00${offset}"
     time_max="${date}T23:59:59${offset}"
     existing_id=""
-    existing_id=$(gws calendar events list --params "$(jq -nc \
+    existing_id=$("$GOG_BIN" api call calendar v3 events.list --params "$(jq -nc \
         --arg cid "$calendar_id" --arg tmin "$time_min" --arg tmax "$time_max" \
-        '{calendarId:$cid,timeMin:$tmin,timeMax:$tmax,singleEvents:true,orderBy:"startTime"}')" 2>/dev/null \
+        '{calendarId:$cid,timeMin:$tmin,timeMax:$tmax,singleEvents:true,orderBy:"startTime"}')" \
+        --json --no-input 2>/dev/null \
       | jq -r --arg prefix "[${repo_short}] PO Daily — ${label}" \
             '.items // [] | map(select(.summary | startswith($prefix))) | (.[0].id // "")' \
       2>/dev/null || true)
 
     if [[ -n "$existing_id" ]]; then
       echo "weekly-plan.sh: patch existing event ${existing_id} for ${date}" >&2
-      gws calendar events patch \
-        --params "$(jq -nc --arg cid "$calendar_id" --arg eid "$existing_id" \
-                       '{calendarId:$cid,eventId:$eid}')" \
-        --json "$(jq -nc \
-                   --arg s "$summary" --arg d "$description" \
-                   --arg start "$start_rfc" --arg end "$end_rfc" \
-                   --arg tz "$timezone" \
-                   '{summary:$s,description:$d,
-                     start:{dateTime:$start,timeZone:$tz},
-                     end:{dateTime:$end,timeZone:$tz}}')" >/dev/null
+      "$GOG_BIN" calendar update "$calendar_id" "$existing_id" \
+        --summary "$summary" \
+        --description "$description" \
+        --from "$start_rfc" --to "$end_rfc" \
+        --start-timezone "$timezone" --end-timezone "$timezone" \
+        --json --no-input --force >/dev/null
     else
       echo "weekly-plan.sh: insert new event for ${date}" >&2
-      gws calendar +insert \
+      "$GOG_BIN" calendar create "$calendar_id" \
         --summary "$summary" \
-        --start   "$start_rfc" \
-        --end     "$end_rfc" \
+        --from    "$start_rfc" \
+        --to      "$end_rfc" \
+        --timezone "$timezone" \
         --description "$description" \
-        --calendar "$calendar_id" >/dev/null
+        --json --no-input --force >/dev/null
     fi
   done
 fi

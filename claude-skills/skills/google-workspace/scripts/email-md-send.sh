@@ -2,7 +2,7 @@
 # email-md-send.sh — end-to-end "markdown → Gmail-ready HTML → send/draft".
 #
 # Wraps email-from-md.sh (markdown → styled HTML body + signature) and
-# `gws gmail +send` (auth + delivery) into one ergonomic command.
+# `gog gmail send` / `drafts create` (auth + delivery) into one ergonomic command.
 #
 # Usage:
 #   bash email-md-send.sh \
@@ -28,7 +28,7 @@
 #     signature is missing (run signature-audit.sh / signature-set.sh).
 #   - Renders markdown via email-from-md.sh (tables/blockquotes inlined).
 #   - Defaults to --draft for safety; only delivers when --send is set.
-#   - Returns the gws send/draft response on stdout.
+#   - Returns the gog send/draft response on stdout.
 #
 # Flags:
 #   --markdown FILE       (required) markdown source
@@ -41,12 +41,12 @@
 #   --send                actually send (asks for confirmation unless --yes)
 #   --yes                 skip confirmation prompt
 #   --no-signature        do not append the alias signature
-#   --reply-to EMAIL      add a Reply-To header (raw API path)
+#   --reply-to EMAIL      add a Reply-To header
 #
 # Exit codes:
 #   0  draft created or message sent
 #   1  user declined / send failed
-#   2  preflight failure (gws/jq/pandoc missing, auth invalid, bad flag)
+#   2  preflight failure (gog/jq/pandoc missing, auth invalid, bad flag)
 #
 # Part of the BSG google-workspace skill.
 
@@ -94,18 +94,20 @@ done
 [[ -n "$TO" ]]      || { echo "error: --to EMAILS is required" >&2; exit 2; }
 [[ -n "$SUBJECT" ]] || { echo "error: --subject STRING is required" >&2; exit 2; }
 
-command -v gws    >/dev/null || { echo "error: gws not installed" >&2; exit 2; }
+# shellcheck source=_gog.sh
+source "$SCRIPT_DIR/_gog.sh"
+( gog_require ) || exit 2
 command -v jq     >/dev/null || { echo "error: jq not installed (brew install jq)" >&2; exit 2; }
 command -v pandoc >/dev/null || { echo "error: pandoc not installed (brew install pandoc)" >&2; exit 2; }
 
-if ! gws auth status 2>/dev/null | jq -e '.token_valid == true' >/dev/null; then
-  echo "error: gws auth invalid — run scripts/auth-login.sh" >&2
+if ! gog_auth_ok; then
+  echo "error: gog auth invalid — run scripts/auth-login.sh" >&2
   exit 2
 fi
 
 # ---------- alias / signature sanity check ----------
 if [[ -n "$FROM" ]]; then
-  ALIASES=$(gws gmail users settings sendAs list --params '{"userId":"me"}' 2>/dev/null) || ALIASES='{"sendAs":[]}'
+  ALIASES=$(gog_api gmail v1 users.settings.sendAs.list --params '{"userId":"me"}' 2>/dev/null) || ALIASES='{"sendAs":[]}'
   ALIAS_INFO=$(printf '%s' "$ALIASES" | jq --arg a "$FROM" '.sendAs[] | select(.sendAsEmail == $a) // empty')
   if [[ -z "$ALIAS_INFO" ]]; then
     echo "warning: --from $FROM is not a configured sendAs alias on this account." >&2
@@ -157,49 +159,22 @@ if [[ "$SEND" -eq 1 && "$YES" -eq 0 ]]; then
   esac
 fi
 
-# ---------- choose path: +send (helper) or raw send (when --reply-to is set) ----------
-if [[ -n "$REPLY_TO" ]]; then
-  # +send doesn't expose Reply-To; build a RFC 2822 message and POST raw.
-  TMPMSG=$(mktemp -t email-md-send.XXXXXX)
-  trap 'rm -f "$TMPMSG"' EXIT
-  {
-    [[ -n "$FROM" ]] && printf 'From: %s\r\n' "$FROM"
-    printf 'To: %s\r\n' "$TO"
-    [[ -n "$CC"  ]] && printf 'Cc: %s\r\n' "$CC"
-    [[ -n "$BCC" ]] && printf 'Bcc: %s\r\n' "$BCC"
-    printf 'Reply-To: %s\r\n' "$REPLY_TO"
-    printf 'Subject: %s\r\n' "$SUBJECT"
-    printf 'MIME-Version: 1.0\r\n'
-    printf 'Content-Type: text/html; charset=UTF-8\r\n'
-    printf '\r\n'
-    printf '%s\r\n' "$BODY"
-  } > "$TMPMSG"
+# ---------- send / draft ----------
+# gog sends the HTML body from stdin; --reply-to is native on both commands,
+# so there is no raw-MIME path any more.
+SEND_ARGS=(--to "$TO" --subject "$SUBJECT" --body-html-file -)
+[[ -n "$FROM"     ]] && SEND_ARGS+=(--from "$FROM")
+[[ -n "$CC"       ]] && SEND_ARGS+=(--cc "$CC")
+[[ -n "$BCC"      ]] && SEND_ARGS+=(--bcc "$BCC")
+[[ -n "$REPLY_TO" ]] && SEND_ARGS+=(--reply-to "$REPLY_TO")
 
-  RAW=$(base64 < "$TMPMSG" | tr -d '\n' | tr '+/' '-_' | tr -d '=')
-
-  if [[ "$DRAFT" -eq 1 ]]; then
-    gws gmail users drafts create --params '{"userId":"me"}' \
-      --json "$(jq -nc --arg r "$RAW" '{message: {raw: $r}}')"
-  else
-    gws gmail users messages send --params '{"userId":"me"}' \
-      --json "$(jq -nc --arg r "$RAW" '{raw: $r}')"
-  fi
-  exit $?
+if [[ "$DRAFT" -eq 1 ]]; then
+  GOG_CMD=(gmail drafts create)
+else
+  GOG_CMD=(gmail send)
 fi
 
-# Standard path — use the +send helper for cleaner ergonomics.
-SEND_ARGS=(
-  --to "$TO"
-  --subject "$SUBJECT"
-  --body "$BODY"
-  --html
-)
-[[ -n "$FROM" ]] && SEND_ARGS+=(--from "$FROM")
-[[ -n "$CC"   ]] && SEND_ARGS+=(--cc  "$CC")
-[[ -n "$BCC"  ]] && SEND_ARGS+=(--bcc "$BCC")
-[[ "$DRAFT" -eq 1 ]] && SEND_ARGS+=(--draft)
-
-if RESPONSE=$(gws gmail +send "${SEND_ARGS[@]}" 2>&1); then
+if RESPONSE=$(printf '%s' "$BODY" | "$GOG_BIN" "${GOG_CMD[@]}" "${SEND_ARGS[@]}" --json --no-input 2>&1); then
   printf '%s\n' "$RESPONSE"
   if [[ "$DRAFT" -eq 1 ]]; then
     echo "✓ draft created — open in Gmail to review and click Send" >&2
@@ -208,7 +183,7 @@ if RESPONSE=$(gws gmail +send "${SEND_ARGS[@]}" 2>&1); then
   fi
   exit 0
 else
-  echo "✗ gws gmail +send failed:" >&2
+  echo "✗ gog ${GOG_CMD[*]} failed:" >&2
   echo "$RESPONSE" >&2
   exit 1
 fi
