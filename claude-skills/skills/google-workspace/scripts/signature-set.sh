@@ -2,7 +2,7 @@
 # signature-set.sh — write/update the HTML signature on a Gmail sendAs alias.
 #
 # This is the **only mutating** signature script in the kit. It calls
-# `gws gmail users settings sendAs patch` for the targeted alias and
+# `gog gmail settings sendas update` for the targeted alias and
 # updates the `signature` field. Optionally also sets `displayName` and
 # `replyToAddress`.
 #
@@ -44,7 +44,7 @@
 # Exit codes:
 #   0  signature updated (or dry-run rendered)
 #   1  user declined / no source signature found
-#   2  preflight failure (gws/jq missing, auth invalid, bad flag)
+#   2  preflight failure (gog/jq missing, auth invalid, bad flag)
 #
 # Part of the BSG google-workspace skill.
 
@@ -86,7 +86,8 @@ done
 
 # ---------- preflight ----------
 [[ -n "$ALIAS" ]] || { echo "error: --alias EMAIL is required" >&2; exit 2; }
-command -v gws >/dev/null || { echo "error: gws not installed" >&2; exit 2; }
+# shellcheck source=_gog.sh
+source "$SCRIPT_DIR/_gog.sh"
 command -v jq  >/dev/null || { echo "error: jq not installed (brew install jq)" >&2; exit 2; }
 
 # Exactly one of --html/--html-file/--html-stdin/--from-latest-sent.
@@ -104,8 +105,11 @@ if [[ "$SOURCES" -gt 1 ]]; then
   exit 2
 fi
 
-if ! gws auth status 2>/dev/null | jq -e '.token_valid == true' >/dev/null; then
-  echo "error: gws auth invalid — run scripts/auth-login.sh" >&2
+# Flag validation above must stay before these checks: the offline tests
+# rely on exit 2 for bad flags even when gog is missing or logged out.
+( gog_require ) || exit 2
+if ! gog_auth_ok; then
+  echo "error: gog auth invalid — run scripts/auth-login.sh" >&2
   exit 2
 fi
 
@@ -128,7 +132,7 @@ if [[ -z "$HTML" ]]; then
 fi
 
 # ---------- verify the alias exists ----------
-EXISTING=$(gws gmail users settings sendAs get \
+EXISTING=$(gog_api gmail v1 users.settings.sendAs.get \
   --params "$(jq -nc --arg a "$ALIAS" '{userId:"me", sendAsEmail:$a}')" 2>/dev/null) \
   || { echo "error: alias not found on this account: $ALIAS" >&2;
        echo "hint:  bash $SCRIPT_DIR/signature-audit.sh   # to list aliases" >&2;
@@ -146,7 +150,9 @@ if [[ -n "$REPLY_TO" ]]; then
   BODY=$(printf '%s' "$BODY" | jq --arg rt "$REPLY_TO" '. + {replyToAddress: $rt}')
 fi
 
-PARAMS=$(jq -nc --arg a "$ALIAS" '{userId:"me", sendAsEmail:$a}')
+UPDATE_ARGS=(gmail settings sendas update "$ALIAS" --signature "$HTML")
+[[ -n "$DISPLAY_NAME" ]] && UPDATE_ARGS+=(--display-name "$DISPLAY_NAME")
+[[ -n "$REPLY_TO"     ]] && UPDATE_ARGS+=(--reply-to "$REPLY_TO")
 
 # ---------- summary + confirm ----------
 {
@@ -165,7 +171,7 @@ PARAMS=$(jq -nc --arg a "$ALIAS" '{userId:"me", sendAsEmail:$a}')
 } >&2
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
-  echo "DRY-RUN — would call: gws gmail users settings sendAs patch --params '$PARAMS' --json '<body>'" >&2
+  echo "DRY-RUN — would call: gog gmail settings sendas update $ALIAS --signature '<html>'${DISPLAY_NAME:+ --display-name '$DISPLAY_NAME'}${REPLY_TO:+ --reply-to '$REPLY_TO'}" >&2
   printf '%s\n' "$BODY"
   exit 0
 fi
@@ -180,9 +186,8 @@ if [[ "$YES" -eq 0 ]]; then
 fi
 
 # ---------- apply the patch ----------
-if RESPONSE=$(gws gmail users settings sendAs patch \
-  --params "$PARAMS" --json "$BODY" 2>&1); then
-  RESULT_LEN=$(printf '%s' "$RESPONSE" | jq -r '.signature // "" | length' 2>/dev/null || echo "?")
+if RESPONSE=$("$GOG_BIN" "${UPDATE_ARGS[@]}" --json --no-input --force 2>&1); then
+  RESULT_LEN=$(printf '%s' "$RESPONSE" | jq -r '(.sendAs // .) | .signature // "" | length' 2>/dev/null || echo "?")
   echo "✓ signature updated for $ALIAS (server stored $RESULT_LEN bytes)"
   exit 0
 else

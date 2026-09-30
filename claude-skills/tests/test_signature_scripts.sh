@@ -7,9 +7,9 @@
 #   - --help output works (sources documentation from comment header)
 #   - missing required flags trigger exit 2
 #   - mutually-exclusive flags are detected
-#   - --dry-run path renders the patch body without calling gws
+#   - --dry-run path renders the patch body without calling gog
 #
-# When `gws` and a live auth token are available, the audit and extract
+# When `gog` and a live auth token are available, the audit and extract
 # scripts are exercised in --quiet / --dry-run mode but failures are
 # tolerated (the test only asserts they exit cleanly when network is
 # down).
@@ -23,12 +23,12 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-GWS_DIR="$REPO_ROOT/claude-skills/skills/google-workspace/scripts"
+SKILL_DIR="$REPO_ROOT/claude-skills/skills/google-workspace/scripts"
 
-AUDIT="$GWS_DIR/signature-audit.sh"
-EXTRACT="$GWS_DIR/signature-extract.sh"
-SET="$GWS_DIR/signature-set.sh"
-SEND="$GWS_DIR/email-md-send.sh"
+AUDIT="$SKILL_DIR/signature-audit.sh"
+EXTRACT="$SKILL_DIR/signature-extract.sh"
+SET="$SKILL_DIR/signature-set.sh"
+SEND="$SKILL_DIR/email-md-send.sh"
 
 PASS=0
 FAIL=0
@@ -97,13 +97,14 @@ assert_exit "set: --html + --html-file → exit 2" 2 \
   bash "$SET" --alias me@x.com --html '<p>a</p>' --html-file /etc/hosts
 
 # ---------- T14-T15: --dry-run on signature-set with inline HTML ----------
-# This requires gws auth to pass the preflight; skip gracefully when offline.
+# This requires gog auth to pass the preflight; skip gracefully when offline.
 echo "--- dry-run smoke (online-only) ---"
-if command -v gws >/dev/null \
-   && gws auth status 2>/dev/null | jq -e '.token_valid == true' >/dev/null 2>&1; then
+# shellcheck source=../skills/google-workspace/scripts/_gog.sh
+source "$SKILL_DIR/_gog.sh"
+if command -v "$GOG_BIN" >/dev/null && ( gog_require ) 2>/dev/null && gog_auth_ok 2>/dev/null; then
 
   # Pick the first alias from the live account
-  ALIAS=$(gws gmail users settings sendAs list --params '{"userId":"me"}' 2>/dev/null \
+  ALIAS=$(gog_api gmail v1 users.settings.sendAs.list --params '{"userId":"me"}' 2>/dev/null \
           | jq -r '.sendAs[0].sendAsEmail // empty')
 
   if [[ -n "$ALIAS" ]]; then
@@ -115,7 +116,7 @@ if command -v gws >/dev/null \
     echo "SKIP: no aliases on this account — dry-run smoke skipped"
   fi
 else
-  echo "SKIP: gws / auth unavailable — dry-run smoke skipped"
+  echo "SKIP: gog / auth unavailable — dry-run smoke skipped"
 fi
 
 # ---------- summary ----------

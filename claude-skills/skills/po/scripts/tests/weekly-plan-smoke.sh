@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # weekly-plan-smoke.sh — smoke test for scripts/weekly-plan.sh.
 #
-# Feeds a fake snapshot into the script (no `gh`, no `gws`) and asserts
+# Feeds a fake snapshot into the script (no `gh`, no `gog`) and asserts
 # the JSON shape. Run from anywhere:
 #
 #   bash claude-skills/skills/po/scripts/tests/weekly-plan-smoke.sh

@@ -1,190 +1,103 @@
 #!/usr/bin/env bash
-# gws auth-login.sh — launch `gws auth login`, auto-open the OAuth URL in
-# Chrome (or the OS default browser), wait for the flow to complete, and
-# verify the token ends up valid.
+# auth-login.sh — authorize a Google account for gog with the BSG service set,
+# then verify the stored refresh token and report which services were granted.
 #
-# Accepts pass-through flags for `gws auth login`, e.g.:
-#   ./auth-login.sh
-#   ./auth-login.sh --services gmail,calendar,drive
-#   ./auth-login.sh --readonly
-#   ./auth-login.sh --full
-#   ./auth-login.sh --scopes https://www.googleapis.com/auth/drive.readonly
+# Thin wrapper around `gog auth add`: gog opens the browser itself, keeps the
+# tokens in the OS keyring, and supports several accounts side by side (pick
+# one later with `--account` / GOG_ACCOUNT / `gog auth alias set`).
 #
-# Exits 0 if auth is valid after the flow, otherwise non-zero.
+# Usage:
+#   ./auth-login.sh you@example.com
+#   ./auth-login.sh you@example.com --services gmail,calendar,drive
+#   ./auth-login.sh you@example.com --readonly
+#   ./auth-login.sh you@example.com --manual          # headless: paste the redirect URL
+#   GOG_ACCOUNT=you@example.com ./auth-login.sh       # email from the environment
+#
+# Any other flag is passed through to `gog auth add` (e.g. --gmail-scope send,
+# --drive-scope readonly, --client NAME). Without --services the full BSG set
+# below is requested; --force-consent is added so Google re-issues a refresh
+# token that covers every service.
+#
+# Exit codes: 0 auth valid after the flow, 1 auth failed, 3 gog missing/too old.
+#
+# Part of the BSG google-workspace skill.
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=_gog.sh
+source "$SCRIPT_DIR/_gog.sh"
+
 warn() { printf "⚠ %s\n" "$*" >&2; }
 
-if ! command -v gws >/dev/null; then
-  echo "❌ gws not installed: npm install -g @googleworkspace/cli@latest" >&2
-  exit 1
+command -v jq >/dev/null || { echo "❌ jq not installed: brew install jq" >&2; exit 1; }
+gog_require
+
+# Single source of truth for the services the skill exercises (onboard.sh and
+# doctor.sh read this via `auth-login.sh --print-services`).
+BSG_SERVICES="gmail,calendar,drive,docs,sheets,slides,contacts,tasks,chat,forms,meet,people"
+
+if [[ "${1:-}" == "--print-services" ]]; then
+  printf '%s\n' "$BSG_SERVICES"
+  exit 0
 fi
-if ! command -v jq >/dev/null; then
-  echo "❌ jq not installed: brew install jq" >&2
-  exit 1
-fi
 
-LOG=$(mktemp -t gws-auth-login.XXXXXX)
-trap 'rm -f "$LOG"' EXIT
-
-# Curated scope list covering every Workspace API the skill exercises.
-# Kept in sync with scripts/onboard.sh (single source of truth).
-#
-# Why not `--full`? gws's `--full` silently drops sensitive scopes
-# (chat.spaces, contacts, directory.readonly, forms.body,
-# meetings.space.created) that aren't pre-registered on the project's
-# OAuth consent screen. Passing the explicit list surfaces the drop:
-# Google still won't grant unregistered scopes, but at least the
-# request matches the user's intent.
-GWS_DEFAULT_SCOPES="\
-https://www.googleapis.com/auth/drive,\
-https://www.googleapis.com/auth/spreadsheets,\
-https://www.googleapis.com/auth/gmail.modify,\
-https://www.googleapis.com/auth/calendar,\
-https://www.googleapis.com/auth/documents,\
-https://www.googleapis.com/auth/presentations,\
-https://www.googleapis.com/auth/tasks,\
-https://www.googleapis.com/auth/chat.spaces,\
-https://www.googleapis.com/auth/contacts,\
-https://www.googleapis.com/auth/directory.readonly,\
-https://www.googleapis.com/auth/forms.body,\
-https://www.googleapis.com/auth/meetings.space.created,\
-openid,\
-https://www.googleapis.com/auth/userinfo.email,\
-https://www.googleapis.com/auth/userinfo.profile"
-
-# If the caller didn't specify a scope-shaping flag, request our explicit
-# 15-scope list. Pass `--full`, `--readonly`, `--services …`, or
-# `--scopes …` to override.
-HAS_SCOPE_FLAG=0
+# ---------- split the email off the pass-through flags ----------
+EMAIL=""
+PASS=()
 for arg in "$@"; do
-  case "$arg" in
-    --full|--readonly|--services|-s|--scopes) HAS_SCOPE_FLAG=1; break ;;
-  esac
-done
-if [ "$HAS_SCOPE_FLAG" -eq 0 ]; then
-  set -- --scopes "$GWS_DEFAULT_SCOPES" "$@"
-  echo "→ no scope flag given; requesting the curated 15-scope BSG default"
-fi
-
-# Start `gws auth login` in the background, capturing stdout+stderr.
-# The process writes the OAuth URL, then blocks on the local callback server.
-gws auth login "$@" >"$LOG" 2>&1 &
-LOGIN_PID=$!
-
-# Poll the log for the URL for up to ~20s.
-URL=""
-for _ in $(seq 1 40); do
-  if ! kill -0 "$LOGIN_PID" 2>/dev/null; then
-    # login process already exited — probably an error
-    break
+  if [[ -z "$EMAIL" && "$arg" == *@* && "$arg" != -* ]]; then
+    EMAIL="$arg"
+  else
+    PASS+=("$arg")
   fi
-  URL=$(grep -Eom1 'https://accounts\.google\.com/[^[:space:]]+' "$LOG" 2>/dev/null || true)
-  [ -n "$URL" ] && break
-  sleep 0.5
 done
-
-if [ -z "$URL" ]; then
-  echo "❌ could not extract OAuth URL from gws auth login output:" >&2
-  cat "$LOG" >&2
-  kill "$LOGIN_PID" 2>/dev/null || true
-  wait "$LOGIN_PID" 2>/dev/null || true
-  exit 2
+EMAIL="${EMAIL:-${GOG_ACCOUNT:-}}"
+if [[ -z "$EMAIL" || "$EMAIL" != *@* ]]; then
+  echo "❌ account email required: auth-login.sh you@example.com  (or set GOG_ACCOUNT)" >&2
+  exit 1
 fi
 
-# Open in Chrome (preferred), then fall back to OS-default browser.
-OS="$(uname -s)"
-OPENED=0
-case "$OS" in
-  Darwin)
-    if open -a "Google Chrome" "$URL" 2>/dev/null; then
-      OPENED=1
-    elif open "$URL" 2>/dev/null; then
-      OPENED=1
-    fi
-    ;;
-  Linux)
-    if command -v google-chrome >/dev/null && google-chrome "$URL" >/dev/null 2>&1 & then
-      OPENED=1
-    elif command -v chromium >/dev/null && chromium "$URL" >/dev/null 2>&1 & then
-      OPENED=1
-    elif command -v xdg-open >/dev/null && xdg-open "$URL" >/dev/null 2>&1; then
-      OPENED=1
-    fi
-    ;;
-  MINGW*|MSYS*|CYGWIN*)
-    if start chrome "$URL" 2>/dev/null; then
-      OPENED=1
-    elif start "" "$URL" 2>/dev/null; then
-      OPENED=1
-    fi
-    ;;
-esac
-
-if [ "$OPENED" -eq 1 ]; then
-  echo "→ opened OAuth consent in your browser — complete the flow"
-else
-  echo "⚠ could not auto-open browser; paste this URL manually:"
-  echo ""
-  echo "  $URL"
-  echo ""
+HAS_SERVICES=0
+for arg in ${PASS[@]+"${PASS[@]}"}; do
+  case "$arg" in --services|--services=*) HAS_SERVICES=1 ;; esac
+done
+if [[ "$HAS_SERVICES" -eq 0 ]]; then
+  PASS+=(--services "$BSG_SERVICES" --force-consent)
+  echo "→ no --services given; requesting the BSG set: $BSG_SERVICES"
 fi
 
-# Wait for the gws auth login process to finish (success = OAuth callback hit).
+# ---------- run the OAuth flow ----------
 LOGIN_RC=0
-wait "$LOGIN_PID" || LOGIN_RC=$?
+"$GOG_BIN" auth add "$EMAIL" ${PASS[@]+"${PASS[@]}"} || LOGIN_RC=$?
 
-# Double-check: the token is actually stored and valid.
-if ! gws auth status 2>/dev/null | jq -e '.token_valid == true and .encrypted_credentials_exists == true' >/dev/null; then
-  echo "⚠ gws auth still invalid after login (exit code: $LOGIN_RC)"
-  gws auth status 2>/dev/null | jq '{token_valid, has_refresh_token, token_error}' >&2
+# ---------- verify ----------
+if ! GOG_ACCOUNT="$EMAIL" gog_auth_ok; then
+  echo "⚠ gog auth still invalid for $EMAIL after login (exit code: $LOGIN_RC)"
+  "$GOG_BIN" auth doctor --check --json --no-input 2>/dev/null \
+    | jq --arg e "$EMAIL" '[.checks[] | select(.status != "ok" and (.name | endswith($e)))]' >&2 || true
   exit "${LOGIN_RC:-1}"
 fi
 
-# Verify scopes — Google's consent screen silently drops scopes the user
-# doesn't tick. Mint an access token and list what was actually granted so
-# the caller can see drift between requested and granted scopes.
-CID=$(gws auth export --unmasked 2>/dev/null | jq -r '.client_id // empty')
-CSECRET=$(gws auth export --unmasked 2>/dev/null | jq -r '.client_secret // empty')
-REFRESH=$(gws auth export --unmasked 2>/dev/null | jq -r '.refresh_token // empty')
-if [ -n "$CID" ] && [ -n "$CSECRET" ] && [ -n "$REFRESH" ] && command -v curl >/dev/null; then
-  ACCESS=$(curl -sX POST https://oauth2.googleapis.com/token \
-    -d "client_id=$CID" -d "client_secret=$CSECRET" \
-    -d "refresh_token=$REFRESH" -d "grant_type=refresh_token" \
-    | jq -r '.access_token // empty')
-  if [ -n "$ACCESS" ]; then
-    GRANTED=$(curl -s "https://oauth2.googleapis.com/tokeninfo?access_token=$ACCESS" \
-              | jq -r '.scope // empty' | tr ' ' '\n' | sort -u)
-    COUNT=$(printf '%s\n' "$GRANTED" | grep -c .)
-    echo "→ granted $COUNT scope(s)"
+# Google's consent screen lets the user untick individual scopes, so list what
+# was actually granted and flag the services that came back missing.
+GRANTED=$("$GOG_BIN" auth list --json --no-input 2>/dev/null \
+  | jq -r --arg e "$EMAIL" '.accounts[] | select(.email == $e) | .services[]' | sort -u)
+echo "→ $EMAIL authorized for: $(printf '%s' "$GRANTED" | paste -sd, -)"
 
-    # Warn on notable omissions when the caller asked for --full or our
-    # curated default list. Drops here usually mean the scope isn't
-    # registered on the project's OAuth consent screen.
-    REQUESTED_BROAD=0
-    if printf "%s\n" "$@" | grep -q -- '--full'; then
-      REQUESTED_BROAD=1
-    elif printf "%s\n" "$@" | grep -q -- "$GWS_DEFAULT_SCOPES"; then
-      REQUESTED_BROAD=1
-    fi
-    if [ "$REQUESTED_BROAD" -eq 1 ]; then
-      MISSING=""
-      for needle in chat. contacts people directory forms keep meet; do
-        if ! printf "%s" "$GRANTED" | grep -q "$needle"; then
-          MISSING="$MISSING $needle"
-        fi
-      done
-      if [ -n "$MISSING" ]; then
-        warn "consent dropped:$MISSING"
-        warn "Google's consent screen shows sensitive scopes as individual"
-        warn "checkboxes. Either (a) re-run and TICK EVERY BOX, or (b) add"
-        warn "the missing scopes on the OAuth consent screen first:"
-        warn "  bash scripts/onboard.sh --step scopes"
-      fi
-    fi
+if [[ "$HAS_SERVICES" -eq 0 ]]; then
+  MISSING=""
+  IFS=',' read -ra WANT <<< "$BSG_SERVICES"
+  for svc in "${WANT[@]}"; do
+    printf '%s\n' "$GRANTED" | grep -qx "$svc" || MISSING="$MISSING $svc"
+  done
+  if [[ -n "$MISSING" ]]; then
+    warn "not granted:$MISSING"
+    warn "Either re-run and TICK EVERY BOX on the consent screen, or (if Google"
+    warn "refuses the scope) add it on the OAuth consent screen first:"
+    warn "  bash scripts/onboard.sh --step scopes"
   fi
 fi
 
-echo "✓ gws auth valid"
+echo "✓ gog auth valid for $EMAIL"
 exit 0
