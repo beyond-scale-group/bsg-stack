@@ -30,6 +30,9 @@ from _po_integration_helpers import (
     BasePoIntegration,
 )
 
+# PR number injected into the snapshot by the adherence test (never a real PR).
+SYNTH_PR = 999001
+
 
 class TestPoPlanIntegration(BasePoIntegration):
     """End-to-end smoke test of the planning po scripts."""
@@ -75,9 +78,28 @@ class TestPoPlanIntegration(BasePoIntegration):
         plan.write_text(
             "# Big plan — edomata fixture\n\n"
             "## Objectives\n"
-            "- Audit Renovate PRs           [#21]\n"
+            f"- Audit Renovate PRs           [#{SYNTH_PR}]\n"
             "- Add release automation       [milestone:non-existent]\n"
         )
+        # The live repo may have no open PR at all (edomata's #21 was closed),
+        # so bind the plan item to a synthetic open PR injected into a copy of
+        # the snapshot. The join logic is what is under test, not edomata's
+        # current PR list.
+        snap = json.loads(self.snapshot_path.read_text())
+        snap["pullRequests"] = [
+            pr for pr in snap.get("pullRequests") or [] if pr.get("number") != SYNTH_PR
+        ] + [{
+            "number": SYNTH_PR,
+            "title": "Synthetic open PR (adherence fixture)",
+            "state": "OPEN",
+            "isDraft": False,
+            "url": f"https://github.com/{TARGET}/pull/{SYNTH_PR}",
+            "labels": [],
+            "closingIssues": [],
+            "assignees": [],
+        }]
+        synth_snapshot = self.workdir / "adherence-snapshot.json"
+        synth_snapshot.write_text(json.dumps(snap))
         out = subprocess.run(
             [
                 "bash",
@@ -85,7 +107,7 @@ class TestPoPlanIntegration(BasePoIntegration):
                 "--plan",
                 str(plan),
                 "--snapshot",
-                str(self.snapshot_path),
+                str(synth_snapshot),
             ],
             cwd=self.workdir,
             capture_output=True,
@@ -117,8 +139,7 @@ class TestPoPlanIntegration(BasePoIntegration):
                 {"done", "in_progress", "at_risk", "not_started"})
             self.assertIn("counts", item)
             self.assertIn("evidence", item)
-        # PR #21 is an open Renovate PR on edomata → the #21 binding
-        # should resolve to in_progress with non-zero openPrs.
+        # The open-PR binding should resolve to in_progress with non-zero openPrs.
         pr21_item = next(i for i in data["items"] if i["raw"] == "Audit Renovate PRs")
         self.assertEqual(pr21_item["status"], "in_progress")
         self.assertGreaterEqual(pr21_item["counts"]["openPrs"], 1)
