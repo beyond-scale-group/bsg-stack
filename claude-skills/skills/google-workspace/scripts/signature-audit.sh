@@ -58,7 +58,7 @@ esac
 # ---------- preflight ----------
 # shellcheck source=_gog.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_gog.sh"
-command -v jq  >/dev/null || { echo "error: jq not installed (brew install jq)" >&2; exit 2; }
+command -v jq  >/dev/null || { echo "error: jq not installed ($(pkg_hint jq))" >&2; exit 2; }
 ( gog_require ) || exit 2
 
 if ! gog_auth_ok; then

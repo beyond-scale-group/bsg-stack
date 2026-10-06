@@ -97,8 +97,8 @@ done
 # shellcheck source=_gog.sh
 source "$SCRIPT_DIR/_gog.sh"
 ( gog_require ) || exit 2
-command -v jq     >/dev/null || { echo "error: jq not installed (brew install jq)" >&2; exit 2; }
-command -v pandoc >/dev/null || { echo "error: pandoc not installed (brew install pandoc)" >&2; exit 2; }
+command -v jq     >/dev/null || { echo "error: jq not installed ($(pkg_hint jq))" >&2; exit 2; }
+command -v pandoc >/dev/null || { echo "error: pandoc not installed ($(pkg_hint pandoc))" >&2; exit 2; }
 
 if ! gog_auth_ok; then
   echo "error: gog auth invalid — run scripts/auth-login.sh" >&2

@@ -62,7 +62,7 @@ if [[ ! -f "$MARKDOWN_FILE" ]]; then
 fi
 
 if ! command -v pandoc &>/dev/null; then
-  echo "error: pandoc is required (brew install pandoc)" >&2
+  echo "error: pandoc is required (brew install pandoc | sudo apt-get install -y pandoc)" >&2
   exit 1
 fi
 

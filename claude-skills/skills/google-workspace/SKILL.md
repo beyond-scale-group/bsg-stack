@@ -51,7 +51,10 @@ exists to orchestrate — not just to document. When in doubt, invoke.
 the common 90% of tasks, `--json` / `--plain` output for scripts, layered
 safety flags, and a Discovery-backed `gog api call` for everything else.
 
-Install: `brew install openclaw/tap/gogcli` (**>= 0.42.0** — the scripts
+Install: `brew install openclaw/tap/gogcli` on macOS, or
+`bash scripts/install-gog.sh` on Linux / hosts without Homebrew (downloads the
+checksum-verified release binary into `~/.local/bin`; `onboard.sh` runs it
+automatically) (**>= 0.42.0** — the scripts
 refuse older versions). Upgrade with `brew upgrade openclaw/tap/gogcli`.
 The CLI moves fast — **never assume memorized flags**, verify with
 `gog <group> --help`, `gog help <command>` or `gog schema --json` before

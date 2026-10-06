@@ -30,7 +30,7 @@ source "$SCRIPT_DIR/_gog.sh"
 
 warn() { printf "⚠ %s\n" "$*" >&2; }
 
-command -v jq >/dev/null || { echo "❌ jq not installed: brew install jq" >&2; exit 1; }
+command -v jq >/dev/null || { echo "❌ jq not installed: $(pkg_hint jq)" >&2; exit 1; }
 gog_require
 
 # Single source of truth for the services the skill exercises (onboard.sh and

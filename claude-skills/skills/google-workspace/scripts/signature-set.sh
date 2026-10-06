@@ -88,7 +88,7 @@ done
 [[ -n "$ALIAS" ]] || { echo "error: --alias EMAIL is required" >&2; exit 2; }
 # shellcheck source=_gog.sh
 source "$SCRIPT_DIR/_gog.sh"
-command -v jq  >/dev/null || { echo "error: jq not installed (brew install jq)" >&2; exit 2; }
+command -v jq  >/dev/null || { echo "error: jq not installed ($(pkg_hint jq))" >&2; exit 2; }
 
 # Exactly one of --html/--html-file/--html-stdin/--from-latest-sent.
 SOURCES=$(( ${#HTML} > 0 ? 1 : 0 ))

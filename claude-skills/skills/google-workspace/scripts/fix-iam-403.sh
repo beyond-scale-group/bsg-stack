@@ -36,8 +36,8 @@ for arg in "$@"; do
 done
 
 ( gog_require ) || die "gog missing or too old — $GOG_INSTALL_HINT"
-command -v gcloud >/dev/null || die "gcloud not installed — brew install google-cloud-sdk"
-command -v jq     >/dev/null || die "jq not installed — brew install jq"
+command -v gcloud >/dev/null || die "gcloud not installed — https://cloud.google.com/sdk/docs/install"
+command -v jq     >/dev/null || die "jq not installed — $(pkg_hint jq)"
 
 # Project: from $GOG_PROJECT_ID, else from gog's stored OAuth client. gog keeps
 # a flat {client_id, client_secret}: the project *number* is the client_id
