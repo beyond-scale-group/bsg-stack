@@ -110,21 +110,27 @@ step_prereqs() {
       info "gog not installed — installing: $GOG_INSTALL_HINT"
       brew install openclaw/tap/gogcli
     else
-      die "gog not installed — see https://github.com/openclaw/gogcli#install"
+      info "gog not installed — installing from the GitHub release"
+      bash "$(dirname "${BASH_SOURCE[0]}")/install-gog.sh"
+      export PATH="${GOG_INSTALL_DIR:-$HOME/.local/bin}:$PATH"
     fi
   fi
-  ( gog_require ) || die "gog too old — brew upgrade openclaw/tap/gogcli"
+  ( gog_require ) || die "gog too old — $GOG_UPGRADE_HINT"
   ok "gog $("$GOG_BIN" --version | head -1 | awk '{print $1}')"
 
   if ! command -v jq >/dev/null; then
-    die "jq not installed — brew install jq"
+    die "jq not installed — $(pkg_hint jq)"
   fi
   ok "jq $(jq --version)"
 
   if ! command -v gcloud >/dev/null; then
     warn "gcloud not installed — required for Step 2 (enabling APIs)."
     warn "Install with:"
-    warn "  brew install --cask google-cloud-sdk"
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+      warn "  brew install --cask google-cloud-sdk"
+    else
+      warn "  https://cloud.google.com/sdk/docs/install#linux (or: snap install google-cloud-cli --classic)"
+    fi
     warn "Skipping prereq gate — re-run later if you want."
   else
     ok "gcloud $(gcloud --version 2>/dev/null | head -1 | awk '{print $4}')"

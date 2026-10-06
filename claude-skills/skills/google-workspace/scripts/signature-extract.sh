@@ -55,7 +55,7 @@ done
 # shellcheck source=_gog.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_gog.sh"
 ( gog_require ) || exit 2
-command -v jq     >/dev/null || { echo "error: jq not installed (brew install jq)" >&2; exit 2; }
+command -v jq     >/dev/null || { echo "error: jq not installed ($(pkg_hint jq))" >&2; exit 2; }
 command -v base64 >/dev/null || { echo "error: base64 not installed" >&2; exit 2; }
 
 if ! gog_auth_ok; then

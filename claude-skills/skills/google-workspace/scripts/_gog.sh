@@ -14,7 +14,24 @@
 
 GOG_BIN="${GOG_BIN:-gog}"
 GOG_MIN_VERSION="0.42.0"
-GOG_INSTALL_HINT="brew install openclaw/tap/gogcli"
+# Install/upgrade hint: Homebrew when present, else the release installer.
+if command -v brew >/dev/null 2>&1 || [[ "$(uname -s)" == "Darwin" ]]; then
+  GOG_INSTALL_HINT="brew install openclaw/tap/gogcli"
+  GOG_UPGRADE_HINT="brew upgrade openclaw/tap/gogcli"
+else
+  GOG_INSTALL_HINT="bash $(dirname "${BASH_SOURCE[0]}")/install-gog.sh"
+  GOG_UPGRADE_HINT="$GOG_INSTALL_HINT"
+fi
+
+# pkg_hint <pkg> — OS-appropriate install command for a helper dependency.
+pkg_hint() {
+  if command -v brew >/dev/null 2>&1; then echo "brew install $1"
+  elif command -v apt-get >/dev/null 2>&1; then echo "sudo apt-get install -y $1"
+  elif command -v dnf >/dev/null 2>&1; then echo "sudo dnf install -y $1"
+  elif command -v pacman >/dev/null 2>&1; then echo "sudo pacman -S $1"
+  elif command -v apk >/dev/null 2>&1; then echo "sudo apk add $1"
+  else echo "install $1 with your package manager"; fi
+}
 
 # gog_require — binary present and >= GOG_MIN_VERSION, else exit 3.
 gog_require() {
@@ -25,7 +42,7 @@ gog_require() {
   local have
   have=$("$GOG_BIN" --version 2>/dev/null | head -1 | sed -E 's/^[^0-9]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
   if [[ -z "$have" ]] || [[ "$(printf '%s\n%s\n' "$GOG_MIN_VERSION" "$have" | sort -V | head -1)" != "$GOG_MIN_VERSION" ]]; then
-    echo "error: gog ${have:-unknown} is older than $GOG_MIN_VERSION (brew upgrade openclaw/tap/gogcli)" >&2
+    echo "error: gog ${have:-unknown} is older than $GOG_MIN_VERSION ($GOG_UPGRADE_HINT)" >&2
     exit 3
   fi
 }

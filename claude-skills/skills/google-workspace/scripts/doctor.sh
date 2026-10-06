@@ -59,20 +59,20 @@ else
   INSTALLED=$("$GOG_BIN" --version 2>/dev/null | head -1 | sed -E 's/^[^0-9]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
   ok "gog $INSTALLED"
   if [ -z "$INSTALLED" ] || [ "$(printf '%s\n%s\n' "$GOG_MIN_VERSION" "$INSTALLED" | sort -V | head -1)" != "$GOG_MIN_VERSION" ]; then
-    bad "gog $INSTALLED is older than $GOG_MIN_VERSION — brew upgrade openclaw/tap/gogcli"
+    bad "gog $INSTALLED is older than $GOG_MIN_VERSION — $GOG_UPGRADE_HINT"
     bump 2
   elif command -v gh >/dev/null; then
     LATEST=$(gh release view -R openclaw/gogcli --json tagName -q .tagName 2>/dev/null | sed 's/^v//' || true)
     if [ -n "$LATEST" ] && [ "$INSTALLED" != "$LATEST" ] \
        && [ "$(printf '%s\n%s\n' "$INSTALLED" "$LATEST" | sort -V | tail -1)" = "$LATEST" ]; then
-      warn "$LATEST available — brew upgrade openclaw/tap/gogcli"
+      warn "$LATEST available — $GOG_UPGRADE_HINT"
       bump 1
     fi
   fi
 fi
 
 if ! command -v jq >/dev/null; then
-  bad "jq not installed — brew install jq"
+  bad "jq not installed — $(pkg_hint jq)"
   bump 2
 fi
 
