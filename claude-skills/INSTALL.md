@@ -30,8 +30,11 @@ No git clone, no script to run, no cron to set up.
 |------|-------------|
 | `/babysit` | Monitor a long-running or flaky process (shell command or CI run), diagnose failures, fix root causes, retry until green. Includes PR mergeability rules. |
 | `/ocr` | Extract text from images and PDFs without uploading them into Claude's multimodal context. Cascades through Apple Vision (macOS) → Tesseract/OCRmyPDF → Mistral OCR API, writing `<source>.ocr.md` next to the source. Designed to save Anthropic tokens on document-heavy workflows. |
+| `/po-daily` | Run a full autonomous PO tick on the current repository: triage tickets, organize milestones, audit PRs, clean stale items. Delegates to the `po-manager` subagent, auto-executes safe actions (milestone assignment, urgent labels, stale pings, orphan-label cleanup), writes a dated report + TODO under `po/reports/YYYY-MM-DD-*.md`, and opens a `chore/po-tick-YYYY-MM-DD` PR. Idempotent — re-running the same day reuses the branch/PR. Pairs with `/loop 24h /po-daily`. |
 | `/tick-all` | Fire every registered BSG agent's `tick` in parallel and print a one-line sweep summary per agent. Uses `claude-skills/agents/registry.json` as the agent roster. Each agent handles its own GitHub-bus inbox (claim → work → handoff) via `claude-skills/scripts/github-bus.sh`. Run with `/loop 30m /tick-all` for a recurring sweep — no CI cron required. |
-| `/ship` | Run preflight checks (lint, typecheck, tests), commit, push, and open a PR. Auto-detects the project's toolchain. On preflight failure, stops and reports — use `/ship_and_merge` for auto-fix. Supports `--skip-checks`, `--draft`, `--base <branch>`, and a quoted commit-message override. |
+| `/tick-one` | Fire a single agent's `tick` in an isolated worktree — the loopable unit for per-agent infinite loops (`/loop 15m /tick-one tech-lead`). Accepts the agent name or its bus label. Agents coordinate through the GitHub-bus label state machine (`needs:<agent>` → `agent:lock:<agent>` → merged/flagged), so overlapping loops never double-work a ticket. |
+| `/ship` | Run preflight checks (lint, typecheck, tests), commit, push, and open a PR (ready or `--draft`). Auto-detects the project's toolchain. On preflight failure, stops and reports — use `/ship_and_merge` for auto-fix. Never flips draft status, assigns reviewers, or merges — see `/merge`. Supports `--skip-checks`, `--draft`, `--base <branch>`, and a quoted commit-message override. |
+| `/merge` | Signal an existing PR is ready for peer review: re-run local preflight, flip it out of draft (`gh pr ready`), and request a reviewer from a configured `preferred_reviewers:` list in `.bsg/AUTOPILOT.yml` (or `--reviewer <handle>`). Never merges into the base branch — that stays a human call, or `/ship_and_merge`'s job. Supports `--skip-checks` and repeatable `--reviewer <handle>`. |
 | `/ship_and_merge` | Full ship-and-merge pipeline: preflight checks, auto-fix failures, commit, push, open a PR, wait for CI green, and squash-merge. Enters a fix-retry loop on lint/test/CI failures (up to 5 attempts), committing each fix separately. Supports `--squash` (default), `--rebase`, `--skip-checks`, and `--base <branch>`. |
 | `/sync-worktree` | Reconcile local git worktrees with their PR state: commit + push branches that are ahead of `origin`, create PRs for branches without one, remove worktrees whose PR is merged or closed, leave dirty / diverged ones flagged for the human. Fully automatic — never prompts for confirmation. Defaults to all worktrees in the current repo; `--current` and `--dry-run` flags scope the sweep. Opt-in `--resolve-conflicts` / `--apply-reviews` (or `--resolve` for both) delegate diverged-branch resolution and PR-review-feedback application to a dispatched sub-agent on a stronger model — never done inline. Skips any worktree another agent/process is actively working in. Never force-pushes, never deletes the current worktree. |
 
@@ -39,7 +42,7 @@ No git clone, no script to run, no cron to set up.
 
 | Name | Description |
 |------|-------------|
-| `google-workspace` | Google Workspace CLI skill wrapping the official `gws` tool (github.com/googleworkspace/cli) across Gmail, Calendar, Drive, Sheets, Slides, Docs, Tasks, People, Chat, Meet, Forms, Keep, and the built-in `+workflow` helpers. Ships a preflight (binary/version/auth), an auto-Chrome OAuth helper (`scripts/auth-login.sh`), and an IAM-elevation helper (`scripts/fix-iam-403.sh`) that grants `serviceusage.serviceUsageConsumer` so Drive/Tasks/Chat/People stop 403'ing. Documents the GCP-project gotchas (consent-screen scope registration, Chat app registration) that `--full` alone can't solve. |
+| `google-workspace` | Google Workspace skill wrapping the `gog` CLI (gogcli ≥ 0.42, `brew install openclaw/tap/gogcli`) across Gmail, Calendar, Drive, Sheets, Slides, Docs, Tasks, People, Chat, Meet, Forms, with `gog api call` as the raw-API escape hatch and native multi-account (`--account` / `GOG_ACCOUNT`). Ships a health check (`scripts/doctor.sh`), a one-shot onboarding (`scripts/onboard.sh`), an OAuth wrapper (`scripts/auth-login.sh`), and an IAM-elevation helper (`scripts/fix-iam-403.sh`) that grants `serviceusage.serviceUsageConsumer` so Drive/Tasks/Chat/People stop 403'ing. Documents the GCP-project gotchas (consent-screen scope registration, Chat app registration). |
 | `ocr` | OCR toolkit that cascades local engines (Apple Vision, Tesseract) before reaching for the Mistral OCR API. Exposes `ocr.sh` as the orchestrator plus per-engine scripts. Any agent about to read an image or scanned PDF should call this skill first and read the resulting `.ocr.md` instead of sending the raw file to Claude. |
 | `browser` | Browser automation wrapping [`agent-browser`](https://www.npmjs.com/package/agent-browser) with persistent profile management, a Google login helper (`scripts/login-google.sh`), and a generic profile wrapper (`scripts/with-profile.sh`). Headed mode for first-time logins, headless for replay. Core verbs: open, click, fill, type, screenshot, snapshot (accessibility tree). |
 | `gamma-presentation` | Generate presentations and A4 documents from markdown files with YAML frontmatter via the Gamma public API. Reads format, text mode, slide count, language, and folder from frontmatter; auto-detects Gamma folder from Git repo name; writes `generatedUrl` and `generatedAt` back into the source file after generation. Orchestrator at `scripts/gamma-api.js`. Requires `GAMMA_API_KEY` env var and Node.js 18+. |
@@ -54,6 +57,7 @@ No git clone, no script to run, no cron to set up.
 | `storytelling-report` | Brand narrative + voice audit toolkit for the current repo. Parses `brand/NARRATIVE.md` for voice guidelines, key messages, and positioning; scores each public-facing asset (README, docs/, landing, CHANGELOG, blog) on a 0–10 tone scale derived from Flesch reading ease minus passive-voice and jargon penalties; flags drift > 2σ from the bible target. Checks key-message coverage and positioning staleness, and drafts talking-point stubs for releases that do not yet have one under `brand/talking-points/`. Lands audits under `brand/reports/YYYY-MM-DD-audit.md` via `open-report-pr.sh`. No external NLP APIs. |
 | `pr-comms-report` | PR / communications toolkit for the current repo. Classifies releases (major / minor / patch / skip), closed milestones, security advisories, and contributor / PR-merged milestones by newsworthiness; detects which events are unannounced via `comms/ANNOUNCED.md` and existing drafts under `comms/press-releases/`; audits `comms/press-kit/` freshness with a 90-day staleness rule; drafts press-release stubs (plan mode by default, materialized with `--write`) that inline boilerplate + contact when present and carry a CONFIDENTIAL header in private repos. Lands audits under `comms/reports/YYYY-MM-DD-events.md` via `open-report-pr.sh`. Never drafts security-incident responses. |
 | `md-to-word` | Markdown → branded The Shift AI Word (.docx) converter. Generates `brand/templates/reference.docx` from `.bsg/DESIGN.md` tokens (python-docx), converts via pandoc with auto-TOC in French, `---` → page gap (Lua filter), and post-processes all tables to full-width with branded header rows, alternating row colours, cell padding, and gray borders. Inserts The Shift AI logo before the TOC. Auto-extracts document title from YAML `title:` or first `# ` heading. Orchestrator at `scripts/md-to-word.sh`. Requires `pandoc` and `python-docx` (auto-installed). |
+| `md-to-slide` | Markdown → branded slides (HTML + PowerPoint) via [Marp](https://marp.app). The Marp theme CSS is generated automatically from `.bsg/DESIGN.md` brand tokens (`generate-theme.py` → `brand/templates/marp-theme.css`, neutral fallback when absent, auto-regenerated when DESIGN.md changes); the company name becomes the slide footer. `prepare-input.py` injects `marp:`/`paginate:`/`footer:` front matter on a temp copy without mutating the source. Fully local via `npx @marp-team/marp-cli` — no external API (contrast: `gamma-presentation`). `--pdf` and `--editable` (LibreOffice) variants included; PPTX/PDF export needs a Chromium-family browser. |
 | `md-to-office` | Markdown → Office converter. Wraps `pandoc` for DOCX (PPTX and XLSX land in follow-up PRs per PRD-008 §12). Templates are discovered **inside the target repo** at `brand/templates/` so each repo keeps its own brand; resolution chain is `--template` flag → `$BSG_BRAND_TEMPLATES` env var → `./brand/templates/<target>.<ext>` → legacy `./brand/templates/reference.docx` → unbranded fallback (warning, not error). Orchestrator at `scripts/md-to-office.sh`. No binaries shipped by the catalog. |
 | `learn` | End-of-session learning and improvement proposer. Reviews the session to surface concrete, actionable improvement proposals: skill updates, new skills, CLAUDE.md updates, memory entries. Presents a numbered menu; applies selected items immediately. Short-circuits with a one-line receipt (`/learn: no new signal since #NN`) when ≥ 80 % of findings overlap with open issues filed in the last 2 hours — preventing token waste on tight `/loop` schedules (#104). |
 | `google-apps-script` | Google Apps Script management via clasp (google/clasp). Clone, push, pull, run, deploy, and read logs for Apps Script projects from the terminal. Ships a preflight (binary/auth check), an onboard orchestrator (`scripts/onboard.sh`) for first-time install + login, and a health check (`scripts/doctor.sh`). Documents the `clasp run` prerequisites (API Executable deployment, GCP project linking, Apps Script API enablement), `Logger.log()` vs `console.log()` visibility, and return-value debugging patterns for headless troubleshooting. |
@@ -62,6 +66,7 @@ No git clone, no script to run, no cron to set up.
 | `onboard-laptop` | Generic, profile-driven onboarding for a new employee's laptop. Works on macOS (Homebrew) and Windows (winget). A YAML profile declares CLI tools, GUI apps, npm/pip packages, post-install commands, an account checklist, and a security checklist. Ships an orchestrator (`scripts/apply-profile.sh` / `.ps1`), a verifier (`scripts/doctor.sh` / `.ps1`), an interactive profile builder (`scripts/interview.sh`), and four example profiles (`minimal`, `developer`, `designer`, `sales`) under `references/profiles/`. Idempotent — safe to re-run. Account provisioning and security hardening stay manual (`references/CHECKLIST-ACCOUNTS.md`, `CHECKLIST-SECURITY.md`). Linux is not yet supported. |
 | `email-imap` | Read-only IMAP toolkit for mailboxes where OAuth (`google-workspace`) won't fly: client mailboxes, non-Google providers, OAuth apps stuck in Testing mode, admin-restricted domains. Ships pure-stdlib Python scripts (`imap-fetch.py` to download a date range as `.eml` + `index.json`, `imap-search.py` for IMAP-query searches, `imap-folders.py` to enumerate folders). Auth via app password (Gmail, iCloud, Fastmail) or basic auth (custom servers); credentials in env vars, never on disk. Not for sending — pair with SMTP or `google-workspace` for send flows. |
 | `pennylane` | Firm-level connector for the Pennylane accounting/finance platform (`pennylane.com`) — one OAuth 2.0 authorization reaches every company/structure a firm token can access. Ships a pure-stdlib Python client (`scripts/pennylane.py`) handling the auth-code flow, refresh-token rotation (atomic `0600` token store), cursor pagination, and the v2 JSON `filter` syntax against `api/external/v2`. Read/write customer & supplier invoices, customers, suppliers, ledger entries/accounts, products, categories; multi-company data export and bookkeeping (A/R, A/P, chart of accounts, VAT). Credentials in env vars, never on disk. Not the `pennylane` quantum-computing library. |
+| `session-janitor` | Machine-scoped janitor for live Claude Code sessions. Resolves each running session to its repo, branch, PR and ticket via `scripts/session-state.sh`, and reports which are safe to close because their work already landed. Read-only in this release (`doctor`); `reap`, `sync` and `reconcile` ship in later lots per PRD-009. Exposes no `tick` — it is the one machine-scoped component, scheduled through `/loop`, not `/tick-all`. |
 
 ## Available agents
 
@@ -103,6 +108,42 @@ The merge is **idempotent** and **narrow**:
 
 To add or remove a managed key, edit `claude-skills/settings.json` **and**
 update the `BSG_MANAGED_*` lists in the installer in the same PR.
+
+## Session capture to a personal gbrain (opt-in)
+
+The updater registers a `SessionEnd` hook
+(`scripts/upload-session-to-gbrain.py`) for every developer. The hook is a
+**silent no-op** unless you opt in by exporting two environment variables:
+
+```bash
+GBRAIN_INGEST_URL=https://your-brain.example.com   # gbrain HTTP server
+GBRAIN_MCP_TOKEN=gbrain_xxx                        # bearer token, write scope
+```
+
+Put them in your shell profile, or in the `env` block of
+`~/.claude/settings.json` so they only apply to Claude Code sessions.
+
+When opted in, every session end uploads the **full transcript** (user
+turns, assistant turns, tool calls, truncated tool results) to
+`POST $GBRAIN_INGEST_URL/ingest` as a markdown page under
+`sources/claude-sessions/`. gbrain dedups on content hash, so re-uploads
+are idempotent. Tuning knobs:
+
+| Env var | Default | Effect |
+|---|---|---|
+| `GBRAIN_CAPTURE_TOOL_RESULT_MAX` | `2000` | Per-block tool-result truncation (chars); `0` = unlimited |
+| `GBRAIN_CAPTURE_MAX_BYTES` | `900000` | Payload split threshold (gbrain's `/ingest` caps at 1 MB by default) |
+
+**Secrets:** the uploader runs a blocking redaction pass (API-key
+prefixes, bearer tokens, 64-hex secrets, connection-string passwords)
+before anything leaves the machine. Redaction is pattern-based, not
+perfect — treat the target brain as a private store, and point the hook
+only at a brain you own. Failures never block the session; they log to
+`~/.claude/logs/gbrain-capture.log`.
+
+Recommended gbrain-side setup: route `sources/claude-sessions/` to the
+`db_only` storage tier in the brain's `gbrain.yml` so bulk transcripts
+stay out of the brain's git history.
 
 ## GitHub labels used by BSG agents
 

@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# doctor.sh — daily health check for `gws`, with auto-repair of missing
-# scopes. Run before a Workspace-heavy session, or wire into a PreToolUse
+# doctor.sh — daily health check for `gog`, with auto-repair of missing
+# services. Run before a Workspace-heavy session, or wire into a PreToolUse
 # hook to surface drift early.
 #
 #   bash scripts/doctor.sh             # full check
 #   bash scripts/doctor.sh --quiet     # exit codes only, no output if green
-#   bash scripts/doctor.sh --no-repair # skip auto-relogin even on missing scopes
+#   bash scripts/doctor.sh --no-repair # skip auto-relogin even on missing services
+#
+# Checks the active account (GOG_ACCOUNT, else gog's default). Use
+# `GOG_ACCOUNT=other@example.com bash scripts/doctor.sh` for another one.
 #
 # Exit codes (suitable for hook gating):
 #   0  all green
-#   1  warnings only (e.g. outdated gws version)
+#   1  warnings only (e.g. outdated gog version)
 #   2  one or more services failing or auth invalid
 #
 # Distinct from scripts/onboard.sh — that's the one-shot zero-to-working
@@ -18,6 +21,8 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=_gog.sh
+source "$SCRIPT_DIR/_gog.sh"
 
 QUIET=0
 REPAIR=1
@@ -25,12 +30,12 @@ for arg in "$@"; do
   case "$arg" in
     --quiet)     QUIET=1 ;;
     --no-repair) REPAIR=0 ;;
-    -h|--help) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   esac
 done
 
 # Buffered output so --quiet can suppress everything when exit == 0.
-BUF=$(mktemp -t gws-doctor.XXXXXX)
+BUF=$(mktemp -t gog-doctor.XXXXXX)
 trap 'rm -f "$BUF"' EXIT
 say()  { printf "%s\n" "$*" >>"$BUF"; }
 ok()   { say "  ✓ $*"; }
@@ -41,47 +46,33 @@ hdr()  { say ""; say "[$1] $2"; }
 EXIT_CODE=0
 bump() { [ "$1" -gt "$EXIT_CODE" ] && EXIT_CODE=$1 || true; }
 
-# Same scope list as scripts/auth-login.sh and scripts/onboard.sh.
-EXPECTED_SCOPES=(
-  https://www.googleapis.com/auth/drive
-  https://www.googleapis.com/auth/spreadsheets
-  https://www.googleapis.com/auth/gmail.modify
-  https://www.googleapis.com/auth/calendar
-  https://www.googleapis.com/auth/documents
-  https://www.googleapis.com/auth/presentations
-  https://www.googleapis.com/auth/tasks
-  https://www.googleapis.com/auth/chat.spaces
-  https://www.googleapis.com/auth/contacts
-  https://www.googleapis.com/auth/directory.readonly
-  https://www.googleapis.com/auth/forms.body
-  https://www.googleapis.com/auth/meetings.space.created
-  openid
-  https://www.googleapis.com/auth/userinfo.email
-  https://www.googleapis.com/auth/userinfo.profile
-)
-EXPECTED_COUNT=${#EXPECTED_SCOPES[@]}
-
 #==============================================================================
 # [1/4] Binary & version
 #==============================================================================
 hdr "1/4" "Binary & version"
 
-if ! command -v gws >/dev/null; then
-  bad "gws not installed"
-  bad "  → npm install -g @googleworkspace/cli@latest"
+if ! command -v "$GOG_BIN" >/dev/null; then
+  bad "gog not installed"
+  bad "  → $GOG_INSTALL_HINT"
   bump 2
 else
-  INSTALLED=$(gws --version 2>/dev/null | head -1 | awk '{print $2}')
-  ok "gws $INSTALLED"
-  LATEST=$(npm view @googleworkspace/cli version 2>/dev/null || true)
-  if [ -n "$LATEST" ] && [ "$INSTALLED" != "$LATEST" ]; then
-    warn "$LATEST available — npm install -g @googleworkspace/cli@latest"
-    bump 1
+  INSTALLED=$("$GOG_BIN" --version 2>/dev/null | head -1 | sed -E 's/^[^0-9]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+  ok "gog $INSTALLED"
+  if [ -z "$INSTALLED" ] || [ "$(printf '%s\n%s\n' "$GOG_MIN_VERSION" "$INSTALLED" | sort -V | head -1)" != "$GOG_MIN_VERSION" ]; then
+    bad "gog $INSTALLED is older than $GOG_MIN_VERSION — $GOG_UPGRADE_HINT"
+    bump 2
+  elif command -v gh >/dev/null; then
+    LATEST=$(gh release view -R openclaw/gogcli --json tagName -q .tagName 2>/dev/null | sed 's/^v//' || true)
+    if [ -n "$LATEST" ] && [ "$INSTALLED" != "$LATEST" ] \
+       && [ "$(printf '%s\n%s\n' "$INSTALLED" "$LATEST" | sort -V | tail -1)" = "$LATEST" ]; then
+      warn "$LATEST available — $GOG_UPGRADE_HINT"
+      bump 1
+    fi
   fi
 fi
 
 if ! command -v jq >/dev/null; then
-  bad "jq not installed — brew install jq"
+  bad "jq not installed — $(pkg_hint jq)"
   bump 2
 fi
 
@@ -90,80 +81,63 @@ fi
 #==============================================================================
 hdr "2/4" "Auth & token"
 
+EMAIL=""
 if [ "$EXIT_CODE" -ge 2 ]; then
   warn "skipping (binary/jq missing)"
 else
-  STATUS=$(gws auth status 2>/dev/null || echo '{}')
-  TOKEN_VALID=$(echo "$STATUS" | jq -r '.token_valid // false')
-  PROJECT=$(echo "$STATUS" | jq -r '.project_id // empty')
-
-  if [ "$TOKEN_VALID" != "true" ]; then
-    bad "token_valid = false"
-    bad "  → bash scripts/auth-login.sh"
+  EMAIL=$(gog_account)
+  if [ -z "$EMAIL" ]; then
+    bad "no account configured"
+    bad "  → bash scripts/auth-login.sh you@example.com"
+    bump 2
+  elif ! gog_auth_ok; then
+    bad "refresh token for $EMAIL is not usable"
+    bad "  → bash scripts/auth-login.sh $EMAIL"
     bump 2
   else
-    ok "token_valid = true"
-    [ -n "$PROJECT" ] && ok "project   = $PROJECT"
-
-    EMAIL=$(gws gmail users getProfile --params '{"userId":"me"}' 2>/dev/null \
-            | jq -r '.emailAddress // empty')
-    [ -n "$EMAIL" ] && ok "user      = $EMAIL"
+    ok "token valid"
+    ok "user      = $EMAIL"
+    PROJECT=$("$GOG_BIN" auth status --json --no-input 2>/dev/null | jq -r '.account.credentials_path // empty')
+    [ -n "$PROJECT" ] && [ -f "$PROJECT" ] \
+      && ok "project   = $(jq -r '(.installed // .web // .) | (.project_id // ((.client_id // "") | split("-")[0])) // "unknown"' "$PROJECT" 2>/dev/null)"
   fi
 fi
 
 #==============================================================================
-# [3/4] Scope audit
+# [3/4] Service audit
 #==============================================================================
-hdr "3/4" "Scope audit"
+hdr "3/4" "Service audit"
 
-mint_access_token() {
-  local cid csecret refresh
-  cid=$(gws auth export --unmasked 2>/dev/null | jq -r '.client_id // empty')
-  csecret=$(gws auth export --unmasked 2>/dev/null | jq -r '.client_secret // empty')
-  refresh=$(gws auth export --unmasked 2>/dev/null | jq -r '.refresh_token // empty')
-  [ -n "$cid" ] && [ -n "$csecret" ] && [ -n "$refresh" ] || return 1
-  curl -sX POST https://oauth2.googleapis.com/token \
-    -d "client_id=$cid" -d "client_secret=$csecret" \
-    -d "refresh_token=$refresh" -d "grant_type=refresh_token" \
-    | jq -r '.access_token // empty'
-}
-
-audit_scopes() {
-  local access granted missing s
-  access=$(mint_access_token) || return 1
-  [ -n "$access" ] || return 1
-  granted=$(curl -s "https://oauth2.googleapis.com/tokeninfo?access_token=$access" \
-            | jq -r '.scope // empty' | tr ' ' '\n' | sort -u)
-  GRANTED_COUNT=$(printf '%s\n' "$granted" | grep -c .)
+audit_services() {
+  local s want
+  GRANTED_LIST=$("$GOG_BIN" auth list --json --no-input 2>/dev/null \
+    | jq -r --arg e "$EMAIL" '.accounts[] | select(.email == $e) | .services[]' | sort -u) || return 1
+  [ -n "$GRANTED_LIST" ] || return 1
   MISSING_LIST=()
-  for s in "${EXPECTED_SCOPES[@]}"; do
-    if ! printf "%s\n" "$granted" | grep -Fxq "$s"; then
-      MISSING_LIST+=("$s")
-    fi
+  IFS=',' read -ra want <<< "$(bash "$SCRIPT_DIR/auth-login.sh" --print-services)"
+  EXPECTED_COUNT=${#want[@]}
+  for s in "${want[@]}"; do
+    printf '%s\n' "$GRANTED_LIST" | grep -qx "$s" || MISSING_LIST+=("$s")
   done
 }
 
 if [ "$EXIT_CODE" -ge 2 ]; then
   warn "skipping (auth invalid)"
 else
-  GRANTED_COUNT=0
   MISSING_LIST=()
-  if audit_scopes; then
-    ok "Expected: $EXPECTED_COUNT scopes"
-    ok "Granted : $GRANTED_COUNT"
+  if audit_services; then
+    ok "Expected: $EXPECTED_COUNT services"
+    ok "Granted : $(printf '%s' "$GRANTED_LIST" | paste -sd, -)"
     if [ "${#MISSING_LIST[@]}" -gt 0 ]; then
-      warn "Missing : ${#MISSING_LIST[@]} scope(s)"
-      for s in "${MISSING_LIST[@]}"; do
-        warn "    - ${s##*/}"
-      done
+      warn "Missing : ${MISSING_LIST[*]}"
       if [ "$REPAIR" -eq 1 ]; then
-        say "  → re-running auth-login.sh to request the full scope list…"
+        say "  → re-running auth-login.sh to request the full service set…"
         # Run and append output to BUF so --quiet still suppresses on green.
-        bash "$SCRIPT_DIR/auth-login.sh" >>"$BUF" 2>&1 || true
-        if audit_scopes && [ "${#MISSING_LIST[@]}" -eq 0 ]; then
-          ok "re-auth complete — $GRANTED_COUNT/$EXPECTED_COUNT scopes granted"
+        bash "$SCRIPT_DIR/auth-login.sh" "$EMAIL" >>"$BUF" 2>&1 || true
+        if audit_services && [ "${#MISSING_LIST[@]}" -eq 0 ]; then
+          ok "re-auth complete — all $EXPECTED_COUNT services granted"
         else
-          warn "still missing ${#MISSING_LIST[@]} scope(s) — likely not registered"
+          warn "still missing: ${MISSING_LIST[*]} — likely not registered"
           warn "on the OAuth consent screen. Fix:"
           warn "  bash scripts/onboard.sh --step scopes"
           bump 2
@@ -173,7 +147,7 @@ else
       fi
     fi
   else
-    warn "could not mint access token to audit scopes (skipping)"
+    warn "could not read the granted services for $EMAIL (skipping)"
     bump 1
   fi
 fi
@@ -184,7 +158,7 @@ fi
 hdr "4/4" "Service smoke tests"
 
 if [ "$EXIT_CODE" -ge 2 ]; then
-  warn "skipping (auth or scope problem above)"
+  warn "skipping (auth or service problem above)"
 else
   smoke() {
     local name="$1"; local fix="$2"; shift 2
@@ -197,12 +171,12 @@ else
     fi
   }
 
-  smoke "Gmail    (messages.list)"  ""                                          gws gmail users messages list --params '{"userId":"me","maxResults":1}'
-  smoke "Calendar (events.list)"    ""                                          gws calendar events list --params '{"calendarId":"primary","maxResults":1}'
-  smoke "Drive    (files.list)"     "bash scripts/fix-iam-403.sh"               gws drive files list --params '{"pageSize":1}'
-  smoke "Tasks    (tasklists.list)" "bash scripts/fix-iam-403.sh"               gws tasks tasklists list --params '{"maxResults":1}'
-  smoke "Chat     (spaces.list)"    "bash scripts/onboard.sh --step chat-app"   gws chat spaces list --params '{"pageSize":1}'
-  smoke "Contacts (listDirectory)"  "bash scripts/onboard.sh --step scopes"     gws people people listDirectoryPeople --params '{"readMask":"emailAddresses","sources":"DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE","pageSize":1}'
+  smoke "Gmail    (search)"         ""                                          "$GOG_BIN" gmail search 'in:inbox' --max 1 --json --no-input
+  smoke "Calendar (events)"         ""                                          "$GOG_BIN" calendar events --today --max 1 --json --no-input
+  smoke "Drive    (ls)"             "bash scripts/fix-iam-403.sh"               "$GOG_BIN" drive ls --max 1 --json --no-input
+  smoke "Tasks    (lists)"          "bash scripts/fix-iam-403.sh"               "$GOG_BIN" tasks lists list --json --no-input
+  smoke "Chat     (spaces)"         "bash scripts/onboard.sh --step chat-app"   "$GOG_BIN" chat spaces list --json --no-input
+  smoke "Contacts (directory)"      "bash scripts/onboard.sh --step scopes"     "$GOG_BIN" contacts directory list --max 1 --json --no-input
 fi
 
 #==============================================================================

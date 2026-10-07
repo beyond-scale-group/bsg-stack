@@ -1,151 +1,195 @@
 # Raw API patterns
 
-When no `+helper` fits, use the generic pattern:
+When no first-class `gog` command fits (see [workflows.md](workflows.md)),
+use one of the escape hatches, in this order:
+
+1. `gog <service> raw …` — lossless dump of one object as Google returns it
+2. `gog api call …` — any Google Discovery API method (read or write)
+3. `gog schema --json` — the command/flag contract of the CLI itself
+
+## `gog api` — Discovery-backed generic calls
 
 ```
-gws <service> <resource> [sub-resource] <method> [--params JSON] [--json BODY] [FLAGS]
+gog api list                                   # all Discovery APIs
+gog api describe <api> <version>               # resources + methods of one API
+gog api describe <api> <version> <method>      # one method: params, body, scopes
+gog api call <api> <version> <resource.method> [flags]
 ```
 
-- `--params <JSON>` — URL path + query parameters (always JSON, one object)
-- `--json <JSON>` — request body (for `POST` / `PUT` / `PATCH`)
-- `--upload <PATH>` — media upload (multipart)
-- `--upload-content-type <MIME>` — override auto-detect
-- `--output <PATH>` — write binary response to file (`--format` ignored)
-- `--format json|table|yaml|csv` — output shape
-- `--api-version <VER>` — override API version
-- `--dry-run` — build + validate locally, don't call Google
-- `--sanitize <TEMPLATE>` — Model Armor content sanitization
+`gog api call` flags:
 
-## Always discover first
+- `--params '<json>'` — path + query parameters (one JSON object, default `{}`)
+- `--body '<json>'` or `--body @file.json` — request body (POST/PUT/PATCH)
+- `--scope <SCOPE>` — OAuth scope override (default: narrowest Discovery scope)
+- `--allow-write` — required for any non-read HTTP method; also asks for
+  confirmation unless `--force`
+- `--no-cache` — bypass the 24h Discovery-document cache
+- `--dry-run` (global) — print the intended request, call nothing
+- `--json` (global) — machine output
 
-Before writing a raw call, fetch the live schema — **do not guess
-parameter names**:
+### Always discover first
+
+Do not guess parameter names — describe the method:
 
 ```bash
-gws schema <service>.<resource>.<method>
-gws schema <service>.<resource>.<method> --resolve-refs   # inline $ref
+gog api list --json | jq -r '.items[] | "\(.name) \(.version)"'
+gog api describe gmail v1
+gog api describe gmail v1 users.messages.list
+gog api describe drive v3 files.create
+gog api describe sheets v4 spreadsheets.batchUpdate
+gog api describe calendar v3 events.insert
 ```
 
-Examples:
+The method description is the Discovery fragment: read `parameters` (for
+`--params`) and `request` (for `--body`).
+
+### Examples
 
 ```bash
-gws schema gmail.users.messages.list
-gws schema drive.files.create --resolve-refs
-gws schema sheets.spreadsheets.batchUpdate
-gws schema calendar.events.insert
+# Read
+gog api call gmail v1 users.messages.list \
+  --params '{"userId":"me","q":"is:unread","maxResults":50}' --json
+
+# Write: preview first, then execute
+gog api call calendar v3 events.insert \
+  --params '{"calendarId":"primary","conferenceDataVersion":1,"sendUpdates":"all"}' \
+  --body @event.json --allow-write --dry-run
+gog api call calendar v3 events.insert \
+  --params '{"calendarId":"primary","conferenceDataVersion":1,"sendUpdates":"all"}' \
+  --body @event.json --allow-write --force --json
 ```
 
-The output is a Google Discovery Document fragment. Read
-`parameters` (for `--params`) and `request.$ref`/`request` (for `--json`).
+Cases with no first-class command are the reason to reach for this
+(e.g. Chat cards: `chat v1 spaces.messages.create`).
+
+## `gog <service> raw` — lossless object dumps
+
+Return the canonical Google API response instead of gog's curated output.
+Available for: `calendar`, `contacts`, `docs`, `drive`, `forms`, `gmail`,
+`people`, `sheets`, `slides`, `tasks`.
+
+```bash
+gog drive raw <fileId> --pretty
+gog drive raw <fileId> --fields 'id,name,mimeType,owners(emailAddress)' --json
+gog gmail raw <messageId> --format metadata --json
+gog docs raw <docId> --json > doc-api.json
+gog docs raw <docId> --tab "Notes" --pretty      # or --all-tabs
+gog sheets raw <sheetId> --include-grid-data --json
+gog sheets raw <sheetId> --sheet "Quarterly Data" --include-grid-data --json
+gog calendar raw primary <eventId> --pretty
+gog tasks raw <tasklistId> <taskId> --pretty
+gog contacts raw people/c123 --person-fields names,emailAddresses --json
+```
+
+`raw` is a single-object `get`; for listing many objects use the service's
+list/search command or `gog api call … .list`. Drive raw redacts capability
+URLs (`webContentLink`, `exportLinks`, `thumbnailLink`, …) unless you pass
+`--fields` explicitly. Raw output can contain private content — do not paste
+it into logs or LLM context without `--wrap-untrusted`.
+
+## Command contract — `gog schema`
+
+```bash
+gog schema --json                     # whole CLI (commands, flags, automation)
+gog schema drive ls                   # one command path
+gog schema --json | jq '.automation.exit_codes'
+```
+
+Use it to check that a flag exists before scripting it; `gog <cmd> --help`
+gives the human view.
+
+## Output flags
+
+| Flag | Effect |
+|---|---|
+| `--json` / `-j` | JSON on stdout (best for scripts) |
+| `--plain` / `-p` | stable TSV, no colors |
+| `--results-only` | JSON: emit only the primary result (drops `nextPageToken` etc.) |
+| `--select a,b.c` | JSON: keep only these fields (dot paths) |
+| `--wrap-untrusted` | mark fetched free text as untrusted external content (use before feeding an LLM) |
+| `--fields` | on commands with a Drive/Calendar field mask, trims the response server-side |
+
+`--results-only` and `--select` require `--json`. Data goes to stdout;
+prompts and diagnostics to stderr.
+
+```bash
+gog drive ls --max 20 --fields 'files(id,name,mimeType,modifiedTime),nextPageToken' --json
+gog gmail search 'is:unread' --max 50 --json --results-only --select id,subject
+```
+
+## Safety flags
+
+| Flag | Effect |
+|---|---|
+| `--readonly` | reject mutating API requests at runtime (`GOG_READONLY=1`) |
+| `--gmail-no-send` | block Gmail send operations |
+| `--enable-commands-exact a.b,c.d` | allow only these exact commands (`--enable-commands` = prefixes, `--disable-commands` = deny list) |
+| `--dry-run` / `-n` | print intended actions, change nothing |
+| `--no-input` | never prompt; fail instead (CI/agents) |
+| `--force` / `-y` | skip confirmation on destructive commands |
+
+For agent sessions: `gog --readonly --no-input --wrap-untrusted …`. Always
+`--dry-run` a mutating command and show it to the user before running it.
 
 ## Pagination
 
+There is no NDJSON `--page-all`. Use the command's own flags (verify with
+`gog <cmd> --help`):
+
 ```bash
-# Auto-paginate, emit one JSON object per page (NDJSON)
-gws drive files list --params '{"pageSize":100}' --page-all --page-limit 10 --page-delay 200
-
-# Collect all pages into a single array
-gws drive files list --params '{"pageSize":100}' --page-all | jq -s '[.[].files[]]'
-
-# Manual: use --params pageToken from the previous response
-gws drive files list --params '{"pageSize":100,"pageToken":"TOKEN_FROM_PREV"}'
+gog gmail search 'is:unread' --all --json --results-only      # all pages
+gog drive ls --max 100 --page TOKEN --json                    # manual: --page <nextPageToken>
+gog calendar events --week --all-pages --json
+gog tasks list @default --all --json
 ```
 
-Guard rails: `--page-limit N` caps pages (default 10), `--page-delay MS`
-slows between pages to respect quotas.
+Manual paging: read `nextPageToken` from the (non-`--results-only`) JSON
+envelope and pass it as `--page`. With `gog api call`, pass `pageToken` /
+`pageSize` inside `--params` and loop yourself.
 
-## Field selection (smaller responses)
+## Uploads and downloads
 
-Most list APIs accept `fields` to trim the response server-side:
-
-```bash
-gws drive files list --params '{"pageSize":20,"fields":"files(id,name,mimeType,modifiedTime)"}'
-gws gmail users messages list --params '{"userId":"me","q":"is:unread","maxResults":50,"fields":"messages(id,threadId)"}'
-```
-
-Per-service syntax differs — check `gws schema` → `parameters.fields`.
-
-## Uploads
+Use the first-class commands rather than raw calls:
 
 ```bash
-# Simple upload (auto-detect MIME from extension)
-gws drive files create \
-  --json '{"name":"report.pdf","parents":["FOLDER_ID"]}' \
-  --upload ./report.pdf
-
-# Force content type
-gws drive files create \
-  --json '{"name":"blob.bin"}' \
-  --upload ./blob.bin --upload-content-type application/octet-stream
-```
-
-## Downloads
-
-```bash
-# Export a Google Doc as PDF to a file
-gws drive files export \
-  --params '{"fileId":"DOC_ID","mimeType":"application/pdf"}' \
-  --output ./doc.pdf
-
-# Get binary file
-gws drive files get --params '{"fileId":"FILE_ID","alt":"media"}' --output ./file.bin
+gog drive upload ./report.pdf --parent FOLDER_ID              # upload
+gog drive download DOC_ID --format pdf --out ./doc.pdf        # export a Google Doc
+gog drive download FILE_ID --out ./file.bin                   # binary file
+gog gmail attachment MSG_ID ATT_ID --out ./file.pdf           # Gmail attachment
 ```
 
 ## Exit codes
 
 ```
-0   Success
-1   API error (Google returned an error response)
-2   Auth error (credentials missing / invalid)
-3   Validation (bad arguments or input)
-4   Discovery (could not fetch API schema)
-5   Internal (unexpected failure)
+0    ok                  success
+1    error               generic / unclassified failure
+2    usage               bad syntax, arguments or flags
+3    empty_results       query succeeded with no results (--fail-empty)
+4    auth_required       missing / expired / revoked credentials
+5    not_found           resource does not exist
+6    permission_denied   authenticated but not allowed
+7    rate_limited        quota or rate limit reached
+8    retryable           transient server / network / circuit-breaker failure
+10   config              required local configuration missing
+11   orphaned            Docs comment no longer attached to content
+130  cancelled           interrupted (Ctrl-C)
 ```
 
-Pattern in scripts:
+Branch on the code, not on stderr text:
 
 ```bash
-if ! out=$(gws gmail +send --to a@x.com --subject hi --body hi 2>&1); then
-  code=$?
-  case $code in
-    2) echo "auth — run: gws auth login" ;;
-    1) echo "api — $out" ;;
-    3) echo "validation — $out" ;;
-    *) echo "error $code — $out" ;;
+out=$(gog --no-input --json drive get "$FILE_ID" 2>&1); rc=$?
+if [ $rc -ne 0 ]; then
+  case $rc in
+    4)  echo "auth — run: gog auth doctor" ;;
+    5)  echo "not found" ;;
+    6)  echo "permission denied" ;;
+    7|8) echo "retry later" ;;
+    2)  echo "usage — $out" ;;
+    *)  echo "error — $out" ;;
   esac
-  exit $code
 fi
 ```
 
-## Model Armor sanitization (optional)
-
-If the user's responses need content sanitization (e.g. PII redaction on
-fetched email bodies), pass a Model Armor template:
-
-```bash
-gws gmail users messages get \
-  --params '{"userId":"me","id":"MSG_ID","format":"full"}' \
-  --sanitize projects/PROJECT/locations/LOCATION/templates/TEMPLATE
-```
-
-Env defaults: `GOOGLE_WORKSPACE_CLI_SANITIZE_TEMPLATE` and
-`GOOGLE_WORKSPACE_CLI_SANITIZE_MODE=warn|block`. Requires the
-`cloud-platform` OAuth scope (`gws auth login --full`).
-
-## Minimal service vocabulary
-
-```
-gmail:    users.{labels,messages,threads,drafts,settings,history,watch,stop}
-drive:    {files,permissions,comments,replies,revisions,drives,changes,about}
-sheets:   spreadsheets + spreadsheets.values + spreadsheets.sheets + .developerMetadata
-calendar: {events,calendars,calendarList,acl,freebusy,settings,colors,channels}
-slides:   presentations + presentations.pages
-tasks:    {tasklists,tasks}
-people:   {people,contactGroups,otherContacts}
-chat:     {spaces,spaces.members,spaces.messages,media,users,customEmojis}
-meet:     {spaces,conferenceRecords}
-forms:    forms + forms.responses + forms.watches
-keep:     {notes,media}
-```
-
-For exact resource paths, always check `gws <service> --help`.
+`gog auth list --check --json --no-input` and `gog auth doctor --check --json
+--no-input` verify credentials without side effects.

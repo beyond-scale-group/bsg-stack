@@ -127,7 +127,9 @@ Shipped: <commit-sha-short> → PR #<n> (<url>) — checks skipped
   `git push --delete`.
 - **Never** push to the target/base branch directly.
 - **Never** commit secrets. If detected, warn and exclude them.
-- **Never** merge the PR — that's `/ship_and_merge`'s job.
+- **Never** merge the PR, flip it out of draft, or assign a reviewer —
+  that's `/merge`'s job (or `/ship_and_merge`'s, for the opt-in full
+  auto-merge pipeline).
 - **Never** skip preflight checks silently. If skipping, it must be
   because the user passed `--skip-checks`.
 - PR creation uses `gh pr create`, not the GitHub API directly.

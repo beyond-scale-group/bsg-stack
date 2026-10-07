@@ -25,7 +25,7 @@
 # Exit codes:
 #   0  signature extracted to stdout
 #   1  no sent messages found for the alias / no signature block detected
-#   2  preflight failure (gws/jq missing, auth invalid, bad flag)
+#   2  preflight failure (gog/jq missing, auth invalid, bad flag)
 #
 # Part of the BSG google-workspace skill.
 
@@ -52,18 +52,20 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ---------- preflight ----------
-command -v gws    >/dev/null || { echo "error: gws not installed" >&2; exit 2; }
-command -v jq     >/dev/null || { echo "error: jq not installed (brew install jq)" >&2; exit 2; }
+# shellcheck source=_gog.sh
+source "$(dirname "${BASH_SOURCE[0]}")/_gog.sh"
+( gog_require ) || exit 2
+command -v jq     >/dev/null || { echo "error: jq not installed ($(pkg_hint jq))" >&2; exit 2; }
 command -v base64 >/dev/null || { echo "error: base64 not installed" >&2; exit 2; }
 
-if ! gws auth status 2>/dev/null | jq -e '.token_valid == true' >/dev/null; then
-  echo "error: gws auth invalid — run scripts/auth-login.sh" >&2
+if ! gog_auth_ok; then
+  echo "error: gog auth invalid — run scripts/auth-login.sh" >&2
   exit 2
 fi
 
 # Default alias = primary login.
 if [[ -z "$ALIAS" ]]; then
-  ALIAS=$(gws gmail users getProfile --params '{"userId":"me"}' 2>/dev/null | jq -r '.emailAddress // empty')
+  ALIAS=$(gog_email)
   [[ -n "$ALIAS" ]] || { echo "error: could not resolve primary email" >&2; exit 2; }
   echo "info: defaulting to primary alias: $ALIAS" >&2
 fi
@@ -72,7 +74,7 @@ fi
 if [[ -z "$MESSAGE_ID" ]]; then
   # Look at the 5 most recent sent messages from this alias.
   Q="in:sent from:$ALIAS"
-  LIST=$(gws gmail users messages list --params "$(jq -nc --arg q "$Q" '{userId:"me", q:$q, maxResults:5}')" 2>/dev/null) \
+  LIST=$(gog_api gmail v1 users.messages.list --params "$(jq -nc --arg q "$Q" '{userId:"me", q:$q, maxResults:5}')" 2>/dev/null) \
     || { echo "error: messages.list failed" >&2; exit 1; }
   IDS=$(printf '%s' "$LIST" | jq -r '.messages[]?.id // empty')
   [[ -n "$IDS" ]] || { echo "error: no sent messages found for $ALIAS — send one and retry" >&2; exit 1; }
@@ -92,7 +94,7 @@ extract_html_part() {
 try_one() {
   local mid="$1"
   local msg
-  msg=$(gws gmail users messages get \
+  msg=$(gog_api gmail v1 users.messages.get \
         --params "$(jq -nc --arg id "$mid" '{userId:"me", id:$id, format:"full"}')" 2>/dev/null) \
     || return 1
 

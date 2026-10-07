@@ -145,9 +145,13 @@ if git diff --cached --quiet; then
   git checkout "$original" >/dev/null 2>&1 || true
   exit 0
 fi
-git -c "user.name=${AGENT}" \
-    -c "user.email=${AGENT}@bsg-agents.bot" \
-    commit -m "$title" >/dev/null
+# Commit with the developer's configured git identity. Overriding the
+# author to <agent>@bsg-agents.bot breaks required checks that validate
+# the author email against a GitHub account (e.g. Vercel's commit-author
+# check), leaving report PRs permanently BLOCKED on integrated repos —
+# observed on the-shift.ai (#180–#185) and prizoners (#121–#125).
+# Agent attribution lives in the commit message and PR body instead.
+git commit -m "$title" >/dev/null
 git push -u origin "$branch" >/dev/null 2>&1
 
 # Reuse an existing PR targeting this branch, otherwise open a new one.
@@ -162,7 +166,21 @@ fi
 # doesn't accumulate in `gh pr list --state all` output (#363).
 if ! gh pr merge --auto --squash --delete-branch "$pr_url" >/dev/null 2>&1; then
   echo "open-report-pr.sh: auto-merge not available, merging directly" >&2
-  gh pr merge --squash --delete-branch "$pr_url" >/dev/null
+  # No --delete-branch here: it makes gh also delete the LOCAL branch
+  # and check out the default branch, which fails whenever `main` is
+  # checked out in another worktree — the normal case for worktree-
+  # isolated ticks. Under `set -e` that used to abort the script AFTER
+  # the remote merge had already succeeded, skipping the return to the
+  # original branch, the URL output, and the worktree unlock (#660).
+  # Merge remote-only, verify the outcome, clean the remote ref ourselves.
+  gh pr merge --squash "$pr_url" >/dev/null 2>&1 || true
+  merged_state=$(gh pr view "$pr_url" --json state --jq '.state' 2>/dev/null || echo "UNKNOWN")
+  if [[ "$merged_state" != "MERGED" ]]; then
+    echo "open-report-pr.sh: direct merge failed (state=$merged_state) for $pr_url" >&2
+    git checkout "$original" >/dev/null 2>&1 || true
+    exit 1
+  fi
+  git push origin --delete "$branch" >/dev/null 2>&1 || true
 fi
 
 # Return to the original branch. Fast-forward pull to bring in the
@@ -186,5 +204,10 @@ case "$repo_root" in
     git worktree unlock "$repo_root" >/dev/null 2>&1 || true
     ;;
 esac
+
+# Contract: callers capture the URL — PR_URL=$(bash open-report-pr.sh …).
+# This line was missing since the script's introduction, so every
+# capture came back empty and agents re-derived the URL via gh.
+echo "$pr_url"
 
 echo "$pr_url"

@@ -47,8 +47,8 @@ For a **full audit**, run `generate-report.sh`.
 ## Available scripts
 
 All scripts live in `scripts/` and emit JSON on stdout (except
-`generate-report.sh`, which emits markdown). `collect.sh` is the single
-template fetch; reporters transform it.
+`generate-report.sh` and `init-keywords.sh`, which emit markdown).
+`collect.sh` is the single template fetch; reporters transform it.
 
 | Script                | Purpose                                                                 |
 | --------------------- | ----------------------------------------------------------------------- |
@@ -59,6 +59,7 @@ template fetch; reporters transform it.
 | `technical.sh`        | Sitemap presence + page-coverage diff, robots.txt presence, canonical URL consistency. |
 | `generate-report.sh`  | Collects once, runs every reporter, composes the full markdown audit. Accepts `--prod [url]` to append production checks. |
 | `prod-checks.sh`      | Opt-in. Read-only HTTP probes against the live site (sitemap/robots status, canonical absoluteness, JSON-LD types, OG image reachability, GA4/Pixel presence, pillar-page status, www-vs-apex redirect code). Emits a `## Production checks` markdown section. Always exits 0. |
+| `init-keywords.sh`    | Bootstrap SEO audit target keywords by scanning repo metadata (GitHub topics, package.json keywords), README headings, and `docs/`. Emits `.bsg/KEYWORDS.md` draft to stdout for human review. Part of #237 per-agent `--init` contract. |
 
 **Invocation patterns:**
 
@@ -69,6 +70,12 @@ bash scripts/generate-report.sh > seo/reports/$(date +%F)-audit.md
 # Full audit + production verification
 bash scripts/generate-report.sh --prod https://www.the-shift.ai \
   > seo/reports/$(date +%F)-audit.md
+
+# Bootstrap KEYWORDS.md (new repo onboarding)
+bash scripts/init-keywords.sh > /tmp/keywords-draft.md
+# Review the draft, then commit to .bsg/KEYWORDS.md:
+# cat /tmp/keywords-draft.md > .bsg/KEYWORDS.md
+# git add .bsg/KEYWORDS.md && git commit -m "feat(seo): initialize keyword targets"
 
 # Reuse one snapshot
 bash scripts/collect.sh > /tmp/seo-snap.json
@@ -124,6 +131,44 @@ canonical absoluteness on homepage + 2 sampled internal pages, JSON-LD
 presence, pillar-page status codes, and www-vs-apex redirect (expects
 301). `prod-checks.sh` always exits 0 so a flaky network never aborts
 `tick`.
+
+## Init action
+
+The `--init` action (invoked by `@seo --init` when the BSG task router
+supports it; see #237) scans the current repository for SEO seed signals
+and generates a draft `.bsg/KEYWORDS.md` file ready for human review and
+commitment. Run once at project startup to establish the keyword target
+baseline.
+
+**Signals scanned:**
+
+- **GitHub repo metadata**: Description, topics (via `gh repo view`)
+- **README.md**: H1/H2 headings, first 10 extracted
+- **package.json**: `keywords` field if present
+- **Deduped and sorted** by frequency, limited to ~25 terms
+
+**Output:** Draft `.bsg/KEYWORDS.md` on stdout, seeded with signal
+keywords and ready for editing (deduping, prioritization, hand-authoring
+of domain-specific terms). Opened as PR for human review.
+
+**Example:**
+
+```bash
+# Generate the draft
+bash scripts/init-keywords.sh > /tmp/keywords-draft.md
+
+# Review it
+cat /tmp/keywords-draft.md
+
+# Commit if happy
+mkdir -p .bsg
+cp /tmp/keywords-draft.md .bsg/KEYWORDS.md
+git add .bsg/KEYWORDS.md
+git commit -m "feat(seo): initialize keyword targets from repo signals"
+```
+
+For cross-repo init (via `--repo OWNER/NAME`), the script uses `gh`
+API authentication and adapts its signals accordingly.
 
 ## Tick action
 

@@ -350,11 +350,15 @@ class TestAgentFrontmatter(unittest.TestCase):
     # --------------------------------- tick short-circuit scope (#261)
 
     def test_commit_agents_tick_does_not_short_circuit_phase_b(self) -> None:
-        """output: commit agents must not skip phase (B) on audit short-circuit.
+        """output: commit agents and routers must not full-stop on short-circuit.
 
         The tick-fingerprint short-circuit only means the audit (A) is
         unchanged. Phases (B) implementation pilot and (C) peer review have
-        independent triggers and must always run. See #261.
+        independent triggers and must always run. See #261. The same holds
+        for routing agents (frontmatter carries `delegates-to`): their
+        routing phases (1.4/1.5/A.5) are what change the fingerprint, so a
+        full stop deadlocks the delegation pipeline — an unrouted backlog
+        keeps the fingerprint stable precisely because nothing routes it.
         """
         for path in list_agents():
             with self.subTest(agent=path.stem):
@@ -363,7 +367,8 @@ class TestAgentFrontmatter(unittest.TestCase):
                 self.assertIsNotNone(fm_match)
                 frontmatter = fm_match.group(1)
                 scalars = dict(FRONTMATTER_SCALAR_RE.findall(frontmatter))
-                if scalars.get("output") != "commit":
+                is_router = re.search(r"^delegates-to:", frontmatter, re.M)
+                if scalars.get("output") != "commit" and not is_router:
                     continue
                 tick_body = extract_tick_body(frontmatter)
                 self.assertNotRegex(
@@ -371,8 +376,9 @@ class TestAgentFrontmatter(unittest.TestCase):
                     r"SHORT_CIRCUIT.*and stop",
                     f"{path.relative_to(REPO_ROOT)}: tick field instructs a "
                     f"full stop on audit short-circuit, which blocks phase "
-                    f"(B) implementation pilot from running. The short-circuit "
-                    f"should only skip phases (A) and (A.5). See #261.",
+                    f"(B) implementation pilot / routing from running. The "
+                    f"short-circuit should only skip phases (A) and (A.5) — "
+                    f"for routers, only the status report. See #261.",
                 )
 
     # --------------------------------- adaptive back-off (#363)
@@ -385,8 +391,15 @@ class TestAgentFrontmatter(unittest.TestCase):
         Without it, a no-change tick-all sweep reruns the full audit
         pipeline for every agent on every loop — the primary token-burn
         source identified in E1-tick-hygiene. See #363 and #393.
+
+        po-manager is exempt: the router's routing phases must run on
+        every tick (an idle-stop would deadlock delegation — see the
+        short-circuit-scope test above), and its routing scripts are
+        already cheap no-ops when there is nothing to route.
         """
         for path in list_agents():
+            if path.stem == "po-manager":
+                continue
             with self.subTest(agent=path.stem):
                 text = path.read_text()
                 fm_match = FRONTMATTER_RE.match(text)

@@ -45,8 +45,8 @@ AUTOPILOT_FILE=""$BSG_AUTOPILOT_FILE""
 AUTO_MERGE=false
 
 if [[ -f "$AUTOPILOT_FILE" ]]; then
-  enabled=$(grep -E '^\s*enabled\s*:' "$AUTOPILOT_FILE" 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
-  auto_merge=$(grep -E '^\s*auto_merge\s*:' "$AUTOPILOT_FILE" 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]')
+  enabled=$(grep -E '^\s*enabled\s*:' "$AUTOPILOT_FILE" 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]' || true)
+  auto_merge=$(grep -E '^\s*auto_merge\s*:' "$AUTOPILOT_FILE" 2>/dev/null | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]' || true)
   if [[ "$enabled" == "true" ]] && [[ "$auto_merge" == "true" ]]; then
     if grep -qE "^\s*-\s+$AGENT\s*$" "$AUTOPILOT_FILE" 2>/dev/null; then
       AUTO_MERGE=true

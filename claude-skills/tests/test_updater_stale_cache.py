@@ -10,10 +10,12 @@ Verifies:
    writes the new content and logs "updated".
 3. After a simulated two-step scenario (initial install, upstream changes,
    re-run), the local file reflects the NEW upstream content.
+
+Updated for #692: the updater is split across ``bsg_updater/*.py``, so
+tests import ``bsg_updater.installer`` and patch the boundary it uses.
 """
 
-import importlib.util
-import os
+import sys
 import tempfile
 import types
 import unittest
@@ -21,13 +23,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-def _load_updater() -> types.ModuleType:
-    """Load update-bsg-skills.py as a module without executing main()."""
-    script = Path(__file__).parent.parent / "scripts" / "update-bsg-skills.py"
-    spec = importlib.util.spec_from_file_location("update_bsg_skills", script)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+def _load_installer() -> types.ModuleType:
+    scripts_dir = Path(__file__).resolve().parent.parent / "scripts"
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
+    from bsg_updater import installer  # noqa: WPS433 (deferred import)
+    return installer
 
 
 class TestInstallFileStaleDetection(unittest.TestCase):
@@ -38,7 +39,7 @@ class TestInstallFileStaleDetection(unittest.TestCase):
     """
 
     def setUp(self):
-        self.mod = _load_updater()
+        self.installer = _load_installer()
 
     def test_unchanged_file_logs_unchanged_not_updated(self):
         """
@@ -58,9 +59,9 @@ class TestInstallFileStaleDetection(unittest.TestCase):
 
             # Upstream returns the SAME content (CDN-cached stale response)
             logged: list[str] = []
-            with patch.object(self.mod, "http_get", return_value=existing_content):
-                with patch.object(self.mod, "log", side_effect=logged.append):
-                    result = self.mod.install_file(
+            with patch.object(self.installer, "http_get", return_value=existing_content):
+                with patch.object(self.installer, "log", side_effect=logged.append):
+                    result = self.installer.install_file(
                         "https://example.com/fake",
                         dest,
                         {"agents/tech-lead.md"},  # owned
@@ -96,9 +97,9 @@ class TestInstallFileStaleDetection(unittest.TestCase):
             dest.write_bytes(old_content)
 
             logged: list[str] = []
-            with patch.object(self.mod, "http_get", return_value=new_content):
-                with patch.object(self.mod, "log", side_effect=logged.append):
-                    result = self.mod.install_file(
+            with patch.object(self.installer, "http_get", return_value=new_content):
+                with patch.object(self.installer, "log", side_effect=logged.append):
+                    result = self.installer.install_file(
                         "https://example.com/fake",
                         dest,
                         {"agents/tech-lead.md"},  # owned
@@ -142,9 +143,9 @@ class TestInstallFileStaleDetection(unittest.TestCase):
 
             # Step 2: upstream now returns v2
             logged: list[str] = []
-            with patch.object(self.mod, "http_get", return_value=v2):
-                with patch.object(self.mod, "log", side_effect=logged.append):
-                    result = self.mod.install_file(
+            with patch.object(self.installer, "http_get", return_value=v2):
+                with patch.object(self.installer, "log", side_effect=logged.append):
+                    result = self.installer.install_file(
                         "https://example.com/fake",
                         dest,
                         owned,

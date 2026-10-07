@@ -55,7 +55,13 @@ SOURCE_FILES_JSON=$(git ls-files 2>/dev/null \
 # Emit { file, line, kind, text, age_days } entries.
 TODAY_EPOCH=$(date +%s)
 
-TODOS_JSON=$({ git grep -n -E '(TODO|FIXME|HACK)[:(]' -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs' '*.cjs' '*.py' '*.go' '*.rs' '*.scala' '*.java' '*.kt' '*.rb' '*.md' 2>/dev/null || true; } \
+# Exclude this skill's own dated report output (legacy tech/reports/ and
+# the .bsg/ convention target .bsg/reports/tech/): every report prints a
+# "**Summary:** N markers — TODO: N, FIXME: 0, HACK: 0" line, and without
+# this exclusion each day's report seeds a false-positive match for every
+# following day's scan — a self-inflating debt count that never reflects
+# real code comments (#677).
+TODOS_JSON=$({ git grep -n -E '(TODO|FIXME|HACK)[:(]' -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs' '*.cjs' '*.py' '*.go' '*.rs' '*.scala' '*.java' '*.kt' '*.rb' '*.md' ':!tech/reports/*' ':!.bsg/reports/tech/*' 2>/dev/null || true; } \
   | while IFS=: read -r file line rest; do
       [[ -z "$file" || -z "$line" ]] && continue
       kind=$(echo "$rest" | grep -oE '(TODO|FIXME|HACK)' | head -1)
@@ -77,7 +83,11 @@ TODOS_JSON=$({ git grep -n -E '(TODO|FIXME|HACK)[:(]' -- '*.ts' '*.tsx' '*.js' '
 # -------------------------------------------------------------- ADRs
 
 ADR_DIR=""
-for candidate in "adr" "docs/adr" "architecture" "docs/architecture"; do
+# .bsg/adr is the canonical location per ADR-001 (the .bsg/ directory
+# convention); checked first so repos that migrated off the legacy
+# adr/ / docs/adr/ folders still get indexed instead of reporting a
+# false "no ADR directory found."
+for candidate in ".bsg/adr" "adr" "docs/adr" "architecture" "docs/architecture"; do
   if [[ -d "$candidate" ]]; then
     ADR_DIR="$candidate"; break
   fi

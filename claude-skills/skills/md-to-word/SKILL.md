@@ -36,9 +36,16 @@ bash .claude/skills/md-to-word/scripts/md-to-word.sh <file.md>
 bash .claude/skills/md-to-word/scripts/md-to-word.sh <file.md> --force-template
 # Force a specific cover logo (overrides discovery):
 bash .claude/skills/md-to-word/scripts/md-to-word.sh <file.md> --logo path/to/logo.png
+# Export a PDF alongside the .docx (LibreOffice headless, TOC mis à jour) :
+bash .claude/skills/md-to-word/scripts/md-to-word.sh <file.md> --pdf
 ```
 
-Output `.docx` is written next to the source file.
+Output `.docx` (and `.pdf` if `--pdf`) is written next to the source file.
+
+The `.docx` carries `<w:updateFields w:val="true"/>` in `word/settings.xml`,
+so Word / LibreOffice rebuild the sommaire (TOC) and page numbers automatically
+on open. That includes headless PDF exports (`soffice --convert-to pdf`),
+which is what `--pdf` uses under the hood.
 
 ## Pipeline
 
@@ -46,7 +53,8 @@ Output `.docx` is written next to the source file.
 |------|--------|--------------|
 | 1 | `generate-template.py` | Parses `.bsg/DESIGN.md`, generates `brand/templates/reference.docx` (python-docx) |
 | 2 | pandoc | Converts markdown → docx with `--toc`, `--lua-filter pagebreak.lua`, title metadata |
-| 3 | `post-process.py` | Full-width autofit tables, branded header rows, alternating rows, cell padding, logo before TOC |
+| 3 | `post-process.py` | Full-width autofit tables, branded header rows, alternating rows, cell padding, logo before TOC, `updateFields=true` in settings.xml |
+| 4 (opt) | `soffice --convert-to pdf` | When `--pdf` is passed: headless PDF export. The TOC is rebuilt because step 3 set the `updateFields` flag. |
 
 ## Document title
 
@@ -127,6 +135,9 @@ Margins: 2.5 cm all sides.
 
 - `python3` + `python-docx` (auto-installed if missing)
 - `pandoc` (`brew install pandoc`)
+- `libreoffice` / `soffice` (only required for `--pdf`)
+  - macOS : `brew install --cask libreoffice`
+  - Linux : `apt install libreoffice` (or distribution equivalent)
 
 ---
 

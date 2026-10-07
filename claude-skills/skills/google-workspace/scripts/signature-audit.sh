@@ -18,7 +18,7 @@
 #   0   audit ran; every alias has a non-empty signature
 #   1   audit ran; one or more aliases are missing a signature
 #       OR carry a plain-text signature (no HTML markers)
-#   2   gws / jq / auth missing — could not run the audit
+#   2   gog / jq / auth missing — could not run the audit
 #
 # Pure read — never modifies any alias. Use signature-set.sh to fix gaps.
 #
@@ -56,24 +56,28 @@ case "$FORMAT" in
 esac
 
 # ---------- preflight ----------
-command -v gws >/dev/null || { echo "error: gws not installed (npm install -g @googleworkspace/cli@latest)" >&2; exit 2; }
-command -v jq  >/dev/null || { echo "error: jq not installed (brew install jq)" >&2; exit 2; }
+# shellcheck source=_gog.sh
+source "$(dirname "${BASH_SOURCE[0]}")/_gog.sh"
+command -v jq  >/dev/null || { echo "error: jq not installed ($(pkg_hint jq))" >&2; exit 2; }
+( gog_require ) || exit 2
 
-if ! gws auth status 2>/dev/null | jq -e '.token_valid == true' >/dev/null; then
-  echo "error: gws auth invalid — run scripts/auth-login.sh" >&2
+if ! gog_auth_ok; then
+  echo "error: gog auth invalid — run scripts/auth-login.sh" >&2
   exit 2
 fi
 
 # ---------- fetch sendAs list ----------
-RAW=$(gws gmail users settings sendAs list --params '{"userId":"me"}' 2>/dev/null) \
+RAW=$(gog_api gmail v1 users.settings.sendAs.list --params '{"userId":"me"}' 2>/dev/null) \
   || { echo "error: failed to fetch sendAs list (scope gmail.settings.basic?)" >&2; exit 2; }
+
+ALL_RAW="$RAW"
 
 # Optional filter to a single alias.
 if [[ -n "$FILTER_ALIAS" ]]; then
   RAW=$(printf '%s' "$RAW" | jq --arg a "$FILTER_ALIAS" '{sendAs: [.sendAs[] | select(.sendAsEmail == $a)]}')
   if [[ "$(printf '%s' "$RAW" | jq '.sendAs | length')" == "0" ]]; then
     echo "error: alias not found: $FILTER_ALIAS" >&2
-    echo "hint:  $(gws gmail users settings sendAs list --params '{\"userId\":\"me\"}' | jq -r '.sendAs[].sendAsEmail' | paste -sd, -)" >&2
+    echo "hint:  $(printf '%s' "$ALL_RAW" | jq -r '.sendAs[].sendAsEmail' | paste -sd, -)" >&2
     exit 2
   fi
 fi

@@ -1,0 +1,13 @@
+{
+  "name": "gbrain-clever",
+  "private": true,
+  "description": "Clever Cloud wrapper app for gbrain (Bun runtime)",
+  "scripts": {
+    "start": "bash boot.sh"
+  },
+  "dependencies": {
+    "gbrain": "github:garrytan/gbrain",
+    "postgres": "^3.4.0",
+    "@aws-sdk/client-s3": "^3.1028.0"
+  }
+}

@@ -9,10 +9,10 @@
 #   - Blockquotes get left-border styling
 #   - Sender signature appended via Gmail sendAs API unless --no-signature
 #
-# Pipe the output into gws +send --body "$(email-from-md.sh ...)" --html
-# or use the wrapper: gws gmail +email-from-md --markdown FILE ...
+# Pipe the output into gog: gog gmail send --body-html-file - ...
+# or use the wrapper: email-md-send.sh --markdown FILE ...
 #
-# Requirements: pandoc, gws (google-workspace-cli) for signature fetch
+# Requirements: pandoc, gog (gogcli >= 0.42) for signature fetch
 #
 # Part of the BSG google-workspace skill.
 # Issue: beyond-scale-group/bsg-stack#365
@@ -62,7 +62,7 @@ if [[ ! -f "$MARKDOWN_FILE" ]]; then
 fi
 
 if ! command -v pandoc &>/dev/null; then
-  echo "error: pandoc is required (brew install pandoc)" >&2
+  echo "error: pandoc is required (brew install pandoc | sudo apt-get install -y pandoc)" >&2
   exit 1
 fi
 
@@ -239,18 +239,20 @@ STYLED_HTML=$(printf '%s' "$STYLED_HTML" | sed \
 # ---------- fetch and append signature ----------
 if [[ "$NO_SIGNATURE" == false ]]; then
   SIG=""
-  if command -v gws &>/dev/null && [[ -n "$FROM_ALIAS" ]]; then
-    # Fetch signature for the --from alias via Gmail sendAs API
-    SIG=$(gws gmail users settings sendAs list \
-      --params "{\"userId\":\"me\"}" 2>/dev/null \
-      | jq -r ".sendAs[] | select(.sendAsEmail == \"$FROM_ALIAS\") | .signature // empty" \
-      2>/dev/null || true)
-  elif command -v gws &>/dev/null && [[ -z "$FROM_ALIAS" ]]; then
-    # No --from alias: try the default/primary sendAs entry
-    SIG=$(gws gmail users settings sendAs list \
-      --params '{"userId":"me"}' 2>/dev/null \
-      | jq -r '.sendAs[] | select(.isDefault == true) | .signature // empty' \
-      2>/dev/null || true)
+  # Signature lookup is best-effort: no gog / no auth just means no signature.
+  if command -v "${GOG_BIN:-gog}" &>/dev/null; then
+    # shellcheck source=_gog.sh
+    source "$(dirname "${BASH_SOURCE[0]}")/_gog.sh"
+    ALIASES_JSON=$(gog_api gmail v1 users.settings.sendAs.list --params '{"userId":"me"}' 2>/dev/null || true)
+    if [[ -n "$FROM_ALIAS" ]]; then
+      # Signature of the --from alias via Gmail sendAs API
+      SIG=$(printf '%s' "$ALIASES_JSON" \
+        | jq -r --arg a "$FROM_ALIAS" '.sendAs[]? | select(.sendAsEmail == $a) | .signature // empty' 2>/dev/null || true)
+    else
+      # No --from alias: use the default/primary sendAs entry
+      SIG=$(printf '%s' "$ALIASES_JSON" \
+        | jq -r '.sendAs[]? | select(.isDefault == true) | .signature // empty' 2>/dev/null || true)
+    fi
   fi
 
   if [[ -n "$SIG" ]]; then

@@ -67,12 +67,19 @@ Semantics every `tick` must follow:
      — that detail belongs in the report file.
   3. Contradictory receipts like `PR #94 opened. Nothing to report` — if a PR
      was opened, state what it says; if nothing to report, don't open a PR.
-- **Short-circuit on same-day idempotency.** When today's report for the
-  same agent is already merged and inputs haven't changed, the tick must
-  skip its full aggregation and return `Tick: unchanged — see PR #NN`.
-  Re-running the entire audit pipeline to produce a byte-identical PR is a
-  pure token leak on recurring sweeps. `security` and `pr-comms` already
-  implement this check — other agents should follow.
+- **Short-circuit on same-day idempotency — audit phase only.** When
+  today's report for the same agent is already merged and inputs haven't
+  changed, the tick must skip its audit/report aggregation and return
+  `Tick: unchanged — see PR #NN`. Re-running the entire audit pipeline to
+  produce a byte-identical PR is a pure token leak on recurring sweeps.
+  The short-circuit gates **only** the report: phases with independent
+  triggers — implementation (B), peer review (C), and the PO's routing
+  phases (1.4/1.5/A.5) — must still run. The fingerprint can't see
+  "work exists but was never routed": an unrouted backlog keeps the
+  fingerprint stable precisely because nothing routes it, so a
+  whole-tick stop deadlocks the delegation pipeline. `tech-lead`, `qa`,
+  `seo`, and `po-manager` implement the scoped version — other agents
+  should follow.
 - **Never pause for consent.** A `tick` on an `output: pr` agent must open
   the report PR without asking. If a silence-breaker requires a human
   decision, the report documents it and the PR *is* the consent surface —
@@ -618,6 +625,34 @@ for the full label table and bootstrap commands.
 Inside a skill, deterministic bash + jq scripts do the aggregation and
 computation (counts, risk flags, tree walks). The LLM only narrates the
 results. Agents should never re-derive numbers the scripts already emit.
+
+## Secrets policy — this repo is PUBLIC
+
+Nothing that authenticates ever lands in git. Hard rules for every session
+and every agent working in this repo:
+
+1. **Never commit credentials.** API keys, bearer/admin tokens, OAuth
+   client secrets, connection strings with passwords — none of it, in any
+   file, ever. This includes "test" keys.
+2. **Committed config references secrets by env expansion only** —
+   `${VAR}` placeholders (e.g. `.mcp.json` uses `${GBRAIN_MCP_TOKEN}`) or
+   runtime environment (Clever Cloud app env vars). Never literals.
+3. **Local-only files that hold real values** (all verified git-ignored —
+   never `git add -f` them):
+   - `deploy/gbrain/gbrain.env` — installer input keys
+     (`deploy/gbrain/.gitignore`)
+   - `.claude/settings.local.json` — session env like MCP tokens
+     (`.gitignore` ignores `.claude/`)
+   - `.mcp.json` — kept out via `.git/info/exclude` (personal endpoints
+     don't belong in a public repo)
+4. **Scan before you ship.** Before any commit/PR that adds or edits
+   config, scripts, or docs, run a secret-pattern scan over every
+   new/modified file (`git status --porcelain -uall` + grep for key
+   shapes: `sk-`, `ze_`, `sk-ant-`, 64-hex tokens, `Bearer …`) — or run
+   the `security` agent. A match blocks the commit until resolved.
+5. **If a credential ever reaches a commit**, treat it as burned: rotate
+   it at the provider first, then rewrite/drop the commit — deleting the
+   file in a follow-up commit is not remediation.
 
 ## Contributing to the shared catalog
 

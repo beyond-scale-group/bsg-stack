@@ -1,34 +1,34 @@
 ---
 name: google-workspace
 description: >-
-  Official Google Workspace CLI (`gws` from github.com/googleworkspace/cli)
-  for Gmail, Calendar, Drive, Sheets, Slides, Tasks, People, Chat, Meet,
-  Forms, Keep, Classroom, plus cross-service workflow helpers. **This skill
-  should be used proactively**: invoke it automatically whenever the
-  conversation involves any Google Workspace action — do NOT run `gws`
-  commands directly without going through this skill first. Use whenever
-  the user works with Google Workspace from their own account — send/read/
-  triage email, list/schedule/search calendar events, search/upload/share
-  Drive files, read/append Sheets, create Slides, manage Tasks or Contacts,
-  post in Chat, fetch Meet records, read/write Forms, or run
-  `+standup-report`, `+meeting-prep`, `+email-to-task`, `+weekly-digest`,
-  `+file-announce`. Triggers include "send an email", "check my inbox",
-  "triage gmail", "what's on my calendar", "next meeting", "find a Drive
-  file", "upload to Drive", "read this sheet", "post in Chat", "today's
-  standup", "weekly digest", "envoyer un mail", "agenda du jour",
+  Google Workspace via the `gog` CLI (gogcli >= 0.42, github.com/openclaw/gogcli)
+  for Gmail, Calendar, Drive, Sheets, Slides, Docs, Tasks, Contacts/People,
+  Chat, Meet and Forms, with a Discovery-backed raw-API escape hatch
+  (`gog api call`) and native multi-account. **This skill should be used
+  proactively**: invoke it automatically whenever the conversation involves
+  any Google Workspace action — do NOT run `gog` commands directly without
+  going through this skill first. Use whenever the user works with Google
+  Workspace from their own account — send/read/triage email, list/schedule/
+  search calendar events, search/upload/share Drive files, read/append
+  Sheets, create Slides, manage Tasks or Contacts, post in Chat, fetch Meet
+  records, read/write Forms, or build a standup / meeting-prep / weekly
+  digest from Gmail + Calendar + Tasks. Triggers include "send an email",
+  "check my inbox", "triage gmail", "what's on my calendar", "next meeting",
+  "find a Drive file", "upload to Drive", "read this sheet", "post in Chat",
+  "today's standup", "weekly digest", "envoyer un mail", "agenda du jour",
   "prochaine réunion", "Google Workspace", "créer un brouillon",
   "draft an email", "brouillon gmail", "envoie un mail". Not for Admin
-  SDK / user provisioning — use the `workspace-admin` skill instead.
+  SDK / user provisioning beyond what `gog admin` exposes.
 model: sonnet
 ---
 
-# Google Workspace (`gws`)
+# Google Workspace (`gog`)
 
 ## Mandatory: always invoke this skill — never bypass it
 
 **This skill must be invoked for ANY Google Workspace interaction.** Do not
-run `gws` commands directly, even if you know the syntax. The skill handles
-preflight checks (auth, version), picks the right script or helper, applies
+run `gog` commands directly, even if you know the syntax. The skill handles
+preflight checks (auth, version), picks the right script or command, applies
 safety rules (confirm before send), and uses the correct alias + signature.
 
 **Auto-invoke when the conversation contains any of these intents:**
@@ -41,26 +41,28 @@ safety rules (confirm before send), and uses the correct alias + signature.
 - Markdown files in `assets/` that look like email drafts (frontmatter with
   `De:`, `À:`, `Objet:` or `From:`, `To:`, `Subject:`)
 
-**Common mistake to avoid:** seeing that `gws` commands are documented in
+**Common mistake to avoid:** seeing that `gog` commands are documented in
 this skill, then running them directly without invoking the skill. The skill
 exists to orchestrate — not just to document. When in doubt, invoke.
 
 ---
 
-The official Google Workspace CLI. Every Workspace API is reachable via a
-uniform pattern, plus curated `+` helpers for the 90% of common tasks.
+`gog` is a Google Workspace CLI with curated, human-readable commands for
+the common 90% of tasks, `--json` / `--plain` output for scripts, layered
+safety flags, and a Discovery-backed `gog api call` for everything else.
 
-Binary: `/opt/homebrew/bin/gws` (npm package `@googleworkspace/cli`,
-installed globally — upgrade with `npm install -g @googleworkspace/cli@latest`).
-This CLI evolves fast — **never assume memorized flags**, verify with
-`gws <svc> --help` or `gws schema <svc.res.method>` before scripting.
-
-For Admin SDK (user provisioning on `the-shift.ai`), use the separate
-`workspace-admin` skill — `gws` doesn't cover Admin APIs.
+Install: `brew install openclaw/tap/gogcli` on macOS, or
+`bash scripts/install-gog.sh` on Linux / hosts without Homebrew (downloads the
+checksum-verified release binary into `~/.local/bin`; `onboard.sh` runs it
+automatically) (**>= 0.42.0** — the scripts
+refuse older versions). Upgrade with `brew upgrade openclaw/tap/gogcli`.
+The CLI moves fast — **never assume memorized flags**, verify with
+`gog <group> --help`, `gog help <command>` or `gog schema --json` before
+scripting.
 
 ## First-time setup → `scripts/onboard.sh`
 
-If the user has never run `gws` on this machine — no binary, no OAuth
+If the user has never run `gog` on this machine — no binary, no OAuth
 client, no consent-screen scopes registered, no Chat app — point them at
 the orchestrator:
 
@@ -72,7 +74,8 @@ It walks 7 idempotent steps (prereqs → enable APIs → OAuth client →
 consent-screen scopes → Chat app → login → smoke tests). Steps that
 require GCP Console interaction print the exact URL + checklist and
 pause. Re-run a single step with `--step <name>` (`prereqs`, `apis`,
-`oauth`, `scopes`, `chat-app`, `login`, `smoke`).
+`oauth`, `scopes`, `chat-app`, `login`, `smoke`). `gog auth setup` can
+also prepare the GCP project/APIs and install the OAuth client for you.
 
 ⚠ **GCP Console always demands passkey re-authentication**, even with a
 saved browser session. Plan to authenticate once and run the manual
@@ -84,7 +87,7 @@ Browser automation for the GCP Console steps is available via the
 
 ## Daily health check → `scripts/doctor.sh`
 
-For sessions where `gws` is already configured, the doctor is the
+For sessions where `gog` is already configured, the doctor is the
 fast read-only check:
 
 ```bash
@@ -93,51 +96,43 @@ bash scripts/doctor.sh --quiet   # exit codes only, silent on green
 ```
 
 Exits `0` (healthy), `1` (warnings — e.g. outdated version), or `2` (auth
-or service failing). Auto-repairs missing scopes by re-running
-`auth-login.sh` and re-checking — only escalates to manual if the scope
-is missing from the consent-screen registration.
+or service failing). It verifies the refresh token (`gog auth doctor
+--check`), audits which services the active account has granted, and
+auto-repairs missing services by re-running `auth-login.sh` — only
+escalating to manual if the scope is missing from the consent-screen
+registration.
 
-## Multi-account → `scripts/gws-switch.sh`
+## Multi-account → native `gog` accounts
 
-`gws` only authenticates one account at a time (credentials live under
-`$GOOGLE_WORKSPACE_CLI_CONFIG_DIR`, default `~/.config/gws`). For
-agents juggling a personal account + several client accounts, the switch
-script wraps a per-profile config-dir pattern so toggling between them
-is a single command — no re-auth, no browser re-consent.
+`gog` keeps several accounts (and several OAuth clients) side by side in
+the OS keyring — no profile directories to swap. Add accounts once, then
+pick one per command:
 
 ```bash
-# Create a profile (one-time browser consent, scoped to its own dir):
-bash scripts/gws-switch.sh init prizoners
-bash scripts/gws-switch.sh init client-acme --readonly
+# Authorize an account (BSG service set; opens the browser once):
+bash scripts/auth-login.sh you@company.com
+bash scripts/auth-login.sh client@acme.com --readonly
 
 # Inspect:
-bash scripts/gws-switch.sh list      # PROFILE | EMAIL | DIR
-bash scripts/gws-switch.sh whoami    # current profile + bound email
+gog auth list --check          # accounts, granted services, token validity
+gog auth status                # default account, client, keyring backend
 
-# Activate in the current shell (needs eval because env exports don't
-# survive a child bash):
-eval "$(bash scripts/gws-switch.sh use prizoners)"
-eval "$(bash scripts/gws-switch.sh use default)"
+# Friendly names, then use them:
+gog auth alias set work you@company.com
+gog --account work gmail search 'is:unread'
 
-# Cleaner UX — install the shell function once, then `gws-switch X`:
-bash scripts/gws-switch.sh install >> ~/.zshrc.user
-source ~/.zshrc.user
-gws-switch prizoners                 # → active
-gws-switch default                   # → back to ~/.config/gws
-gws-switch list
+# Or pin one for the shell / session:
+export GOG_ACCOUNT=work
 
-# Remove a profile when the engagement ends:
-bash scripts/gws-switch.sh remove client-acme --yes
+# A second OAuth client (another GCP project) per account:
+gog auth credentials set ~/Downloads/client_secret_other.json --client other
+gog --client other --account you@other.com drive ls
 ```
 
-After `gws-switch.sh install`, every subsequent terminal can toggle
-between accounts with a single word. Token caches stay alive across
-switches — only the *first* auth on a profile requires the browser.
-
-⚠ Each profile carries its **own** OAuth tokens and scope set. Running
-`doctor.sh` or `signature-audit.sh` operates against whichever profile
-is active in the current shell — be explicit about which account you're
-auditing in any human-facing report.
+Precedence is `--account` > `GOG_ACCOUNT` > gog's default account. Each
+account carries **its own** tokens and granted services. `doctor.sh` and
+`signature-audit.sh` run against whichever account is active — set
+`GOG_ACCOUNT` explicitly and name the account in any human-facing report.
 
 ## Gmail audit → aliases & signatures
 
@@ -150,7 +145,7 @@ and was never copied into the sendAs settings.
 |---|---|---|
 | `scripts/signature-audit.sh`   | List every sendAs alias + signature status | no |
 | `scripts/signature-extract.sh` | Pull the HTML signature out of a recent sent email | no |
-| `scripts/signature-set.sh`     | Patch the signature on a sendAs alias | **yes** |
+| `scripts/signature-set.sh`     | Update the signature on a sendAs alias (`gog gmail settings sendas update`) | **yes** |
 | `scripts/email-md-send.sh`     | Markdown → styled HTML body + alias signature → draft/send | yes |
 
 Run the audit first (read-only, never modifies anything):
@@ -186,7 +181,7 @@ bash scripts/signature-extract.sh --alias me@old.com \
 ```
 
 `signature-set.sh` always shows a text-only preview and asks for
-confirmation before patching. Pass `--dry-run` to render the JSON body
+confirmation before updating. Pass `--dry-run` to print the gog command
 without calling Google, or `--yes` to skip the prompt in scripted
 flows.
 
@@ -194,8 +189,8 @@ flows.
 > `signature-extract.sh` reads the gmail web composer's
 > `<div class="gmail_signature">` wrapper out of recent sent
 > messages — only present on emails sent from the Gmail web UI (or
-> mobile app). API-sent messages (including those from `gws gmail
-> +send`) don't carry that wrapper. If extract fails, ask the user to
+> mobile app). API-sent messages (including those from `gog gmail
+> send`) don't carry that wrapper. If extract fails, ask the user to
 > compose & send one email from each alias in Gmail web first, then
 > re-run.
 
@@ -204,8 +199,8 @@ flows.
 When the user wants to "turn this markdown into a real email", route to
 `scripts/email-md-send.sh`. It composes `email-from-md.sh` (markdown
 → Gmail-ready HTML with table/blockquote inline CSS + alias signature
-auto-appended) with `gws gmail +send`, validating the alias along the
-way:
+auto-appended) with `gog gmail send` / `gog gmail drafts create`, validating the alias
+along the way:
 
 ```bash
 # Default: render to draft so the user can review in Gmail
@@ -230,8 +225,8 @@ The wrapper:
 3. Renders markdown → styled HTML via `email-from-md.sh`
 4. Defaults to **`--draft`** for safety; only delivers when `--send` is
    explicitly passed (and asks for confirmation unless `--yes`)
-5. Falls back to the raw API path automatically when `--reply-to` is set
-   (the `+send` helper doesn't expose that header)
+5. Passes `--reply-to` straight through — both `gog gmail send` and
+   `drafts create` support the header natively
 
 ### Markdown elements that survive the pipeline
 
@@ -285,173 +280,157 @@ What **does not** survive cleanly:
   pandoc passes them through but they receive no inline CSS, so any
   `<style>` they rely on will be dropped by Gmail.
 
+
 ## Preflight (run first, every session)
 
-Before issuing any `gws` command, run these three checks once per session.
-They are cheap, catch the common failure modes up front, and take under a
-second:
+Before issuing any `gog` command, run these checks once per session.
+They are cheap and catch the common failure modes up front:
 
 ```bash
-# 1. Binary present + version (installed via npm, not Homebrew)
-command -v gws >/dev/null || { echo "gws not installed: npm install -g @googleworkspace/cli@latest"; exit 1; }
-INSTALLED=$(gws --version | head -1 | awk '{print $2}')
-
-# 2. Up-to-date? (soft check — warn, don't block)
-LATEST=$(npm view @googleworkspace/cli version 2>/dev/null || echo "")
-[ -n "$LATEST" ] && [ "$INSTALLED" != "$LATEST" ] && \
-  echo "⚠ gws $INSTALLED installed, $LATEST available → npm install -g @googleworkspace/cli@latest"
-
-# 3. Auth valid? stdout=JSON, stderr=keyring chatter (discarded).
-#    v0.22+ rejects --format json; the command emits JSON unconditionally.
-gws auth status 2>/dev/null \
-  | jq -e '.token_valid == true and .encrypted_credentials_exists == true' >/dev/null \
-  || { echo "⚠ gws auth invalid — running the auth helper…"; \
-       bash "$(dirname "$0")/scripts/auth-login.sh"; }
+source scripts/_gog.sh
+gog_require            # binary present and >= 0.42 (exit 3 otherwise)
+gog_auth_ok || bash scripts/auth-login.sh "$(gog_account)"   # refresh token usable?
+# or the full report:
+gog auth doctor --check --json --no-input
 ```
 
 If any check fails, surface it to the user **before** attempting the task:
 
-- **Binary missing** → `npm install -g @googleworkspace/cli@latest`
-- **Outdated** → warn, but continue; suggest the upgrade command.
-  APIs and flags change — if a flag behaves unexpectedly, re-check
-  `gws <svc> --help` against the user's installed version.
-- **Auth invalid / `invalid_rapt`** → run **[`scripts/auth-login.sh`](scripts/auth-login.sh)**.
-  It starts `gws auth login`, extracts the OAuth URL from stdout, opens
-  it in Google Chrome (or the OS default browser as fallback), waits
-  for the callback, and verifies `token_valid == true` before exiting.
+- **Binary missing / too old** → `brew install openclaw/tap/gogcli` or
+  `brew upgrade openclaw/tap/gogcli`.
+- **Outdated but >= 0.42** → warn, continue; if a flag behaves
+  unexpectedly, re-check `gog <group> --help` for the installed version.
+- **Auth invalid / exit code 4 / `invalid_grant` / `invalid_rapt`** →
+  run **[`scripts/auth-login.sh`](scripts/auth-login.sh)**` <email>`. It wraps
+  `gog auth add`, requests the BSG service set (gmail, calendar, drive,
+  docs, sheets, slides, contacts, tasks, chat, forms, meet, people) with
+  `--force-consent`, verifies the token, and lists which services Google
+  actually granted (the consent screen lets the user untick some).
 
-  **Defaults to a curated 15-scope list** covering every Workspace API
-  the skill exercises (Drive, Sheets, Gmail, Calendar, Docs, Slides,
-  Tasks, Chat, Contacts, Directory, Forms, Meet, OpenID). Picking
-  scopes explicitly — instead of `--full` — surfaces the silent drops
-  Google performs when a scope isn't registered on the consent screen.
-
-  ⚠ Even the curated list does **not** fix:
+  ⚠ Even a full grant does **not** fix:
     - `403 Caller does not have required permission to use project …`
       → that's a **GCP IAM** problem; see the "403 on Drive/Tasks/Chat/People"
       section below.
-    - `404 Google Chat app not found` on `gws chat *`
+    - `404 Google Chat app not found` on `gog chat *`
       → Chat needs the GCP project to have a registered Chat app
       configuration; see the "Chat API" section below or run
       `bash scripts/onboard.sh --step chat-app`.
 
-  Override when you want narrower or wider scopes:
+  Override when you want narrower or wider access:
   ```
-  bash scripts/auth-login.sh --readonly
-  bash scripts/auth-login.sh --services gmail,calendar,drive
-  bash scripts/auth-login.sh --scopes https://www.googleapis.com/auth/drive.readonly
-  bash scripts/auth-login.sh --full   # everything gws knows about
+  bash scripts/auth-login.sh you@x.com --readonly
+  bash scripts/auth-login.sh you@x.com --services gmail,calendar,drive
+  bash scripts/auth-login.sh you@x.com --gmail-scope send      # least privilege: send only
+  bash scripts/auth-login.sh you@x.com --manual                # headless: paste the redirect URL
   ```
-  **Always prefer this helper over bare `gws auth login`** — it saves
-  the user a copy/paste step, opens Chrome, and confirms success.
+  **Always prefer this helper over bare `gog auth add`** — it verifies
+  success and reports dropped services.
 
 ### Stay current with the tool's shape
 
-`gws` adds services, helpers, and flags often. When in doubt, **prefer
-discovery over memory** — in this order:
+`gog` adds services and flags often. When in doubt, **prefer discovery
+over memory** — in this order:
 
-1. **Live help from the installed binary** (fastest, always right for *this* machine):
+1. **Live help from the installed binary** (always right for *this* machine):
    ```bash
-   gws --help                         # top-level services
-   gws <service> --help               # resources + helpers for a service
-   gws <service> <resource> --help    # methods on a resource
-   gws schema <service.resource.method> [--resolve-refs]   # full params/body
+   gog --help                          # top-level groups
+   gog <group> --help                  # subcommands
+   gog help <group> <command>          # flags for one command
+   gog schema --json                   # whole command tree, flags, exit codes
+   gog schema gmail search --json      # one command
+   gog api list                        # Google APIs reachable through Discovery
+   gog api describe gmail v1           # methods of one API
    ```
 
-2. **Context7 for the latest upstream docs** (recent README, new helpers,
-   release notes — ahead of the installed binary if it's out of date):
-   ```
-   Library ID: /googleworkspace/cli
-   Use the mcp__context7__query-docs tool with that library ID and a
-   specific question, e.g. "How do I send a Gmail message with an
-   attachment?" or "What's the new syntax for drive files list --page-all?"
-   ```
-   Call context7 whenever:
-   - a command errors with "unknown flag" or unexpected output
-   - the user asks about a feature not documented here
-   - the installed `gws` version is lower than the latest Homebrew version
-   - you need examples beyond the `--help` text
+2. **Context7 / upstream docs** for anything newer than the installed
+   binary: the repo is `openclaw/gogcli` (docs under `docs/`, generated
+   command reference under `docs/commands/`). Use the
+   `mcp__context7__resolve-library-id` tool to find it, then
+   `query-docs` with a specific question. Call it whenever a command errors
+   with "unknown flag", the user asks about a feature not documented here,
+   or the installed version is behind the latest release.
 
 3. **This skill's reference files** — stable baseline patterns, but may
    lag behind the upstream CLI. Treat as the starting point, not the
    source of truth.
 
-This skill documents v0.16.0 patterns. If the installed version is newer,
-trust the live `--help` output and context7 over this document, and
-mention any drift to the user.
+This skill targets gog **0.42**. If the installed version is newer, trust
+the live `--help` output over this document and mention any drift to the
+user.
 
 ## Decision tree
 
 ```
 First-time setup?  → bash scripts/onboard.sh         §First-time setup
 Health check?      → bash scripts/doctor.sh          §Daily health check
-Switch accounts?   → bash scripts/gws-switch.sh      §Multi-account
+Another account?   → gog auth add / --account        §Multi-account
 Audit aliases?     → bash scripts/signature-audit.sh §Gmail audit
 Set a signature?   → bash scripts/signature-set.sh   §Gmail audit
 Markdown → email?  → bash scripts/email-md-send.sh   §Markdown email
 CRM email asset?   → bash scripts/email-md-send.sh   §Markdown email
   (any .md in crm/*/assets/ with De:/À:/Objet: frontmatter)
-Common task?       → use a +helper (prefer)          §Helpers
-Raw API call?      → gws <svc> <res> <method>        §Raw API
-Cross-service?     → gws workflow +<name>            §Workflow
-Unknown schema?    → gws schema <svc.res.method> references/raw-api.md
+Common task?       → first-class gog command         §Fast path
+Cross-service?     → recipe in references/workflows.md
+Raw API call?      → gog api call <api> <ver> <method>  §Raw API
+Unknown command?   → gog schema --json | gog help <cmd>
 ```
 
-Default to `+helpers` before raw API calls. They handle tedious encoding
-(RFC 2822 for Gmail, RFC 3339 for Calendar, A1 for Sheets, multipart for
-Drive, space resolution for Chat).
+Default to first-class commands before `gog api call`. They handle the
+tedious encoding (RFC 2822 for Gmail, RFC 3339 for Calendar, A1 for
+Sheets, multipart for Drive, space resolution for Chat).
 
-## Helpers — the fast path
+## Fast path — first-class commands
 
-Full flags in [references/helpers.md](references/helpers.md).
+Cross-service recipes (triage, standup, meeting prep, weekly digest,
+email → task, file announce) are in
+[references/workflows.md](references/workflows.md).
 
-| Service | Helpers |
+| Service | Start with |
 |---|---|
-| `gmail` | `+send`, `+triage`, `+reply`, `+reply-all`, `+forward`, `+watch` |
-| `calendar` | `+insert`, `+agenda` (`--today` / `--tomorrow` / `--week` / `--days N`) |
-| `drive` | `+upload` |
-| `sheets` | `+read`, `+append` |
-| `chat` | `+send` |
-| `workflow` | `+standup-report`, `+meeting-prep`, `+email-to-task`, `+weekly-digest`, `+file-announce` |
+| Gmail | `gog gmail search`, `messages search --include-body`, `get`, `thread get`, `send`, `drafts create`, `labels`, `settings sendas` |
+| Calendar | `gog calendar events --today\|--tomorrow\|--week\|--days N`, `create`, `update`, `freebusy`, `respond` |
+| Drive | `gog drive ls`, `search`, `download`, `upload`, `mkdir`, `share`, `permissions` |
+| Sheets | `gog sheets get`, `update`, `append`, `clear`, `create`, `export` |
+| Docs / Slides / Forms | `gog docs cat\|info\|export`, `gog slides info\|export`, `gog forms get\|create\|responses list` |
+| Tasks / Contacts | `gog tasks lists list`, `tasks list <listId>`, `tasks add`, `gog contacts search`, `people me` |
+| Chat / Meet | `gog chat spaces list`, `chat messages send`, `gog meet create\|get\|history` |
 
 Quick taste:
 
 ```bash
-gws gmail +triage --max 10 --format table
-gws gmail +send --to alice@x.com --subject 'Ping' \
-  --body '<p>Hi Alice!</p>' --html
-gws calendar +agenda --today --format table
-gws calendar +insert --summary 'Review' \
-  --start '2026-04-17T10:00:00+02:00' --end '2026-04-17T10:30:00+02:00' \
-  --attendee alice@x.com
-gws drive +upload ./report.pdf --parent FOLDER_ID --name 'Q1 Report.pdf'
-gws sheets +read --spreadsheet $ID --range 'Sheet1!A1:D10' --format csv
-gws sheets +append --spreadsheet $ID --json-values '[["Alice",100,true]]'
-gws chat +send --space spaces/AAAAxxxx --text 'Deploy done ✅'
-gws workflow +standup-report --format table
+gog gmail search 'is:unread newer_than:7d' --max 10
+gog calendar events --today
+gog calendar create primary --summary 'Review' \
+  --from '2026-04-17T10:00:00+02:00' --to '2026-04-17T10:30:00+02:00' \
+  --attendees alice@x.com --with-meet
+gog drive upload ./report.pdf --parent FOLDER_ID --name 'Q1 Report.pdf'
+gog sheets get $ID 'Sheet1!A1:D10' --plain
+gog sheets append $ID 'Sheet1!A1' --values-json '[["Alice",100,true]]'
+gog chat messages send spaces/AAAAxxxx --text 'Deploy done ✅'
 ```
 
 ## Raw API — everything else
 
-Pattern: `gws <service> <resource> [sub-resource] <method> [--params JSON] [--json BODY]`
+Two escape hatches, both returning Google's canonical JSON:
 
 ```bash
-gws gmail users messages list --params '{"userId":"me","q":"is:unread newer_than:7d","maxResults":10}'
-gws drive files list --params '{"q":"mimeType=\"application/pdf\" and trashed=false","pageSize":20,"fields":"files(id,name,modifiedTime)"}'
-gws sheets spreadsheets values get --params '{"spreadsheetId":"ID","range":"Sheet1!A1:D10"}'
-gws calendar events list --params '{"calendarId":"primary","timeMin":"2026-04-16T00:00:00Z","singleEvents":true,"orderBy":"startTime"}'
+# Any method of any Discovery API (writes need --allow-write --force):
+gog api describe gmail v1                          # list methods
+gog api call gmail v1 users.messages.list \
+  --params '{"userId":"me","q":"is:unread newer_than:7d","maxResults":10}' --json
+gog api call drive v3 files.list \
+  --params '{"q":"mimeType=\"application/pdf\" and trashed=false","pageSize":20,"fields":"files(id,name,modifiedTime)"}' --json
+gog api call sheets v4 spreadsheets.values.get \
+  --params '{"spreadsheetId":"ID","range":"Sheet1!A1:D10"}' --json
+
+# Lossless dump of one object (Gmail message, Drive file, Doc, Sheet, event…):
+gog gmail raw <messageId> --format full --json
+gog docs raw <docId> --all-tabs --json
 ```
 
-Discover any method's params **first**:
-
-```bash
-gws schema gmail.users.messages.list
-gws schema drive.files.create --resolve-refs
-```
-
-See [references/raw-api.md](references/raw-api.md) for pagination
-(`--page-all`, `--page-limit`), uploads (`--upload`, `--upload-content-type`),
-binary downloads (`--output`), formats, and exit codes.
+Preview any mutation with `--dry-run` first. See
+[references/raw-api.md](references/raw-api.md) for pagination, field masks,
+`--select` / `--results-only`, exit codes and the safety flags.
 
 ## Service-specific knowledge
 
@@ -461,35 +440,36 @@ Load only the file for the service being used:
 - [references/calendar.md](references/calendar.md) — RFC3339 time formats, recurrence, free/busy, calendar IDs vs names
 - [references/drive.md](references/drive.md) — Drive query language, MIME types, sharing/permissions, shared drives
 - [references/sheets.md](references/sheets.md) — A1 notation, `valueInputOption`, batchUpdate patterns
+- [references/workflows.md](references/workflows.md) — triage, standup, meeting prep, weekly digest and other multi-command workflows
 - [references/recipes.md](references/recipes.md) — cross-service multi-step recipes
 
-For Slides, Docs, Tasks, People, Chat, Meet, Keep, Forms, Classroom:
-discover via `gws <svc> --help` and `gws schema <svc.res.method>`.
+For Slides, Docs, Tasks, People, Chat, Meet, Forms, Classroom:
+discover via `gog <group> --help`, `gog help <group> <cmd>` and
+`gog api describe`.
 
 ## Agent-friendly conventions
 
-- **`--html` on all emails** — always pass `--html` to `gws gmail +send`
-  (both send and `--draft`). Compose the `--body` as HTML (`<p>`, `<a>`,
-  `<img>`, `<strong>`). HTML renders clickable links, inline images, and
-  proper formatting. Plain text looks broken in modern email clients.
-- **Auto-append the signature on direct `+send` / `+send --draft`** —
-  Gmail's web composer auto-adds the account signature; a direct
-  `gws gmail +send` does **not**. When you compose an HTML body yourself
-  (i.e. *not* going through `email-md-send.sh`, which already appends it),
-  fetch the default sendAs signature and append it after the body so
-  drafts and sent mail match what the user sees in Gmail web:
+- **Send HTML email** — pass the body as HTML (`--body-html` /
+  `--body-html-file -`; `--body` alone is plain text). HTML renders
+  clickable links, inline images, and proper formatting.
+- **Auto-append the signature on direct sends/drafts** — Gmail's web
+  composer auto-adds the account signature; the API does **not**.
+  `gog gmail send` can do it for you: `--signature` (active send-as),
+  `--signature-from <alias>` or `--signature-file`. `drafts create` has no
+  such flag, so for drafts (or any HTML you compose yourself — i.e. *not*
+  going through `email-md-send.sh`, which already appends it) fetch the
+  default sendAs signature and append it after the body:
 
   ```bash
-  SIG=$(gws gmail users settings sendAs list --params '{"userId":"me"}' \
+  SIG=$(gog api call gmail v1 users.settings.sendAs.list --params '{"userId":"me"}' --json \
     | jq -r '.sendAs[] | select(.isDefault==true) | .signature // empty')
   BODY='<p>Hi Alice!</p>'
   [ -n "$SIG" ] && BODY="${BODY}<br><br>${SIG}"
-  gws gmail +send --to alice@x.com --subject 'Ping' --body "$BODY" --html --draft
+  gog gmail drafts create --to alice@x.com --subject 'Ping' --body-html "$BODY"
   ```
 
   Rules:
-  - Only when `--html` is used; skip silently when the signature is
-    empty/`null` (no separator added).
+  - Skip silently when the signature is empty/`null` (no separator added).
   - Fetch once per session and reuse — it doesn't change mid-task.
   - Honour an explicit **`--no-signature`** intent from the user (e.g.
     "send without signature"): skip the fetch/append entirely. Same
@@ -498,49 +478,56 @@ discover via `gws <svc> --help` and `gws schema <svc.res.method>`.
     already does this — do **not** double-append when routing through it.
 - **`--dry-run`** validates the request locally without calling Google. Use
   it to verify shape before any mutating call.
-- **`--format json`** (default) for parsing; `--format table` for humans;
-  `--format csv` for spreadsheet paste; `--format yaml` for diffs.
-- **`--page-all`** emits NDJSON (one JSON object per page). Pipe to `jq -s`
-  for a single array. Limit with `--page-limit N --page-delay MS`.
-- **Exit codes** (check `$?`):
-  - `0` ok · `1` API error · `2` auth · `3` validation ·
-  - `4` discovery · `5` internal.
-- **Environment overrides**:
-  - `GOOGLE_WORKSPACE_CLI_TOKEN` — pre-obtained access token (highest priority)
-  - `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` — alt config dir (default `~/.config/gws`)
-  - `GOOGLE_WORKSPACE_PROJECT_ID` — alt GCP project for quota/billing
-  - `GOOGLE_WORKSPACE_CLI_SANITIZE_TEMPLATE` / `_MODE` — Model Armor defaults
+- **Output**: `--json` for parsing (`--results-only` unwraps the primary
+  result, `--select a,b.c` projects fields); `--plain` for stable TSV;
+  default is human-readable. Prompts and progress go to stderr, data to
+  stdout. Use `--no-input` in scripts so nothing blocks on a prompt.
+- **Untrusted content**: add `--wrap-untrusted` when fetched mail/doc text
+  will be pasted into an LLM context.
+- **Exit codes** (branch on `$?`, not on error text):
+  `0` ok · `1` error · `2` usage · `3` empty results · `4` auth required ·
+  `5` not found · `6` permission denied · `7` rate limited · `8` retryable ·
+  `10` config missing · `11` orphaned comment · `130` cancelled.
+- **Environment**: `GOG_ACCOUNT` (default account/alias), `GOG_CLIENT`,
+  `GOG_JSON`, `GOG_PLAIN`, `GOG_READONLY=1`, `GOG_ENABLE_COMMANDS`,
+  `GOG_KEYRING_BACKEND` / `GOG_KEYRING_PASSWORD` (headless file keyring),
+  `GOG_HOME` (config root). Scripts also read `GOG_BIN` to swap the binary
+  and `GOG_PROJECT_ID` / `GOG_USER_EMAIL` (`fix-iam-403.sh`).
 
 ## Safety rules
 
 Confirm with the user **before** any command that:
 
-- **Sends** — `gmail +send`, `gmail +reply*`, `gmail +forward`, `chat +send`,
-  `workflow +file-announce`, any `messages.send` / `spaces.messages.create`
-- **Creates calendar events** with `--attendee` (invitations go out immediately)
-- **Writes to Sheets/Docs/Slides** — `sheets +append`, `values.update`,
-  `spreadsheets.batchUpdate`, `documents.batchUpdate`, `presentations.batchUpdate`
-- **Modifies Drive permissions** — `drive permissions create/update/delete`,
+- **Sends** — `gog gmail send`, `drafts send`, `gog chat messages send`, any
+  `gog api call … messages.send` / `spaces.messages.create`
+- **Creates calendar events** with `--attendees` (invitations go out
+  immediately; `--send-updates none` suppresses them)
+- **Writes to Sheets/Docs/Slides** — `sheets update|append|clear`,
+  `docs` / `slides` edit commands, any `batchUpdate`
+- **Modifies Drive permissions** — `drive share|unshare|permissions`,
   shared-drive moves
-- **Deletes anything** — `files.delete`, `messages.trash`, `events.delete`,
-  `tasks.delete`
+- **Deletes anything** — `drive delete`, `gmail batch delete`,
+  `calendar delete`, `tasks delete`
 
 Everything else (read, list, search, export, `--dry-run`) proceeds directly.
 
-When uncertain, run with `--dry-run` first and show the output before
-executing for real.
+Runtime guards when the task is read-only or the content is untrusted:
+`--readonly` (blocks every mutating API request), `--gmail-no-send`,
+`--enable-commands-exact gmail.search,gmail.get`. When uncertain, run with
+`--dry-run` first and show the output before executing for real.
 
 ## Chat API: "Google Chat app not found"
 
-Symptom: `gws chat spaces list` (and most `chat.*` endpoints) return
+Symptom: `gog chat spaces list` (and most `chat.*` endpoints) return
 `403 insufficient authentication scopes`, but your token clearly has
-`chat.spaces` / `chat.spaces.readonly`. A direct curl reveals the real
-error: `404 Google Chat app not found`.
+`chat.spaces`. A direct curl reveals the real error:
+`404 Google Chat app not found`.
 
 Cause: the Chat API requires the GCP project to have a **registered Chat
 app configuration** (name, description, state) before any endpoint will
 respond — even for pure user-context reads. Unlike Drive/Calendar/etc.
-which work with just the API enabled, Chat needs the app registered.
+which work with just the API enabled, Chat needs the app registered. (Chat
+also needs a Google Workspace account — consumer accounts can't use it.)
 
 Fix (one-time, GCP Console):
 
@@ -559,10 +546,9 @@ Then Chat APIs respond to user credentials.
 
 ## "Insufficient authentication scopes" — OAuth consent screen
 
-Symptom: after a clean `gws auth login --full`, some services still fail
-with `403 Request had insufficient authentication scopes`, and inspecting
-the access token (`gws auth export --unmasked` → `tokeninfo`) shows only a
-subset of the scopes you requested.
+Symptom: after a clean `gog auth add`, some services still fail with
+`403 Request had insufficient authentication scopes` (gog exit code 6),
+and `gog auth list --json` shows fewer services than you requested.
 
 Cause: Google silently drops any scope in the OAuth URL that **isn't
 registered on the project's consent screen**. The user can't tick a
@@ -572,14 +558,15 @@ Fix (one-time, manual — GCP Console):
 
 1. Open https://console.cloud.google.com/apis/credentials/consent?project=<PROJECT_ID>
 2. Edit the app → Scopes → "Add or Remove Scopes"
-3. Paste the missing scopes (e.g. `.../chat.spaces`, `.../contacts`,
-   `.../directory.readonly`) into the filter and check each
+3. Paste the missing scopes (`bash scripts/onboard.sh --step scopes` prints
+   the full list; `gog auth services` shows what each service needs) and
+   check each
 4. Save & Continue
-5. Re-run `bash scripts/auth-login.sh --full` and tick every checkbox on
+5. Re-run `bash scripts/auth-login.sh <email>` and tick every checkbox on
    the consent screen
 
-The enhanced `auth-login.sh` introspects the granted scopes after login
-and warns if `--full` was asked but specific scope families were dropped.
+`auth-login.sh` lists the granted services after login and warns about
+the ones that were dropped.
 
 ## 403 on Drive/Tasks/Chat/People — GCP project IAM
 
@@ -594,7 +581,7 @@ This happens because Drive, Tasks, Chat, and People APIs enforce
 `serviceusage.services.use` on the GCP project tied to the OAuth client.
 Gmail and Calendar skip that check — which is why they work while the
 rest return 403 on the same token. OAuth scopes are irrelevant here;
-re-authing with `--full` will **not** help.
+re-authing will **not** help.
 
 Three fixes — pick one:
 
@@ -603,11 +590,12 @@ Three fixes — pick one:
 bash scripts/fix-iam-403.sh              # detect project + user, grant role, verify
 bash scripts/fix-iam-403.sh --enable-apis  # also `gcloud services enable` the APIs
 ```
-The helper auto-derives the project from `gws auth status`, fetches your
-email via Gmail (the one API that always works pre-fix), ensures `gcloud`
-is authenticated, applies `roles/serviceusage.serviceUsageConsumer`,
-waits for propagation, and verifies with a Drive probe. Overrides:
-`GWS_PROJECT_ID=…` / `GWS_USER_EMAIL=…`.
+The helper derives the project from gog's stored OAuth client (the
+`client_id` prefix is the project number), fetches your email via the
+Gmail profile, ensures `gcloud` is authenticated, applies
+`roles/serviceusage.serviceUsageConsumer`, waits for propagation, and
+verifies with a Drive probe. Overrides: `GOG_PROJECT_ID=…` /
+`GOG_USER_EMAIL=…`.
 
 Equivalent raw command if you prefer to run gcloud yourself:
 ```bash
@@ -616,37 +604,40 @@ gcloud projects add-iam-policy-binding <PROJECT_ID> \
   --role=roles/serviceusage.serviceUsageConsumer
 ```
 
-**B. Point `gws` at a different GCP project you own** (cleanest,
-avoids touching shared projects):
+**B. Bill a different GCP project you own** (cleanest, avoids touching
+shared projects):
 ```bash
-export GOOGLE_WORKSPACE_PROJECT_ID=<your-own-project-id>
+export GOG_QUOTA_PROJECT=<your-own-project-id>     # or --quota-project
 # Add to ~/.zshrc.user to persist across shells
 ```
-No re-auth required — `gws` will route quota to the new project.
+No re-auth required — gog sends `X-Goog-User-Project` with every request.
 
-**C. Run `gws auth setup`** to let `gws` create a fresh GCP project
-wired for you automatically. Requires `gcloud` installed + logged in.
-This also replaces the OAuth client.
+**C. Run `gog auth setup`** to let gog prepare a fresh GCP project (APIs
++ OAuth client) for you. Requires `gcloud` installed + logged in. This
+also replaces the OAuth client, so accounts must be re-authorized.
 
-Find the current project with `gws auth status | jq .project_id`.
+Find the current project number with
+`jq -r '.client_id | split("-")[0]' "$(gog auth status --json | jq -r .account.credentials_path)"`.
 
 ## Common pitfalls
 
-- **Gmail `+send` can't attach files.** For attachments use the raw API:
-  `gws gmail users messages send --json '{"raw":"<base64 RFC2822>"}'`.
-- **Calendar `+insert` doesn't add Meet conferencing.** For conference
-  links use `events insert` with `conferenceData` + `conferenceDataVersion=1`.
+- **Attachments**: `gog gmail send --attach FILE` (repeatable) — no raw
+  MIME needed. To send an exact RFC 822 message use `--raw-file`.
+- **Meet links**: `gog calendar create … --with-meet` adds conferencing.
 - **Sheets ranges need quoting** when sheet names contain spaces:
-  `--range "'Sales Data'!A1:C10"`.
-- **Drive search** uses the Drive query language by default —
-  free-text: `q: fullText contains 'foo'`. See references/drive.md.
+  `gog sheets get $ID "'Sales Data'!A1:C10"`.
+- **Drive search**: `gog drive search "text"` is full-text; pass Drive query
+  language with `gog drive ls --query "..."`. See references/drive.md.
 - **Chat space names** look like `spaces/AAAAxxxx`. Find them with
-  `gws chat spaces list`.
-- **Token invalidation** (`invalid_rapt`) after sensitive changes requires
-  re-running `gws auth login`.
-- **Version drift** — if a flag shown here errors out, the installed `gws`
-  may be ahead of this skill. Run `gws <svc> --help` and prefer the live
-  output.
+  `gog chat spaces list`.
+- **Services not authorized** — `tasks`, `chat`, `forms`, `meet`, `slides`
+  need to be part of the account's grant (`gog auth list`); re-run
+  `auth-login.sh` to add them (existing services are kept with
+  `--force-consent`).
+- **Token invalidation** (`invalid_grant` / `invalid_rapt`, exit code 4)
+  after sensitive account changes requires re-running `auth-login.sh`.
+- **Version drift** — if a flag shown here errors out, the installed `gog`
+  may differ from 0.42. Run `gog help <cmd>` and prefer the live output.
 - **GCP Console passkey re-auth** — `console.cloud.google.com` always
   demands passkey verification, even with a saved Google session. When
   walking a user through manual GCP Console steps (OAuth client,

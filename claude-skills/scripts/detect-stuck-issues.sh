@@ -61,8 +61,12 @@ done
 # escalation falls back to the issue creator (next best human).
 HUMAN_REVIEWER=""
 if [[ -f "$BSG_AUTOPILOT_FILE" ]]; then
+  # `|| true` swallows grep's exit 1 when the key is absent — otherwise
+  # `set -o pipefail` + `set -e` aborts the script before any stuck
+  # detection runs. `default_human_reviewer` isn't in the documented
+  # scaffold, so most repos hit the no-match path every tick.
   HUMAN_REVIEWER=$(grep -E '^\s*default_human_reviewer\s*:' "$BSG_AUTOPILOT_FILE" 2>/dev/null \
-    | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]"' | tr -d "'")
+    | head -1 | sed 's/.*:\s*//' | tr -d '[:space:]"' | tr -d "'" || true)
 fi
 
 # Bootstrap the labels we may apply (idempotent).

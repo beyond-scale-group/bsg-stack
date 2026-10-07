@@ -1,38 +1,35 @@
 # Recipes — cross-service workflows
 
-Multi-step patterns that chain `gws` commands. Each recipe is read-only
-unless marked **⚠ mutating**.
+Multi-step patterns that chain `gog` commands. Each recipe is read-only
+unless marked **⚠ mutating**. JSON key names below are best-effort: run the
+first command with `--json` and check the shape before piping into `jq`.
 
 ## Find a doc by name, then share it — ⚠ mutating
 
 ```bash
 # 1. Find
-FID=$(gws drive files list --params '{
-  "q":"name contains '\''Q2 plan'\''",
-  "fields":"files(id,name)",
-  "pageSize":5
-}' | jq -r '.files[0].id')
+FID=$(gog drive search 'Q2 plan' --max 5 --json --results-only | jq -r '.[0].id')
+gog drive get "$FID"            # confirm it is the right file
 
-# 2. Share as writer
-gws drive permissions create \
-  --params "{\"fileId\":\"$FID\",\"sendNotificationEmail\":true}" \
-  --json '{"role":"writer","type":"user","emailAddress":"alice@x.com"}'
+# 2. Share as writer (preview first)
+gog drive share "$FID" --to user --email alice@x.com --role writer --notify --dry-run
+gog drive share "$FID" --to user --email alice@x.com --role writer --notify
 ```
 
-Confirm with user before sharing — sends email notification.
+Confirm with user before sharing — `--notify` sends an email notification
+(omit it for a silent share).
 
 ## Export a Doc as PDF and attach to an email — ⚠ mutating
 
-Requires the raw Gmail attachment flow (see references/gmail.md).
-
 ```bash
 # 1. Export
-gws drive files export \
-  --params '{"fileId":"DOC_ID","mimeType":"application/pdf"}' \
-  --output /tmp/doc.pdf
+gog drive download DOC_ID --format pdf --out /tmp/doc.pdf
 
-# 2. Build RFC 2822 with attachment → base64-url-encode → send
-# (see references/gmail.md "Send with attachment (raw path)")
+# 2. Send with the attachment (native — no RFC 2822 by hand)
+gog gmail send --to alice@x.com --subject 'Doc as PDF' \
+  --body-html '<p>Please find the PDF attached.</p>' \
+  --attach /tmp/doc.pdf --dry-run
+# on user confirm, re-run without --dry-run
 ```
 
 ## Inbox triage → Tasks
@@ -40,121 +37,120 @@ gws drive files export \
 Find actionable unread mail and promote each to a Google Task.
 
 ```bash
-# 1. Unread messages with important label
-gws gmail users messages list --params '{
-  "userId":"me",
-  "q":"is:unread label:important newer_than:7d",
-  "maxResults":20
-}' --format json | jq -r '.messages[].id' | while read MID; do
-  # 2. Promote each to a task
-  gws workflow +email-to-task --message-id "$MID"
+gog gmail messages search 'is:unread label:important newer_than:7d' \
+  --max 20 --json --results-only | jq -r '.[].id' | while read MID; do
+  SUBJ=$(gog gmail get "$MID" --format metadata --headers Subject --json \
+    | jq -r '[.. | objects | select(.name? == "Subject") | .value][0]')
+  gog tasks add @default --title "$SUBJ" \
+    --notes "https://mail.google.com/mail/u/0/#all/$MID" --dry-run
 done
 ```
 
-Confirm with user before batch-running — creates N tasks.
+Confirm with user before batch-running — creates N tasks. Drop `--dry-run`
+to execute. (`@default` = primary task list; other IDs via
+`gog tasks lists list`.)
 
 ## "What's on my plate today?" — read only
 
 ```bash
-gws workflow +standup-report --format table
-```
-
-Or, a richer custom version:
-
-```bash
 echo "── Calendar (today) ──"
-gws calendar +agenda --today --format table
+gog calendar events --today
 
 echo
 echo "── Inbox (unread) ──"
-gws gmail +triage --max 10 --format table
+gog gmail search 'is:unread' --max 10
 
 echo
 echo "── Tasks ──"
-gws tasks tasks list --params '{"tasklist":"@default","showCompleted":false,"maxResults":20}' \
-  --format table
+gog tasks list @default --max 20
 ```
+
+Add `--plain` for stable TSV, `--json` for scripting. Upstream skill
+`gog-weekly-digest` covers the weekly variant.
 
 ## Meeting prep — read only
 
-```bash
-gws workflow +meeting-prep --format table
-```
+Grab the next event (attendees, description, attachments):
 
-Grabs next event, attendees, description, linked docs.
+```bash
+gog calendar events --from now --max 1 --json --results-only
+```
 
 Enhance by also fetching each attendee's recent email threads:
 
 ```bash
-EVT=$(gws calendar events list --params '{
-  "calendarId":"primary",
-  "timeMin":"'"$(gws time now --format json 2>/dev/null | jq -r '.iso' || date -u +%FT%TZ)"'",
-  "maxResults":1,"singleEvents":true,"orderBy":"startTime"
-}' | jq '.items[0]')
+EVT=$(gog calendar events --from now --max 1 --json --results-only | jq '.[0]')
 
 echo "$EVT" | jq -r '.attendees[]?.email' | while read EMAIL; do
   echo "── Recent with $EMAIL ──"
-  gws gmail +triage --query "from:$EMAIL OR to:$EMAIL newer_than:14d" --max 5 --format table
+  gog gmail search "from:$EMAIL OR to:$EMAIL newer_than:14d" --max 5
 done
 ```
+
+Linked Drive files: `echo "$EVT" | jq -r '.attachments[]?.fileUrl'`, then
+`gog drive get <fileId>`. Upstream skill: `gog-meeting-prep`.
 
 ## Append a row to a sheet from a Gmail message — ⚠ mutating
 
 Useful for lightweight CRM / bug log / expense tracker patterns.
 
 ```bash
-# 1. Pull subject + from from a message
-META=$(gws gmail users messages get \
-  --params '{"userId":"me","id":"MSG_ID","format":"metadata","metadataHeaders":["From","Subject","Date"]}')
+# 1. Pull From / Subject / Date from a message
+META=$(gog gmail get MSG_ID --format metadata --headers From,Subject,Date --json)
+hdr() { jq -r --arg n "$1" '[.. | objects | select(.name? == $n) | .value][0]' <<<"$META"; }
+FROM=$(hdr From); SUBJ=$(hdr Subject); DATE=$(hdr Date)
 
-FROM=$(echo "$META" | jq -r '.payload.headers[] | select(.name=="From") | .value')
-SUBJ=$(echo "$META" | jq -r '.payload.headers[] | select(.name=="Subject") | .value')
-DATE=$(echo "$META" | jq -r '.payload.headers[] | select(.name=="Date") | .value')
-
-# 2. Append to tracking sheet
-gws sheets +append --spreadsheet SHEET_ID \
-  --json-values "[[\"$DATE\",\"$FROM\",\"$SUBJ\"]]"
+# 2. Append to the tracking sheet (build the JSON with jq — no quoting bugs)
+VALUES=$(jq -nc --arg d "$DATE" --arg f "$FROM" --arg s "$SUBJ" '[[$d,$f,$s]]')
+gog sheets append SHEET_ID 'Sheet1!A:C' --values-json "$VALUES" --dry-run
 ```
+
+Drop `--dry-run` after confirmation.
 
 ## Weekly digest into a Chat space — ⚠ mutating
 
 ```bash
 # 1. Build digest
-DIGEST=$(gws workflow +weekly-digest --format table)
+DIGEST=$( { echo "Agenda (week)"; gog calendar events --week --max 50 --plain
+            echo; echo "Unread: $(gog gmail search 'is:unread' --count --max 1 --json | jq -r '.totalMatches // .totalMatchesAtLeast')"; } )
 
 # 2. Post to a space (confirm with user first)
-gws chat +send --space spaces/AAAAxxxx --text "$DIGEST"
+gog chat messages send spaces/AAAAxxxx --text "$DIGEST"
 ```
 
 ## Dry-run-then-execute pattern
 
 For any mutating command, show the user the `--dry-run` output first,
-confirm, then run for real:
+confirm, then run for real. `--dry-run` is a global flag that prints the
+intended action and exits 0 without changing anything.
 
 ```bash
 # 1. Show what would happen
-gws calendar events insert \
-  --params '{"calendarId":"primary","conferenceDataVersion":1,"sendUpdates":"all"}' \
-  --json "$PAYLOAD" \
-  --dry-run
+gog calendar create primary --summary 'Review' \
+  --from '2026-06-17T14:00:00+02:00' --to '2026-06-17T15:00:00+02:00' \
+  --attendees alice@x.com --with-meet --send-updates all --dry-run
 
 # 2. On user confirm, drop --dry-run
-gws calendar events insert \
-  --params '{"calendarId":"primary","conferenceDataVersion":1,"sendUpdates":"all"}' \
-  --json "$PAYLOAD"
+gog calendar create primary --summary 'Review' \
+  --from '2026-06-17T14:00:00+02:00' --to '2026-06-17T15:00:00+02:00' \
+  --attendees alice@x.com --with-meet --send-updates all
 ```
 
-## Batch with `xargs` + `--page-all`
+Same for the generic path: `gog api call … --allow-write --dry-run`, then
+`--allow-write --force`.
+
+## Batch with `xargs` / built-in batching
 
 ```bash
-# Archive every unread promotional email
-gws gmail users messages list \
-  --params '{"userId":"me","q":"category:promotions is:unread","maxResults":100}' \
-  --page-all --page-limit 10 \
-  | jq -r '.messages[].id' \
-  | xargs -I {} gws gmail users messages modify \
-      --params '{"userId":"me","id":"{}"}' \
-      --json '{"removeLabelIds":["INBOX","UNREAD"]}'
+# Archive every unread promotional email — built-in
+gog gmail archive -q 'category:promotions is:unread' --max 500 --dry-run
+
+# Or explicit IDs with xargs (batch modify takes many IDs per call)
+gog gmail messages search 'category:promotions is:unread' --all --json --results-only \
+  | jq -r '.[].id' \
+  | xargs -n 100 gog gmail batch modify --remove INBOX,UNREAD
 ```
 
-Always confirm with the user before mass-mutating commands.
+`--all` follows pagination; `--max` caps the archive count. Always confirm
+with the user before mass-mutating commands, and run the first pass with
+`--dry-run` (on the `xargs` form, prefix the command with `echo` to inspect).

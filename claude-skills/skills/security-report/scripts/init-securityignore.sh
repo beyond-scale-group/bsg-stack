@@ -2,10 +2,11 @@
 # init-securityignore.sh — generate a draft SECURITYIGNORE from repo scan.
 #
 # Part of #237 (per-agent --init contract): scans the repo for paths
-# that typically contain test fixtures, sample credentials, or example
-# data — i.e. the most common sources of secret-scanner false positives.
-# Emits a draft `.bsg/SECURITYIGNORE` to stdout. The security agent
-# reads this file every tick to suppress known false-positive paths.
+# that typically contain test fixtures, sample credentials, example
+# data, or CI configuration — i.e. the most common sources of
+# secret-scanner false positives. Emits a draft `.bsg/SECURITYIGNORE`
+# to stdout. The security agent reads this file every tick to suppress
+# known false-positive paths.
 #
 # The orchestrator (`/bsg-stack init`) captures stdout and opens a PR
 # for human review — this script never writes to disk.
@@ -79,6 +80,21 @@ done < <(find . -maxdepth 3 -type f \
     -name '*.example' -o -name '*.sample' \
     -o -name '.env.example' -o -name '.env.sample' -o -name '.env.template' \
   \) 2>/dev/null | head -20)
+
+# 4. CI config files / directories. CI workflows often inline placeholder
+# tokens, sample webhook URLs, or comment-out real secrets behind
+# `${{ secrets.* }}` references that some naive scanners mis-flag.
+# Listed so reviewers can keep what triggers FPs and drop the rest.
+for d in .github/workflows .circleci .gitlab .buildkite; do
+  if [[ -d "$d" ]]; then
+    add_suggestion "$d/"
+  fi
+done
+for f in .gitlab-ci.yml .travis.yml azure-pipelines.yml bitbucket-pipelines.yml Jenkinsfile; do
+  if [[ -f "$f" ]]; then
+    add_suggestion "$f"
+  fi
+done
 
 # ----------------------------------------------- emit
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# fix-iam-403.sh — grant the current gws user
+# fix-iam-403.sh — grant the current gog user
 # `roles/serviceusage.serviceUsageConsumer` on the GCP project tied to the
 # OAuth client, so Drive / Tasks / Chat / People / Sheets / Slides APIs
 # stop returning 403 "Caller does not have required permission to use
@@ -11,12 +11,16 @@
 #
 # Usage:
 #   ./fix-iam-403.sh                       # auto-detect project + user
-#   GWS_PROJECT_ID=my-proj ./fix-iam-403.sh
-#   GWS_USER_EMAIL=me@x.com ./fix-iam-403.sh
+#   GOG_PROJECT_ID=my-proj ./fix-iam-403.sh   # (GWS_PROJECT_ID still accepted)
+#   GOG_USER_EMAIL=me@x.com ./fix-iam-403.sh  # (GWS_USER_EMAIL still accepted)
 #   ./fix-iam-403.sh --enable-apis         # also `gcloud services enable`
 #                                          # the common workspace APIs
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=_gog.sh
+source "$SCRIPT_DIR/_gog.sh"
 
 info() { printf "→ %s\n" "$*"; }
 warn() { printf "⚠ %s\n" "$*" >&2; }
@@ -31,51 +35,58 @@ for arg in "$@"; do
   esac
 done
 
-command -v gws    >/dev/null || die "gws not installed"
-command -v gcloud >/dev/null || die "gcloud not installed — brew install google-cloud-sdk"
-command -v jq     >/dev/null || die "jq not installed — brew install jq"
+( gog_require ) || die "gog missing or too old — $GOG_INSTALL_HINT"
+command -v gcloud >/dev/null || die "gcloud not installed — https://cloud.google.com/sdk/docs/install"
+command -v jq     >/dev/null || die "jq not installed — $(pkg_hint jq)"
 
-# Project: from $GWS_PROJECT_ID, else from gws auth status.
-PROJECT="${GWS_PROJECT_ID:-$(gws auth status 2>/dev/null | jq -r '.project_id // empty')}"
-[ -n "$PROJECT" ] || die "could not determine project_id; set GWS_PROJECT_ID=… and retry"
+# Project: from $GOG_PROJECT_ID, else from gog's stored OAuth client. gog keeps
+# a flat {client_id, client_secret}: the project *number* is the client_id
+# prefix, which gcloud accepts wherever it takes a project.
+PROJECT="${GOG_PROJECT_ID:-${GWS_PROJECT_ID:-}}"
+if [ -z "$PROJECT" ]; then
+  CREDS=$("$GOG_BIN" auth status --json --no-input 2>/dev/null | jq -r '.account.credentials_path // empty')
+  if [ -n "$CREDS" ] && [ -f "$CREDS" ]; then
+    PROJECT=$(jq -r '(.installed // .web // .) | (.project_id // ((.client_id // "") | split("-")[0])) // empty' "$CREDS" 2>/dev/null)
+  fi
+fi
+[ -n "$PROJECT" ] || die "could not determine project_id; set GOG_PROJECT_ID=… and retry"
 
 # User email: every cheap lookup endpoint may itself 403 (that's what we're
 # fixing), so cascade through several options.
-EMAIL="${GWS_USER_EMAIL:-}"
+EMAIL="${GOG_USER_EMAIL:-${GWS_USER_EMAIL:-}}"
 
 # 1. Gmail getProfile — works when the 403 wave spares this one endpoint
 if [ -z "$EMAIL" ]; then
-  EMAIL=$(gws gmail users getProfile --params '{"userId":"me"}' 2>/dev/null \
-          | jq -r '.emailAddress // empty' 2>/dev/null || true)
+  EMAIL=$(gog_email 2>/dev/null || true)
 fi
 
 # 2. Calendar — pick any event where an attendee has `self:true`
 if [ -z "$EMAIL" ]; then
-  EMAIL=$(gws calendar events list \
+  EMAIL=$(gog_api calendar v3 events.list \
           --params '{"calendarId":"primary","maxResults":25,"singleEvents":true,"orderBy":"startTime","timeMin":"1970-01-01T00:00:00Z"}' \
           2>/dev/null \
           | jq -r '.items[]?.attendees[]? | select(.self==true) | .email' 2>/dev/null \
           | head -1 || true)
 fi
 
-# 3. gcloud's active account — only correct if it matches the gws user, but
+# 3. gcloud's active account — only correct if it matches the gog user, but
 #    a useful default to propose.
 if [ -z "$EMAIL" ]; then
   GCLOUD_ACCOUNT=$(gcloud config get-value account 2>/dev/null | grep -v '^$' || true)
   if [ -n "$GCLOUD_ACCOUNT" ] && [ "$GCLOUD_ACCOUNT" != "(unset)" ]; then
     EMAIL="$GCLOUD_ACCOUNT"
-    warn "using gcloud's active account as the gws user: $EMAIL"
-    warn "override with GWS_USER_EMAIL=… if that's wrong."
+    warn "using gcloud's active account as the gog user: $EMAIL"
+    warn "override with GOG_USER_EMAIL=… if that's wrong."
   fi
 fi
 
 # 4. Interactive prompt — last resort
 if [ -z "$EMAIL" ] && [ -t 0 ]; then
-  printf "Enter the Workspace email of the gws user: "
+  printf "Enter the Workspace email of the gog user: "
   read -r EMAIL
 fi
 
-[ -n "$EMAIL" ] || die "could not determine user email; retry with GWS_USER_EMAIL=you@example.com"
+[ -n "$EMAIL" ] || die "could not determine user email; retry with GOG_USER_EMAIL=you@example.com"
 
 info "project: $PROJECT"
 info "user:    $EMAIL"
@@ -122,14 +133,14 @@ info "waiting 15s for IAM propagation…"
 sleep 15
 
 # Verify: a Drive call should no longer 403.
-if gws drive files list --params '{"pageSize":1,"fields":"files(id)"}' 2>/dev/null \
-   | jq -e 'has("files")' >/dev/null 2>&1; then
+# gog exits 6 (permission_denied) on the 403 this script is fixing.
+if "$GOG_BIN" drive ls --max 1 --json --no-input >/dev/null 2>&1; then
   printf "✓ IAM elevated — Drive API now responds\n"
   exit 0
 else
   warn "still 403 — propagation can take a couple minutes, or the APIs"
   warn "may need to be enabled. Retry:"
-  warn "  gws drive files list --params '{\"pageSize\":1}'"
+  warn "  gog drive ls --max 1"
   warn "  or re-run with: bash $(basename "$0") --enable-apis"
   exit 3
 fi

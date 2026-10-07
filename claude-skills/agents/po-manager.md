@@ -19,9 +19,19 @@ output: pr
 tick: >
   (0) Source `claude-skills/scripts/github-bus.sh` and call `bus_claim po` to fetch any inbox items — today this returns empty because no `needs:po` labels exist yet; once routing is active the tick processes them before running the audit (see #199).
   (0.5) Run `eval "$(bash claude-skills/scripts/tick-fingerprint.sh po-manager po)"`.
-  If TICK_SHORT_CIRCUIT=1, return "Tick: unchanged — see PR #$TICK_LAST_PR" and stop.
-  Otherwise export TICK_FINGERPRINT so generate-report.sh embeds it.
-  (0.6) Adaptive back-off (#363): run `eval "$(bash claude-skills/scripts/tick-idle-check.sh po-manager po po)"`.  If TICK_IDLE=1, emit TICK_IDLE_RECEIPT and stop — no candidates AND audit fingerprint matched yesterday's, so phase (A) would re-derive identical output. The idle decision is logged to po/idle-ticks.log.
+  If TICK_SHORT_CIRCUIT=1, set TICK_AUDIT_RECEIPT="unchanged — see PR #$TICK_LAST_PR"
+  and skip phase (2) only — the status report is gated by input freshness, but
+  the routing phases (1, 1.4, 1.5, 1.6, A.5, A.6) and peer review (C) have
+  triggers the fingerprint does not capture (unrouted backlog, orphans, stuck
+  candidates, unreviewed PRs) and must always run. Stopping the whole tick on
+  short-circuit deadlocks delegation: an unrouted backlog keeps the fingerprint
+  stable precisely because nothing routes it. Receipt: "Tick: unchanged — see
+  PR #$TICK_LAST_PR" when routing changed nothing, "Tick: routed <N> — see PR
+  #$TICK_LAST_PR" when it did (details land in the next report, not in chat).
+  When TICK_SHORT_CIRCUIT=0, export TICK_FINGERPRINT so generate-report.sh
+  embeds it and run all phases. There is no (0.6) adaptive back-off for the
+  PO — the orchestrator's routing duty is exactly what an idle-stop would
+  skip, and the routing scripts are themselves cheap no-ops when idle.
   (1) Run `reconcile-milestones.sh` to assign GitHub milestones from po/PLAN.md
   bindings — each bound issue/PR gets the milestone matching its epic slug,
   scope-creep label for unbound ones (idempotent; skip silently if the plan
@@ -168,6 +178,15 @@ that nothing gets posted in chat when the project is healthy.
 
 ### Steps
 
+0.5. **Fingerprint short-circuit — gates the report only.** Source
+   `tick-fingerprint.sh`; when `TICK_SHORT_CIRCUIT=1`, skip steps 2–4
+   (today's status report is already merged for identical inputs) but
+   still run every routing step (1, 1.4, 1.5, 1.6, 5) and peer review.
+   Their triggers — unrouted backlog, orphan issues, stuck candidates,
+   unreviewed PRs — are not captured by the fingerprint: an unrouted
+   backlog keeps the fingerprint stable precisely because nothing routes
+   it, so stopping here deadlocks the delegation pipeline.
+
 1. **Reconcile plan bindings to GitHub milestones** (idempotent; silent on
    plan drift so it doesn't add noise between plan edits):
 
@@ -299,6 +318,10 @@ that nothing gets posted in chat when the project is healthy.
    line — e.g. `Tick: all green, report at $PR_URL` — is the whole reply.
    If breakers fired or issues were filed, send the 3-bullet executive
    summary plus `$PR_URL` and a count of delegated issues.
+   On a short-circuited tick (step 0.5), the line is
+   `Tick: unchanged — see PR #$TICK_LAST_PR` when routing changed nothing,
+   or `Tick: routed <N> — see PR #$TICK_LAST_PR` when labels were applied
+   or issues filed; routing details go into the next report, never chat.
 
 ### Silence-breakers (what counts as "needs human attention")
 

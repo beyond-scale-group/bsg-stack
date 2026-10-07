@@ -1,3 +1,9 @@
+<a href="../README.md"><img src="../assets/logo-bsg-holding.png" alt="Beyond Scale Group" height="40"></a>
+
+**[Beyond Scale Group](../README.md)** · BSG Stack
+
+---
+
 # Renovate Presets
 
 Shared [Renovate](https://docs.renovatebot.com/) configuration for repos in
