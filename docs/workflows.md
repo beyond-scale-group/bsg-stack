@@ -208,6 +208,7 @@ Deploys temporary review apps for PRs using Terraform and Clever Cloud, with opt
 | `tf_var_cellar_addon_id` | string | No | `""` | Cellar addon ID |
 | `tf_var_s3_bucket` | string | No | `""` | S3 bucket name |
 | `tf_var_backend_url_internal` | string | No | `""` | Scala backend URL for server-side calls |
+| `tf_var_ai_provider` | string | No | `""` | AI provider to use (e.g. `anthropic`, `openrouter`). Empty = project default. |
 | `runs_on` | string | No | `"ubuntu-latest"` | Runner to use |
 | `timeout` | number | No | `30` | Job timeout in minutes |
 
@@ -215,6 +216,7 @@ Deploys temporary review apps for PRs using Terraform and Clever Cloud, with opt
 - `clever_token` (required), `clever_secret` (required) — Clever Cloud credentials
 - `s3_access_key` (required), `s3_secret_key` (required) — S3 credentials
 - `anthropic_api_key` (optional) — Anthropic API key for AI features
+- `openrouter_api_key` (optional) — OpenRouter API key (used when `tf_var_ai_provider` is `openrouter`)
 - `mistral_api_key` (optional), `backend_api_key` (optional), `google_api_key` (optional), `jwt_secret` (optional)
 
 ---

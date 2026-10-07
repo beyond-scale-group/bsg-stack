@@ -100,6 +100,11 @@ on:
         required: false
         type: string
         default: ""
+      tf_var_ai_provider:
+        description: "AI provider to use (e.g. anthropic, openrouter). Empty = project default."
+        required: false
+        type: string
+        default: ""
       runs_on:
         description: "Runner to use"
         required: false
@@ -131,6 +136,8 @@ on:
         required: false
       jwt_secret:
         required: false
+      openrouter_api_key:
+        required: false
 
 jobs:
   deploy:
@@ -159,6 +166,8 @@ jobs:
       TF_VAR_google_api_key: ${{ secrets.google_api_key }}
       TF_VAR_resend_api_key: ${{ secrets.resend_api_key }}
       TF_VAR_jwt_secret: ${{ secrets.jwt_secret }}
+      TF_VAR_ai_provider: ${{ inputs.tf_var_ai_provider }}
+      TF_VAR_openrouter_api_key: ${{ secrets.openrouter_api_key }}
 
     steps:
       - name: Checkout
