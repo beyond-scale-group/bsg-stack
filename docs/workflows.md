@@ -209,6 +209,7 @@ Deploys temporary review apps for PRs using Terraform and Clever Cloud, with opt
 | `tf_var_s3_bucket` | string | No | `""` | S3 bucket name |
 | `tf_var_backend_url_internal` | string | No | `""` | Scala backend URL for server-side calls |
 | `tf_var_ai_provider` | string | No | `""` | AI provider to use (e.g. `anthropic`, `openrouter`). Empty = project default. |
+| `tf_var_anonymization_service_url` | string | No | `""` | URL of the anonymization service the app calls, forwarded as `TF_VAR_anonymization_service_url`. Empty = empty string: it overrides a Terraform `default`, so a caller that requires it declares a validation. |
 | `runs_on` | string | No | `"ubuntu-latest"` | Runner to use |
 | `timeout` | number | No | `30` | Job timeout in minutes |
 
@@ -217,6 +218,7 @@ Deploys temporary review apps for PRs using Terraform and Clever Cloud, with opt
 - `s3_access_key` (required), `s3_secret_key` (required) — S3 credentials
 - `anthropic_api_key` (optional) — Anthropic API key for AI features
 - `openrouter_api_key` (optional) — OpenRouter API key (used when `tf_var_ai_provider` is `openrouter`)
+- `anonymization_api_key` (optional) — shared API key of the anonymization service, forwarded as `TF_VAR_anonymization_api_key`
 - `mistral_api_key` (optional), `backend_api_key` (optional), `google_api_key` (optional), `jwt_secret` (optional)
 
 ---
