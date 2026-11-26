@@ -40,6 +40,7 @@ PR on, among others:
 | `test_circuit_breaker.sh` | Daily PR cap. |
 | `test_assert_invariants.sh` | Pipeline regression invariants (baselines in `../../tests/pipeline-baselines/`). |
 | `test_md_to_office*.py` | The `md-to-office` skill's render / scan / styling pipeline. |
+| `test_x_skill.sh` | The `x` skill CLI offline: OAuth 1.0a signature (docs.x.com example), OAuth 2.0 refresh, auth mode selection. |
 
 Helpers `_skill_helpers.py` and `_md_to_office_helpers.py` are imported by the
 test files, not run directly.

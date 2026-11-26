@@ -42,6 +42,14 @@ jobs:
       - name: Session state resolver
         run: bash claude-skills/tests/test_session_state.sh
 
+  x-skill:
+    name: x skill CLI (offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run x skill tests
+        run: bash claude-skills/tests/test_x_skill.sh
+
   integration:
     name: po integration test (edomata)
     runs-on: ubuntu-latest
