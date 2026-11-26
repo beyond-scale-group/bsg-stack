@@ -6,7 +6,7 @@ description: >-
   confirmation — post, reply, like, follow, bookmark and send DMs. Use when the user says
   "mes bookmarks", "mes likes", "mon twitter", "tweet", "poste sur X", "DM sur X", "relance sur
   X", "check my X", "search X", or asks to set up the X app / X API access.
-version: 0.1.0
+version: 0.2.0
 ---
 
 # X skill
@@ -15,14 +15,29 @@ Wraps the official X API v2 for the user's **personal account**. No third-party 
 scraping, no browser: a browser run against x.com hits X's "confirm you are human" wall.
 
 - Setup (X developer app, OAuth token): [`references/setup.md`](references/setup.md) — read it
-  first if `~/.env` has no `X_ACCESS_TOKEN`, or when the user asks to set up or fix access.
+  first if `x.mjs auth` reports `"mode": "none"`, or when the user asks to set up or fix access.
 - CLI: `node ~/.claude/skills/x/scripts/x.mjs <command>` (JSON on stdout, no dependencies).
-- Credentials live in `~/.env` (`X_CLIENT_ID`, `X_ACCESS_TOKEN`, `X_REFRESH_TOKEN`). Never print,
-  paste or commit them. The CLI refreshes the token itself when it expires.
+- Credentials come from the process environment first, then `~/.env` (optional). Never print,
+  paste or commit them. `x.mjs auth` says which mode is active without showing any secret.
+
+## Two auth modes
+
+| Mode | Variables | When |
+|---|---|---|
+| **OAuth 2.0** (PKCE) | `X_CLIENT_ID`, `X_ACCESS_TOKEN`, `X_REFRESH_TOKEN` | Personal machine. The 2 h token is refreshed and the rotated tokens re-saved to `~/.env`. |
+| **OAuth 1.0a** (user context) | `X_API_KEY`, `X_API_SECRET`, `X_OAUTH1_ACCESS_TOKEN`, `X_OAUTH1_ACCESS_SECRET` | Server agent whose secrets are read-only (e.g. a vault injected as env vars, like Donna). Keys do not expire, nothing is rewritten. |
+
+OAuth 1.0a wins when all four of its variables are set. In that mode `bookmark` and `unbookmark`
+are refused up front (X accepts only OAuth 2.0 there) and `bookmarks` may be refused by X. X
+retires OAuth 1.0a on **2027-01-31**: after that date only OAuth 2.0 works. Details in
+[`references/setup.md`](references/setup.md#6-oauth-10a-mode-server-agents).
 
 ## Commands
 
 ```bash
+# which auth mode is active (no secret printed)
+x.mjs auth
+
 # read — run freely
 x.mjs me
 x.mjs user <username>
@@ -70,7 +85,8 @@ bookmarks is about $1, but reading DMs is ten times dearer per item.
 
 ## Limits
 
-- Endpoints, parameters and scopes were checked against docs.x.com on 2026-11-23. The current
+- Endpoints, parameters and scopes were checked against docs.x.com on 2026-11-23; which
+  endpoints accept OAuth 1.0a was checked on 2026-11-26 (OpenAPI spec 2.175). The current
   docs call the field parameter `post.fields`; the CLI falls back to `tweet.fields` if X
   answers 400. Replies use `reply.in_reply_to_tweet_id`; text is capped at 280 characters unless
   the account has X Premium.
