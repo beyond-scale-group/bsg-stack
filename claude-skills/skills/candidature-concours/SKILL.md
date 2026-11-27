@@ -9,18 +9,20 @@ description: >-
   screenshots before and after. Use when the user says "dépose la candidature", "remplis
   le formulaire de candidature", "postuler à ce programme", "concours", "appel à
   candidatures", "accélérateur", "apply to this programme", "fill this application form",
-  or shares an Airtable / Typeform / Google Forms application link.
-version: 0.1.0
+  or shares an Airtable / Typeform / Google Forms application link, an Agorize challenge
+  page, or needs the sponsor's partner programme enrolment or an archive of the answers sent.
+version: 0.2.0
 model: sonnet
 ---
 
 # Application form filler (candidature-concours)
 
 Prepare and fill an online application for the group: competitions, accelerator
-programmes, open calls. Built from the first real filing done this way:
-**TotalEnergies On, Batch #8 (2026-11-27)**, a public Airtable form of 38 questions,
-filed in one single submission by Donna. It is the running example below; the skill
-works for any form.
+programmes, open calls. Built from two real filings on 2026-11-27:
+**TotalEnergies On, Batch #8**, a public Airtable form of 38 questions, filed in one
+single submission by Donna; and **Microsoft GenAI Studio**, filed on the Agorize
+platform behind an account, 100 % complete. They are the running examples below; the
+skill works for any form (see "Known platforms").
 
 **You prepare and you fill. You never submit, send the cover email, or merge a PR
 without an explicit yes from the user for THAT action** (see "The three yeses").
@@ -38,6 +40,43 @@ D="./candidature-$(date +%Y%m%d-%H%M)"; mkdir -p "$D"
 
 The scripts use the installed Google Chrome (`channel: "chrome"`). On a machine without
 it (a Linux server), set `CHROMIUM_PATH=/usr/bin/chromium`.
+
+## Known platforms
+
+Identify the platform first: it decides what you can do yourself.
+
+**Public one-page form (Airtable, Typeform, Google Forms)** — TotalEnergies On case.
+No account: every question is visible on the blank form, except conditional ones. No
+draft, no edit after submission. Survey, fill and submission go through the scripts of
+steps 1, 3 and 4; traps under "Traps met".
+
+**Agorize (challenge platform)** — Microsoft GenAI Studio case.
+
+- The public challenge page carries the presentation, the phase calendar
+  (`.../pages/challenge-phases`), the FAQ (`.../pages/faq`) and the rules
+  (`.../agreements`). Read them first: closing date AND time (e.g. "1 December,
+  23:55"), eligibility conditions, required documents, shortlist and jury dates.
+- Only the main document is announced publicly (a pitch deck); **the form is only
+  visible once signed in**. The scripted blank survey therefore stops at the sign-in
+  ("What you never work around"): the account is created and held by the person who
+  carries the application (Microsoft case: account and filing left to that person).
+  Build the answers document section by section from the exact labels they send you
+  (copy or screenshot of each section).
+- Structure seen: first an "application" card (project name, short description, image —
+  the deck cover at 1024 × 576 px), then themed sections (general information, business
+  model, tech roadmap, a sponsor-specific section). Fields seen: attachments (PDF deck,
+  demo video), fixed lists (headcount range, sector with "Other", deployment mode,
+  B2B/B2C), multiple checkboxes with "Other" to specify (cloud providers), yes/no
+  (fundraising within 6 months, listing on the sponsor's marketplace), legal identifier
+  (SIRET), links (website, founders' profiles), free texts, and a final "other
+  information or links" field.
+- The application shows a **completion percentage**: file at 100 %. After filing, the
+  platform gives an **application ID** and the submission time: record them (archive,
+  below).
+- The demo video was attached as a file AND its link repeated in the final "other
+  information or links" field.
+- Agorize character limits: not surveyed yet. Measure them on the first signed-in pass
+  and add them here.
 
 ## Step 1 — blank survey of the form
 
@@ -74,6 +113,21 @@ If `alerts` mentions a captcha or a sign-in: stop and hand back to the user.
   size, checkboxes the answer file does not cover, a free-text answer that turns out to be
   a checkbox list). Ask, with the exact options and your recommendation. Only exception:
   an explicit "do your best" — then choose, and say precisely what you chose.
+- **Dated versions of one application document**: a draft ("26-11") that ends with its
+  recommendation and the points to settle before filing, then "updated 27-11, filed".
+  The title states the date and the status; the older version stays, to see what
+  changed.
+- **Points to settle before filing**, seen on the Microsoft case:
+  - the applying entity: the registered company name and registry ID (SIRET), not the
+    brand. The brand goes in the project name; a new company name is written "future
+    <name>" next to the registered name;
+  - the place of a technology that competes with the sponsor (a programme run by a
+    vendor) in the deck and the answers: validated by a founder;
+  - every condition of the rules against the real situation (requirement, situation,
+    caveat to demonstrate), and the programme commitments (time, attendance, juries,
+    deliverables);
+  - everything announced (features, timeline, customers) must be demonstrable in front
+    of the jury: only write what will be by its date.
 - **Every site and page cited in the answers must be live before filing**, checked in a
   browser (screenshot, expected content present — not just HTTP 200).
 
@@ -116,12 +170,46 @@ head -20 "$D/after-submit.txt"
 
 ## After the submission
 
-Only once the confirmation is on screen, each on its own yes:
+**Archive the answers sent, right away**: a document "answers sent on <platform>
+(<date>)" that reproduces the answers **as sent**, section by section, with the
+application ID, submission date and time, completion, and every attachment (file name,
+page count, video length). What was declared is re-read there before a jury, not in
+the draft. Then update the application document (new dated version):
+
+- the status: filed on …, at …, 100 % complete; the calendar that follows (shortlist,
+  juries);
+- a "what we declared" summary (company, team, model, funding, attachments);
+- two lists, "Done" and "To do": jury dates blocked in calendars, speakers'
+  availability, the organiser's email to watch until the shortlist date (spam folder
+  included), any change to report to the organiser (company name).
+
+Then, only once the confirmation is on screen, each on its own yes:
 
 - **Cover email** (programme contact, team in copy): prepare a draft, check it says the
   same thing as what was filed, send that draft on the yes.
 - **Site or case-study update** ("application filed on …"): a PR, never merged by you.
 - **A lessons-learned note**: what worked, the traps — new ones go into this skill.
+
+## The sponsor's partner programme
+
+A programme run by a vendor may cite in its rules a listing on its marketplace, hence
+enrolment in its partner programme (Microsoft case: Microsoft AI Cloud Partner Program,
+in Partner Center). **This is separate from the application form**, done by the person:
+
+- Start it early: verification takes 3 to 5 business days, sometimes more. Started
+  before the jury, it lets you say "enrolled, verification in progress"; the
+  application document says so too.
+- To gather: a company work account (not a personal one), an administrator entitled to
+  commit the company, the company name and address **exactly as registered** (compared
+  with official documents; the country cannot be changed later), a Kbis extract, an ID
+  document, the domain name records, a work email on the domain, and the publisher name
+  shown to customers (distinct from the company name).
+- The programme agreements are accepted by the person who commits the company, never
+  by you; the account's two-factor authentication stays with them.
+- After verification: tax and payout profiles (tax form to confirm with the
+  accountant).
+- Trap (2026-11-27): the registration number field was locked, the SIRET could not be
+  entered. Record it in the application document.
 
 ## The three yeses
 
@@ -160,6 +248,15 @@ in between is not a yes.
 - **No draft, no edit after submission** on this kind of form: hence the full dry run, the
   check, and the marker before the click.
 
+## Traps met (2026-11-27, Microsoft GenAI Studio, Agorize)
+
+- **Form behind an account**: nothing is visible before signing in, except the required
+  document; the scripted blank survey does not get through.
+- **Brand or company**: the draft applied under the brand; the filing was made under the
+  registered company name, with its SIRET and the future name as a mention.
+- **Partner programme**: a separate procedure, several days of verification, locked
+  registration number field (dedicated section).
+
 ## Your answer
 
 Short, result first, readable by a non-developer:
@@ -176,6 +273,7 @@ Short, result first, readable by a non-developer:
 - Submit, send an email, or merge a PR without the user's yes for that action.
 - Cut an answer silently, or pick an option that commits the user without their consent.
 - Create an account on a site unless asked.
+- Accept any agreement or rules on the user's behalf.
 - Put a figure in an answer that does not come from a source (accounts, repos, the user):
   a gap is flagged, never filled in.
 
