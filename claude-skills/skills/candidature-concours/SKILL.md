@@ -11,7 +11,7 @@ description: >-
   candidatures", "accélérateur", "apply to this programme", "fill this application form",
   or shares an Airtable / Typeform / Google Forms application link, an Agorize challenge
   page, or needs the sponsor's partner programme enrolment or an archive of the answers sent.
-version: 0.2.0
+version: 0.3.0
 model: sonnet
 ---
 
@@ -50,33 +50,62 @@ No account: every question is visible on the blank form, except conditional ones
 draft, no edit after submission. Survey, fill and submission go through the scripts of
 steps 1, 3 and 4; traps under "Traps met".
 
-**Agorize (challenge platform)** — Microsoft GenAI Studio case.
+**Agorize (challenge platform)** — Microsoft GenAI Studio case (2027 cohort, filed on
+2026-11-27 at 10:34, 100 % complete).
 
-- The public challenge page carries the presentation, the phase calendar
-  (`.../pages/challenge-phases`), the FAQ (`.../pages/faq`) and the rules
-  (`.../agreements`). Read them first: closing date AND time (e.g. "1 December,
-  23:55"), eligibility conditions, required documents, shortlist and jury dates.
-- Only the main document is announced publicly (a pitch deck); **the form is only
-  visible once signed in**. The scripted blank survey therefore stops at the sign-in
-  ("What you never work around"): the account is created and held by the person who
-  carries the application (Microsoft case: account and filing left to that person).
-  Build the answers document section by section from the exact labels they send you
-  (copy or screenshot of each section).
-- Structure seen: first an "application" card (project name, short description, image —
-  the deck cover at 1024 × 576 px), then themed sections (general information, business
-  model, tech roadmap, a sponsor-specific section). Fields seen: attachments (PDF deck,
-  demo video), fixed lists (headcount range, sector with "Other", deployment mode,
-  B2B/B2C), multiple checkboxes with "Other" to specify (cloud providers), yes/no
-  (fundraising within 6 months, listing on the sponsor's marketplace), legal identifier
-  (SIRET), links (website, founders' profiles), free texts, and a final "other
-  information or links" field.
-- The application shows a **completion percentage**: file at 100 %. After filing, the
-  platform gives an **application ID** and the submission time: record them (archive,
-  below).
-- The demo video was attached as a file AND its link repeated in the final "other
-  information or links" field.
-- Agorize character limits: not surveyed yet. Measure them on the first signed-in pass
-  and add them here.
+- **Public pages first**: presentation, phase calendar (`.../pages/challenge-phases`),
+  FAQ (`.../pages/faq`), rules (`.../agreements`). Extract the required documents, the
+  conditions, the closing date AND time (e.g. "1 December, 23:55"), the shortlist and
+  jury dates. Only the main document is announced there (a pitch deck).
+- **The form is only visible once signed in.** Before it: account creation, email
+  address confirmation, terms of use to accept, a "start-up" profile (required fields,
+  e.g. development stage), the "Participer" button, the rules checkbox. **The person
+  signs in themselves** (password, codes). Terms and rules: read and summarise them
+  before they are ticked, and only with the person's consent. The blank survey only
+  happens afterwards, once signed in; the scripts of steps 1, 3 and 4, which open a
+  browser without a session, stop at the sign-in.
+- **Multi-page form**: first an "application" card (project name, short description,
+  image — the deck cover at 1024 × 576 px), then sections (general information,
+  business model, tech roadmap, a sponsor-specific section). Fields seen: attachments
+  (PDF deck, video), fixed lists (headcount range, sector with "Other", deployment
+  mode, B2B/B2C), multiple checkboxes with "Other" to specify (cloud providers), yes/no,
+  legal identifier (SIRET), links, free texts, a final "other information or links"
+  field.
+- **Displayed limits**: 30 characters for the application name, 255 for the
+  description. Other limits are still to be measured: add them here.
+- **Injected values rejected**: Agorize did not keep values filled directly by script.
+  Type every answer on the keyboard, field by field (in Playwright: `pressSequentially`,
+  not `fill`), then read it back.
+- **Completion**: the application shows a percentage; file at 100 %. After filing: an
+  application ID and the submission time, to record (archive, below).
+- **Outage mid-fill**: HTTP 500 errors on every page. Stop, do not insist; resumed the
+  next day from the answers file, the single source of truth.
+
+**Microsoft AI Cloud Partner Program (Partner Center)** — an example of a sponsor's
+partner programme: the GenAI Studio rules cited a listing on the Microsoft Marketplace,
+hence enrolment on the filing day. It is separate from the application form.
+
+- Start it early: verification takes 3 to 5 business days, sometimes more. Started
+  before the jury, it lets you say "enrolled, verification in progress"; the
+  application document says so too.
+- To gather: a company work account, an administrator entitled to commit the company,
+  the company name and address **exactly as on the Kbis** (compared with official
+  documents; the country cannot be changed later), a Kbis extract, an ID document,
+  proof of the domain name, a work email on the domain, the publisher name shown to
+  customers (distinct from the company name).
+- **The person does it themselves**: password, verification codes, bank card, two-factor
+  authentication, accepting the agreements, final submission and supporting documents
+  (Kbis, domain proof).
+- After verification: tax and payout profiles (tax form to confirm with the
+  accountant).
+- Traps (2026-11-27):
+  - personal Microsoft account refused: a work tenant was created (bank card requested,
+    nothing charged, two-factor authentication);
+  - the `.onmicrosoft.com` domain can never be changed: pick a short one;
+  - company name prefilled with the brand: corrected twice to match the Kbis;
+  - registration number (SIRET) field locked: record it in the application document;
+  - the layout shifted when a field was added and an entry went into the wrong field:
+    read every field back right after typing it.
 
 ## Step 1 — blank survey of the form
 
@@ -101,8 +130,12 @@ If `alerts` mentions a captcha or a sign-in: stop and hand back to the user.
 
 ## Step 2 — answers, within the constraints
 
+- **The applying entity first**, before filling anything: legal name, SIREN/SIRET and
+  address matching the Kbis, even if the brand differs. The brand goes in the project
+  name; a new company name is written "future <name>" next to the registered name.
 - **One source of truth**: a file of answers validated by the user, one per question,
-  keyed by the exact label from the survey. A choice is copied **exactly** as the option
+  keyed by the exact label from the survey. After filing it is updated with the answers
+  as sent; after an outage, you resume from it. A choice is copied **exactly** as the option
   ("€0-200K Annual Recurring Revenues", not "0-200k").
 - **Measure every answer** against its limit, in characters AND words
   (`printf %s "$TEXT" | wc -m`, `wc -w`). Over the limit: never cut silently. Propose a
@@ -111,23 +144,27 @@ If `alerts` mentions a captcha or a sign-in: stop and hand back to the user.
   or the deck — say where.
 - **Never decide for the user** on a choice that commits them (figures, cap table, team
   size, checkboxes the answer file does not cover, a free-text answer that turns out to be
-  a checkbox list). Ask, with the exact options and your recommendation. Only exception:
+  a checkbox list). Required fields that commit the company — development stage, monthly
+  cloud spend, funding, revenue — are always asked of the person, never estimated. Ask, with the exact options and your recommendation. Only exception:
   an explicit "do your best" — then choose, and say precisely what you chose.
 - **Dated versions of one application document**: a draft ("26-11") that ends with its
   recommendation and the points to settle before filing, then "updated 27-11, filed".
   The title states the date and the status; the older version stays, to see what
   changed.
-- **Points to settle before filing**, seen on the Microsoft case:
-  - the applying entity: the registered company name and registry ID (SIRET), not the
-    brand. The brand goes in the project name; a new company name is written "future
-    <name>" next to the registered name;
-  - the place of a technology that competes with the sponsor (a programme run by a
-    vendor) in the deck and the answers: validated by a founder;
-  - every condition of the rules against the real situation (requirement, situation,
-    caveat to demonstrate), and the programme commitments (time, attendance, juries,
-    deliverables);
-  - everything announced (features, timeline, customers) must be demonstrable in front
-    of the jury: only write what will be by its date.
+- **Rule conditions become actions**: cross every condition with the company's
+  situation (requirement, situation, what is missing) and say what must be done. E.g.
+  rules citing a listing on the sponsor's marketplace -> enrolment in its partner
+  programme the same day ("Known platforms"). Also note the programme commitments
+  (time, attendance, juries, deliverables).
+- **The deck**: send the PDF, never the file with the speaker notes. Content that
+  commits the company is validated by an executive, including the place of a
+  technology that competes with the sponsor (a programme run by a vendor).
+- **Everything announced** (features, timeline, customers) must be demonstrable in front
+  of the jury: only write what will be by its date.
+- **Heavy files**: a 29 MB video exceeded the tools' upload limit (10 MB); the person
+  uploaded it themselves, with the link in the free "other information" field and a QR
+  code in the deck as fallbacks. Before filing, check the link sharing: "Anyone with
+  the link", not just the company domain.
 - **Every site and page cited in the answers must be live before filing**, checked in a
   browser (screenshot, expected content present — not just HTTP 200).
 
@@ -179,9 +216,12 @@ the draft. Then update the application document (new dated version):
 - the status: filed on …, at …, 100 % complete; the calendar that follows (shortlist,
   juries);
 - a "what we declared" summary (company, team, model, funding, attachments);
-- two lists, "Done" and "To do": jury dates blocked in calendars, speakers'
-  availability, the organiser's email to watch until the shortlist date (spam folder
-  included), any change to report to the organiser (company name).
+- two lists, "Done" and "To do" (speakers' availability, any change to report to the
+  organiser, such as a company name); this decision note holds the status of the
+  application, with a copy in the Drive;
+- jury dates: proposed for the calendar, created on the yes;
+- the shortlist email must be watched, spam folder included: offer the person a mail
+  watch, do not set it up unasked.
 
 Then, only once the confirmation is on screen, each on its own yes:
 
@@ -189,27 +229,6 @@ Then, only once the confirmation is on screen, each on its own yes:
   same thing as what was filed, send that draft on the yes.
 - **Site or case-study update** ("application filed on …"): a PR, never merged by you.
 - **A lessons-learned note**: what worked, the traps — new ones go into this skill.
-
-## The sponsor's partner programme
-
-A programme run by a vendor may cite in its rules a listing on its marketplace, hence
-enrolment in its partner programme (Microsoft case: Microsoft AI Cloud Partner Program,
-in Partner Center). **This is separate from the application form**, done by the person:
-
-- Start it early: verification takes 3 to 5 business days, sometimes more. Started
-  before the jury, it lets you say "enrolled, verification in progress"; the
-  application document says so too.
-- To gather: a company work account (not a personal one), an administrator entitled to
-  commit the company, the company name and address **exactly as registered** (compared
-  with official documents; the country cannot be changed later), a Kbis extract, an ID
-  document, the domain name records, a work email on the domain, and the publisher name
-  shown to customers (distinct from the company name).
-- The programme agreements are accepted by the person who commits the company, never
-  by you; the account's two-factor authentication stays with them.
-- After verification: tax and payout profiles (tax form to confirm with the
-  accountant).
-- Trap (2026-11-27): the registration number field was locked, the SIRET could not be
-  entered. Record it in the application document.
 
 ## The three yeses
 
@@ -223,6 +242,8 @@ in between is not a yes.
   solving service, never a password in the chat.
 - **Programme rules** (who may file, whether AI-prepared files are accepted): check the
   rules page and flag any doubt before filing.
+- **A site outage** (HTTP 500 everywhere): stop, say so, and resume later from the
+  answers file.
 
 ## Traps met (2026-11-27, TotalEnergies On)
 
@@ -248,15 +269,6 @@ in between is not a yes.
 - **No draft, no edit after submission** on this kind of form: hence the full dry run, the
   check, and the marker before the click.
 
-## Traps met (2026-11-27, Microsoft GenAI Studio, Agorize)
-
-- **Form behind an account**: nothing is visible before signing in, except the required
-  document; the scripted blank survey does not get through.
-- **Brand or company**: the draft applied under the brand; the filing was made under the
-  registered company name, with its SIRET and the future name as a mention.
-- **Partner programme**: a separate procedure, several days of verification, locked
-  registration number field (dedicated section).
-
 ## Your answer
 
 Short, result first, readable by a non-developer:
@@ -273,7 +285,8 @@ Short, result first, readable by a non-developer:
 - Submit, send an email, or merge a PR without the user's yes for that action.
 - Cut an answer silently, or pick an option that commits the user without their consent.
 - Create an account on a site unless asked.
-- Accept any agreement or rules on the user's behalf.
+- Accept any agreement, terms of use or rules on the user's behalf: read and summarise
+  them, the box is ticked with their consent.
 - Put a figure in an answer that does not come from a source (accounts, repos, the user):
   a gap is flagged, never filled in.
 
